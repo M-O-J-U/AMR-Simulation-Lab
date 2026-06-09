@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AMR Simulation Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── RESET ─────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; background: #050a0e; color: #d4e8f0; font-family: 'IBM Plex Sans', sans-serif; }
+
+/* ── DESIGN TOKENS ──────────────────────────────────────────────────────── */
+:root {
+  --bg0:      #050a0e;
+  --bg1:      #0a1520;
+  --bg2:      #0f1e2e;
+  --bg3:      #152436;
+  --border:   rgba(32,120,180,0.18);
+  --border-hi:rgba(32,180,255,0.40);
+  --text:     #d4e8f0;
+  --text-dim: #5a8099;
+  --text-faint:#2a4a5e;
+  --cyan:     #20b4ff;
+  --green:    #00e87a;
+  --red:      #ff3a5c;
+  --amber:    #ffb020;
+  --purple:   #c060ff;
+  --teal:     #00d4c0;
+  --mono:     'IBM Plex Mono', monospace;
+  --sans:     'IBM Plex Sans', sans-serif;
+  --r:        6px;
+}
+
+/* ── APP SHELL ──────────────────────────────────────────────────────────── */
+#app {
+  display: grid;
+  grid-template-columns: 240px 1fr 300px;
+  grid-template-rows: 52px 1fr 196px;
+  height: 100vh;
+  gap: 0;
+}
+
+/* ── TOP BAR ────────────────────────────────────────────────────────────── */
+#topbar {
+  grid-column: 1/-1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 18px;
+  background: var(--bg1);
+  border-bottom: 1px solid var(--border);
+  position: relative;
+  z-index: 10;
+}
+.logo {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .15em;
+  color: var(--cyan);
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.logo-hex {
+  width: 20px; height: 20px;
+  background: var(--cyan);
+  clip-path: polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+  opacity: .9;
+}
+.topbar-sep { width: 1px; height: 22px; background: var(--border); }
+#scenario-display {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: var(--mono);
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  padding: 3px 9px;
+  border-radius: 20px;
+  border: 1px solid;
+  text-transform: uppercase;
+}
+.pill-run  { color: var(--green);  border-color: var(--green);  }
+.pill-run::before { content:''; width:6px; height:6px; border-radius:50%; background:var(--green); animation: pulse 1.4s infinite; }
+.pill-pause{ color: var(--amber); border-color: var(--amber); }
+.pill-dead { color: var(--red);   border-color: var(--red); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+#step-display {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.topbar-btn {
+  padding: 5px 12px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  border-radius: var(--r);
+  border: 1px solid;
+  background: transparent;
+  cursor: pointer;
+  transition: all .15s;
+}
+.tbtn-play  { color: var(--green); border-color: var(--green); }
+.tbtn-play:hover { background: rgba(0,232,122,.1); }
+.tbtn-step  { color: var(--cyan);  border-color: var(--border-hi); }
+.tbtn-step:hover { background: rgba(32,180,255,.08); }
+.tbtn-reset { color: var(--red);   border-color: rgba(255,58,92,.4); }
+.tbtn-reset:hover { background: rgba(255,58,92,.08); }
+
+/* ── SCROLL UTILS ───────────────────────────────────────────────────────── */
+.scroll { overflow-y: auto; }
+.scroll::-webkit-scrollbar { width: 3px; }
+.scroll::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 2px; }
+
+/* ── LEFT PANEL ─────────────────────────────────────────────────────────── */
+#left {
+  background: var(--bg1);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.lsection {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.lsection-title {
+  font-family: var(--mono);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: .18em;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.lsection-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* Form elements */
+.field-label {
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--text-dim);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 4px;
+  margin-top: 8px;
+}
+.field-label:first-child { margin-top: 0; }
+select, input[type=range] {
+  width: 100%;
+  font-family: var(--mono);
+  font-size: 10px;
+}
+select {
+  background: var(--bg0);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  color: var(--text);
+  padding: 5px 8px;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23336688'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 22px;
+}
+select:focus { outline: none; border-color: var(--cyan); }
+option { background: var(--bg1); }
+input[type=range] { accent-color: var(--cyan); cursor: pointer; margin: 2px 0; }
+.range-row { display: flex; justify-content: space-between; align-items: center; }
+.range-val { font-family: var(--mono); font-size: 10px; color: var(--cyan); }
+
+.lbtn {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: all .15s;
+}
+.lbtn:hover { background: var(--bg3); border-color: var(--border-hi); }
+.lbtn-green  { color: var(--green);  border-color: rgba(0,232,122,.3); }
+.lbtn-green:hover  { background: rgba(0,232,122,.07); }
+.lbtn-red    { color: var(--red);    border-color: rgba(255,58,92,.3); }
+.lbtn-red:hover    { background: rgba(255,58,92,.07); }
+.lbtn-amber  { color: var(--amber);  border-color: rgba(255,176,32,.3); }
+.lbtn-amber:hover  { background: rgba(255,176,32,.07); }
+.lbtn-cyan   { color: var(--cyan);   border-color: rgba(32,180,255,.3); }
+.lbtn-cyan:hover   { background: rgba(32,180,255,.07); }
+.lbtn-row { display: flex; gap: 6px; margin-top: 6px; }
+.lbtn-row .lbtn { margin-top: 0; flex: 1; text-align: center; }
+
+/* Render mode chips */
+.chip-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.chip {
+  font-family: var(--mono);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  padding: 3px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all .12s;
+  text-transform: uppercase;
+}
+.chip:hover { border-color: var(--border-hi); color: var(--text); }
+.chip.active { border-color: var(--cyan); color: var(--cyan); background: rgba(32,180,255,.1); }
+
+/* Overlay toggles */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+.toggle-lbl { font-size: 10px; color: var(--text-dim); }
+.toggle {
+  position: relative;
+  width: 28px;
+  height: 14px;
+  flex-shrink: 0;
+}
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-track {
+  position: absolute;
+  inset: 0;
+  background: var(--bg0);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: .2s;
+}
+.toggle-track::after {
+  content: '';
+  position: absolute;
+  width: 8px; height: 8px;
+  top: 2px; left: 2px;
+  background: var(--text-faint);
+  border-radius: 50%;
+  transition: .2s;
+}
+.toggle input:checked + .toggle-track { background: rgba(32,180,255,.15); border-color: var(--cyan); }
+.toggle input:checked + .toggle-track::after { transform: translateX(14px); background: var(--cyan); }
+
+/* ── CANVAS ──────────────────────────────────────────────────────────────── */
+#canvas-wrap {
+  position: relative;
+  background: #020609;
+  overflow: hidden;
+}
+#petri-canvas { display: block; width: 100%; height: 100%; }
+
+/* Canvas overlays */
+#canvas-labels {
+  position: absolute;
+  top: 10px; left: 10px;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.clabel {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  color: var(--cyan);
+  background: rgba(5,10,14,.82);
+  border: 1px solid var(--border);
+  padding: 3px 8px;
+  border-radius: 4px;
+  backdrop-filter: blur(4px);
+}
+.clabel span { color: var(--text-dim); font-weight: 400; margin-right: 4px; }
+
+/* Legend in canvas corner */
+#canvas-legend {
+  position: absolute;
+  bottom: 10px; left: 10px;
+  pointer-events: none;
+  background: rgba(5,10,14,.82);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: none;
+}
+#canvas-legend.visible { display: block; }
+.legend-title {
+  font-family: var(--mono);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.legend-lbl { font-size: 9px; color: var(--text-dim); }
+
+/* Tooltip */
+#tip {
+  position: absolute;
+  display: none;
+  background: var(--bg2);
+  border: 1px solid var(--border-hi);
+  border-radius: 8px;
+  padding: 10px 12px;
+  pointer-events: none;
+  z-index: 50;
+  min-width: 180px;
+}
+.tip-name { font-size: 11px; font-weight: 600; margin-bottom: 6px; }
+.tip-row { display: flex; justify-content: space-between; gap: 16px; font-size: 10px; color: var(--text-dim); margin-bottom: 2px; }
+.tip-row strong { color: var(--text); font-weight: 500; }
+.tip-genes { margin-top: 6px; font-size: 9px; font-family: var(--mono); color: var(--purple); }
+.tip-state { display: inline-block; font-size: 8px; font-family: var(--mono); padding: 2px 6px; border-radius: 3px; margin-bottom: 6px; font-weight: 600; letter-spacing: .08em; }
+
+/* ── RIGHT PANEL ─────────────────────────────────────────────────────────── */
+#right {
+  background: var(--bg1);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow-y: auto;
+}
+.rsection { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.rsection-title {
+  font-family: var(--mono);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: .18em;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.rsection-title::after { content:''; flex:1; height:1px; background:var(--border); }
+
+/* Big number cards */
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.stat-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 9px 10px;
+  text-align: center;
+}
+.stat-num {
+  font-family: var(--mono);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1;
+  margin-bottom: 3px;
+}
+.stat-lbl { font-size: 8px; font-weight: 500; letter-spacing: .08em; color: var(--text-dim); text-transform: uppercase; }
+.stat-sub { font-size: 8px; color: var(--text-faint); margin-top: 1px; font-family: var(--mono); }
+.c-cyan   { color: var(--cyan);   }
+.c-red    { color: var(--red);    }
+.c-amber  { color: var(--amber);  }
+.c-purple { color: var(--purple); }
+.c-green  { color: var(--green);  }
+.c-teal   { color: var(--teal);   }
+
+/* Progress bars */
+.prog-row { margin-bottom: 8px; }
+.prog-header { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 3px; }
+.prog-name { color: var(--text-dim); }
+.prog-val  { color: var(--text); font-family: var(--mono); }
+.prog-bg {
+  height: 5px;
+  background: var(--bg0);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.prog-fill { height: 100%; border-radius: 3px; transition: width .5s ease; }
+
+/* Species rows */
+.species-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border);
+}
+.species-row:last-child { border-bottom: none; }
+.sp-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.sp-name { font-size: 10px; flex: 1; }
+.sp-sci  { font-size: 8px; color: var(--text-dim); font-style: italic; }
+.sp-cnt  { font-family: var(--mono); font-size: 11px; font-weight: 600; }
+.sp-who  { font-size: 7px; font-family: var(--mono); padding: 1px 5px; border-radius: 3px; font-weight: 600; }
+.who-crit{ color: var(--red);   background: rgba(255,58,92,.12); }
+.who-high{ color: var(--amber); background: rgba(255,176,32,.12); }
+
+/* Antibiotic active list */
+.ab-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border);
+}
+.ab-row:last-child { border-bottom: none; }
+.ab-swatch { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.ab-name { font-size: 10px; flex: 1; }
+.ab-class{ font-size: 8px; color: var(--text-dim); }
+.ab-conc { font-family: var(--mono); font-size: 10px; }
+.ab-none { font-size: 10px; color: var(--text-faint); font-style: italic; }
+
+/* Cell inspector */
+#inspector {
+  font-size: 10px;
+  line-height: 1.7;
+}
+.insp-empty { color: var(--text-faint); font-style: italic; font-size: 10px; }
+.insp-name  { font-size: 11px; font-weight: 600; margin-bottom: 6px; }
+.insp-kv    { display: flex; justify-content: space-between; gap: 8px; }
+.insp-key   { color: var(--text-dim); }
+.insp-val   { font-family: var(--mono); color: var(--text); text-align: right; }
+.insp-genes { margin-top: 6px; }
+.insp-gene-tag {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 8px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(192,96,255,.12);
+  color: var(--purple);
+  margin: 2px 2px 0 0;
+  border: 1px solid rgba(192,96,255,.25);
+}
+.insp-section { font-size: 8px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--text-faint); margin: 8px 0 4px; }
+
+/* ── BOTTOM PANEL ────────────────────────────────────────────────────────── */
+#bottom {
+  grid-column: 1/-1;
+  background: var(--bg1);
+  border-top: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: 1fr 1fr 240px;
+  overflow: hidden;
+}
+.bpanel { border-right: 1px solid var(--border); overflow: hidden; display: flex; flex-direction: column; }
+.bpanel:last-child { border-right: none; }
+.bpanel-title {
+  font-family: var(--mono);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: .18em;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  padding: 8px 12px 6px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* Event log */
+#event-scroll { flex: 1; overflow-y: auto; padding: 6px 12px; }
+#event-scroll::-webkit-scrollbar { width: 3px; }
+#event-scroll::-webkit-scrollbar-thumb { background: var(--border-hi); }
+.ev-line { display: flex; gap: 8px; padding: 1px 0; font-size: 10px; line-height: 1.6; }
+.ev-step { font-family: var(--mono); color: var(--text-faint); flex-shrink: 0; min-width: 40px; }
+.ev-dot  { flex-shrink: 0; width: 6px; height: 6px; border-radius: 50%; margin-top: 5px; }
+.ev-text { color: var(--text-dim); flex: 1; }
+/* Event dot colors */
+.ev-science   .ev-dot { background: var(--purple); }
+.ev-milestone .ev-dot { background: var(--cyan); }
+.ev-ab        .ev-dot { background: var(--green); }
+.ev-hgt       .ev-dot { background: var(--purple); }
+.ev-extinct   .ev-dot { background: var(--red); }
+.ev-science   .ev-text { color: var(--text); }
+.ev-ab        .ev-text { color: var(--green); }
+.ev-extinct   .ev-text { color: var(--red); }
+
+/* Population chart */
+#pop-chart-wrap { flex: 1; padding: 6px 10px 4px; }
+#pop-chart { width: 100%; height: 100%; display: block; }
+
+/* Resistance gene bars */
+#gene-bars { flex: 1; overflow-y: auto; padding: 6px 12px; }
+.gene-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.gene-lbl  { font-family: var(--mono); font-size: 8px; color: var(--text-dim); width: 80px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gene-bg   { flex: 1; height: 14px; background: var(--bg0); border-radius: 3px; overflow: hidden; position: relative; }
+.gene-fill { height: 100%; border-radius: 3px; background: var(--purple); transition: width .5s; }
+.gene-pct  { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); font-family: var(--mono); font-size: 8px; color: rgba(255,255,255,.6); }
+.gene-cnt  { font-family: var(--mono); font-size: 9px; color: var(--text-dim); width: 28px; text-align: right; flex-shrink: 0; }
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ── TOP BAR ──────────────────────────────────────────────────────────── -->
+<header id="topbar">
+  <div class="logo"><div class="logo-hex"></div>AMR Sim Lab</div>
+  <div class="topbar-sep"></div>
+  <span id="scenario-display">–</span>
+  <div class="topbar-sep"></div>
+  <span id="status-pill" class="pill pill-pause">PAUSED</span>
+  <div class="topbar-sep"></div>
+  <button class="topbar-btn tbtn-play" id="btn-play" onclick="togglePlay()">▶ Play</button>
+  <button class="topbar-btn tbtn-step" onclick="stepOnce()">+1 Step</button>
+  <button class="topbar-btn tbtn-reset" onclick="confirmReset()">↺ Reset</button>
+  <span id="step-display" style="margin-left:auto; font-family:var(--mono); font-size:11px; color:var(--text-dim);">Step 0</span>
+</header>
+
+<!-- ── LEFT PANEL ───────────────────────────────────────────────────────── -->
+<aside id="left" class="scroll">
+
+  <div class="lsection">
+    <div class="lsection-title">Scenario</div>
+    <span class="field-label">Choose experiment</span>
+    <select id="sel-scenario">
+      <option value="validation">E. coli — no antibiotics (baseline)</option>
+      <option value="ecoli_cipro" selected>E. coli + Ciprofloxacin</option>
+      <option value="klebsiella_carbapenem">Klebsiella + Meropenem</option>
+      <option value="xdr_acinetobacter">XDR Acinetobacter + Colistin</option>
+      <option value="mrsa_hospital">MRSA + Vancomycin</option>
+      <option value="pakistan_crisis">Pakistan AMR Crisis (2 germs)</option>
+      <option value="multi_species">Multi-Species Competition (3 germs)</option>
+    </select>
+    <span class="field-label">Starting bacteria</span>
+    <div class="range-row">
+      <input type="range" id="rng-pop" min="10" max="300" value="80"
+             oninput="document.getElementById('val-pop').textContent=this.value">
+      <span class="range-val" id="val-pop">80</span>
+    </div>
+    <span class="field-label">Speed</span>
+    <div class="range-row">
+      <input type="range" id="rng-speed" min="1" max="20" value="5"
+             oninput="document.getElementById('val-speed').textContent=this.value; if(isPlaying) startLoop()">
+      <span class="range-val" id="val-speed">5</span>
+    </div>
+  </div>
+
+  <div class="lsection">
+    <div class="lsection-title">Apply Antibiotic</div>
+    <span class="field-label">Drug</span>
+    <select id="sel-ab">
+      <option value="ciprofloxacin">Ciprofloxacin — Fluoroquinolone</option>
+      <option value="meropenem">Meropenem — Carbapenem (last resort)</option>
+      <option value="colistin">Colistin — Polymyxin (last resort)</option>
+      <option value="vancomycin">Vancomycin — Glycopeptide</option>
+      <option value="ampicillin">Ampicillin — Penicillin</option>
+      <option value="tetracycline">Tetracycline — broad spectrum</option>
+    </select>
+    <span class="field-label">Dose (µg/mL)</span>
+    <div class="range-row">
+      <input type="range" id="rng-dose" min="1" max="50" value="10"
+             oninput="document.getElementById('val-dose').textContent=(this.value/10).toFixed(1)">
+      <span class="range-val" id="val-dose">1.0</span>
+    </div>
+    <span class="field-label">How to apply</span>
+    <select id="sel-mode">
+      <option value="uniform">Flood — covers entire grid</option>
+      <option value="gradient">Gradient — left side stronger</option>
+      <option value="spot">Spot — concentrated in center</option>
+      <option value="zone">Zone — left half only</option>
+    </select>
+    <div class="lbtn-row">
+      <button class="lbtn lbtn-green" onclick="applyAB()">+ Apply</button>
+      <button class="lbtn lbtn-red"   onclick="clearAllAB()">✕ Clear</button>
+    </div>
+  </div>
+
+  <div class="lsection">
+    <div class="lsection-title">Add Bacteria</div>
+    <span class="field-label">Species</span>
+    <select id="sel-spawn">
+      <option value="e_coli">E. coli</option>
+      <option value="klebsiella_pneumoniae">Klebsiella pneumoniae</option>
+      <option value="acinetobacter_baumannii">Acinetobacter baumannii (XDR)</option>
+      <option value="pseudomonas_aeruginosa">Pseudomonas aeruginosa</option>
+      <option value="mrsa">MRSA</option>
+    </select>
+    <span class="field-label">Count</span>
+    <div class="range-row">
+      <input type="range" id="rng-spawn" min="5" max="150" value="20"
+             oninput="document.getElementById('val-spawn').textContent=this.value">
+      <span class="range-val" id="val-spawn">20</span>
+    </div>
+    <button class="lbtn lbtn-amber" onclick="spawnBacteria()">⊕ Spawn Bacteria</button>
+  </div>
+
+  <div class="lsection">
+    <div class="lsection-title">Visual Mode</div>
+    <div class="chip-row" id="chip-row">
+      <div class="chip active" onclick="setMode('species')">By Species</div>
+      <div class="chip" onclick="setMode('resistance')">Resistance</div>
+      <div class="chip" onclick="setMode('fitness')">Fitness</div>
+      <div class="chip" onclick="setMode('state')">Cell State</div>
+      <div class="chip" onclick="setMode('energy')">Energy</div>
+    </div>
+    <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 2px;">
+      <div class="toggle-row">
+        <span class="toggle-lbl">Antibiotic heatmap</span>
+        <label class="toggle"><input type="checkbox" id="tog-ab" checked><span class="toggle-track"></span></label>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-lbl">HGT event flashes</span>
+        <label class="toggle"><input type="checkbox" id="tog-hgt" checked><span class="toggle-track"></span></label>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-lbl">Nutrient map</span>
+        <label class="toggle"><input type="checkbox" id="tog-nut"><span class="toggle-track"></span></label>
+      </div>
+    </div>
+  </div>
+
+</aside>
+
+<!-- ── CANVAS ────────────────────────────────────────────────────────────── -->
+<main id="canvas-wrap">
+  <canvas id="petri-canvas"></canvas>
+  <div id="canvas-labels">
+    <div class="clabel" id="lbl-pop"><span>ALIVE</span>–</div>
+    <div class="clabel" id="lbl-res"><span>RESISTANT</span>–</div>
+    <div class="clabel" id="lbl-hgt"><span>HGT EVENTS</span>–</div>
+  </div>
+  <div id="canvas-legend">
+    <div class="legend-title" id="legend-title">–</div>
+    <div id="legend-items"></div>
+  </div>
+  <div id="tip"></div>
+</main>
+
+<!-- ── RIGHT PANEL ───────────────────────────────────────────────────────── -->
+<aside id="right">
+
+  <div class="rsection">
+    <div class="rsection-title">Live Stats</div>
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-num c-cyan" id="st-total">0</div>
+        <div class="stat-lbl">Alive</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num c-red" id="st-resist">0</div>
+        <div class="stat-lbl">Resistant</div>
+        <div class="stat-sub" id="st-resist-pct">–</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num c-amber" id="st-biofilm">0</div>
+        <div class="stat-lbl">In Biofilm</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num c-purple" id="st-persist">0</div>
+        <div class="stat-lbl">Persisters</div>
+      </div>
+    </div>
+    <div style="margin-top:10px; display:flex; flex-direction:column; gap:6px;">
+      <div class="prog-row" style="margin:0">
+        <div class="prog-header">
+          <span class="prog-name">Avg fitness</span>
+          <span class="prog-val" id="st-fit">–</span>
+        </div>
+        <div class="prog-bg"><div class="prog-fill" id="bar-fit" style="width:0%; background:var(--green)"></div></div>
+      </div>
+      <div class="prog-row" style="margin:0">
+        <div class="prog-header">
+          <span class="prog-name">Avg resistance genes</span>
+          <span class="prog-val" id="st-genes">–</span>
+        </div>
+        <div class="prog-bg"><div class="prog-fill" id="bar-genes" style="width:0%; background:var(--purple)"></div></div>
+      </div>
+      <div class="prog-row" style="margin:0">
+        <div class="prog-header">
+          <span class="prog-name">HGT transfer events</span>
+          <span class="prog-val" id="st-hgt">–</span>
+        </div>
+        <div class="prog-bg"><div class="prog-fill" id="bar-hgt" style="width:0%; background:var(--teal)"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="rsection">
+    <div class="rsection-title">Species Present</div>
+    <div id="species-list"><div class="ab-none">No data yet</div></div>
+  </div>
+
+  <div class="rsection">
+    <div class="rsection-title">Active Antibiotics</div>
+    <div id="ab-list"><div class="ab-none">None applied</div></div>
+  </div>
+
+  <div class="rsection">
+    <div class="rsection-title">Selected Cell</div>
+    <div id="inspector"><div class="insp-empty">Click a bacterium on the canvas to inspect it</div></div>
+  </div>
+
+</aside>
+
+<!-- ── BOTTOM ────────────────────────────────────────────────────────────── -->
+<div id="bottom">
+
+  <div class="bpanel">
+    <div class="bpanel-title">Simulation Events</div>
+    <div id="event-scroll"></div>
+  </div>
+
+  <div class="bpanel">
+    <div class="bpanel-title">Population Over Time</div>
+    <div id="pop-chart-wrap"><canvas id="pop-chart"></canvas></div>
+  </div>
+
+  <div class="bpanel">
+    <div class="bpanel-title">Resistance Gene Spread</div>
+    <div id="gene-bars"></div>
+  </div>
+
+</div>
+</div>
+
+<script>
+// ────────────────────────────────────────────────────────────────────────────
+// STATE
+// ────────────────────────────────────────────────────────────────────────────
+const API = 'http://localhost:8000';
+let isPlaying  = false;
+let playTimer  = null;
+let renderMode = 'species';
+let lastState  = null;
+let selectedId = null;
+let hgtFlashes = [];
+let maxHGT     = 1;
+
+// Population history
+const hist = { steps:[], total:[], resistant:[] };
+
+// Species meta
+const SP = {
+  'Escherichia coli':            { color:'#4CAF50', who:'HIGH' },
+  'Klebsiella pneumoniae':       { color:'#FF9800', who:'CRITICAL' },
+  'Acinetobacter baumannii':     { color:'#F44336', who:'CRITICAL' },
+  'Pseudomonas aeruginosa':      { color:'#9C27B0', who:'CRITICAL' },
+  'Staphylococcus aureus (MRSA)':{ color:'#FFD700', who:'HIGH' },
+};
+
+// Render mode legends
+const LEGENDS = {
+  resistance: {
+    title: 'Resistance Gene Count',
+    items: [
+      { color:'#2d6a2d', label:'0 genes — fully susceptible' },
+      { color:'#7aff4a', label:'1 gene' },
+      { color:'#ffaa00', label:'2 genes' },
+      { color:'#ff5500', label:'3 genes' },
+      { color:'#ff0033', label:'4+ genes — highly resistant' },
+    ]
+  },
+  fitness: {
+    title: 'Bacterial Fitness (0→1)',
+    items: [
+      { color:'#ff0000', label:'Low fitness (< 0.3)' },
+      { color:'#ff8800', label:'Medium (0.3–0.6)' },
+      { color:'#00ff88', label:'High fitness (> 0.7)' },
+    ]
+  },
+  state: {
+    title: 'Cell Physiological State',
+    items: [
+      { color:'#00ff88', label:'Growing — dividing normally' },
+      { color:'#ff3366', label:'Stressed — SOS response active' },
+      { color:'#ffaa00', label:'Biofilm — inside biofilm colony' },
+      { color:'#334455', label:'Dormant — persister (tolerant)' },
+      { color:'#ff0000', label:'Dying — antibiotic damage critical' },
+    ]
+  },
+  energy: {
+    title: 'Cell Energy Level (0→1)',
+    items: [
+      { color:'#ff0000', label:'Starving (< 0.2)' },
+      { color:'#ffaa00', label:'Low energy (0.2–0.5)' },
+      { color:'#00d4ff', label:'Healthy energy (> 0.7)' },
+    ]
+  },
+};
+
+// ────────────────────────────────────────────────────────────────────────────
+// CANVAS SETUP
+// ────────────────────────────────────────────────────────────────────────────
+const canvas   = document.getElementById('petri-canvas');
+const ctx      = canvas.getContext('2d');
+const popCv    = document.getElementById('pop-chart');
+const popCtx   = popCv.getContext('2d');
+
+function resizeCanvas() {
+  const w = document.getElementById('canvas-wrap');
+  canvas.width  = w.clientWidth;
+  canvas.height = w.clientHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', () => { resizeCanvas(); if(lastState) renderCanvas(lastState); });
+
+// ────────────────────────────────────────────────────────────────────────────
+// CANVAS RENDER
+// ────────────────────────────────────────────────────────────────────────────
+function renderCanvas(state) {
+  if (!state) return;
+  const { bacteria, antibiotic_heatmaps, nutrient_heatmap, grid_width: GW, grid_height: GH } = state;
+  const W = canvas.width, H = canvas.height;
+  const sx = W / GW, sy = H / GH;
+
+  // Background
+  ctx.fillStyle = '#020609';
+  ctx.fillRect(0, 0, W, H);
+
+  // Subtle grid
+  ctx.strokeStyle = 'rgba(20,60,90,0.3)';
+  ctx.lineWidth = 0.5;
+  for (let x = 0; x < GW; x += 10) { ctx.beginPath(); ctx.moveTo(x*sx,0); ctx.lineTo(x*sx,H); ctx.stroke(); }
+  for (let y = 0; y < GH; y += 10) { ctx.beginPath(); ctx.moveTo(0,y*sy); ctx.lineTo(W,y*sy); ctx.stroke(); }
+
+  // Nutrient map
+  if (document.getElementById('tog-nut').checked && nutrient_heatmap?.length) {
+    const nh = nutrient_heatmap.length, nw = nutrient_heatmap[0]?.length || 1;
+    const nsx = W/nw, nsy = H/nh;
+    nutrient_heatmap.forEach((row,y) => row.forEach((v,x) => {
+      if (v > 0.05) {
+        ctx.fillStyle = `rgba(0,200,80,${v*0.07})`;
+        ctx.fillRect(x*nsx, y*nsy, nsx+1, nsy+1);
+      }
+    }));
+  }
+
+  // Antibiotic heatmaps
+  if (document.getElementById('tog-ab').checked) {
+    Object.values(antibiotic_heatmaps || {}).forEach(hm => {
+      if (!hm.data?.length) return;
+      const c = hexRgb(hm.color);
+      const nh = hm.data.length, nw = hm.data[0]?.length || 1;
+      const nsx = W/nw, nsy = H/nh;
+      hm.data.forEach((row,y) => row.forEach((v,x) => {
+        if (v > 0.01) {
+          ctx.fillStyle = `rgba(${c.r},${c.g},${c.b},${Math.min(0.6, v*0.28)})`;
+          ctx.fillRect(x*nsx, y*nsy, nsx+1, nsy+1);
+        }
+      }));
+    });
+  }
+
+  // HGT flashes
+  if (document.getElementById('tog-hgt').checked) {
+    hgtFlashes = hgtFlashes.filter(f => f.a > 0.01);
+    hgtFlashes.forEach(f => {
+      ctx.beginPath();
+      ctx.arc(f.x, f.y, f.r, 0, Math.PI*2);
+      ctx.strokeStyle = `rgba(192,96,255,${f.a})`;
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+      f.r += 1.4; f.a -= 0.045;
+    });
+  }
+
+  // Bacteria
+  bacteria.forEach(b => {
+    const px = b.pos[0]*sx + sx/2;
+    const py = b.pos[1]*sy + sy/2;
+    const r  = Math.max(2.5, Math.min(5.5, sx * 0.46));
+    const alpha = b.state==='dormant' ? 0.38 : b.state==='dying' ? 0.55 : 1.0;
+    const col = bacteriumColor(b);
+
+    // Glow rings
+    if (b.sos_active) {
+      ctx.beginPath(); ctx.arc(px, py, r+4, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(255,50,50,0.12)`; ctx.fill();
+    }
+    if (b.in_biofilm) {
+      ctx.beginPath(); ctx.arc(px, py, r+3, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(255,160,0,0.1)`; ctx.fill();
+    }
+
+    // Body
+    ctx.beginPath();
+    if (b.shape === 'bacillus') {
+      ctx.ellipse(px, py, r*1.7, r*0.65, 0, 0, Math.PI*2);
+    } else {
+      ctx.arc(px, py, r, 0, Math.PI*2);
+    }
+    const c = hexRgb(col);
+    ctx.fillStyle = `rgba(${c.r},${c.g},${c.b},${alpha})`;
+    ctx.fill();
+
+    // Resistance outline
+    if (b.gene_count > 0) {
+      const rc = hexRgb('#ff3a5c');
+      ctx.strokeStyle = `rgba(${rc.r},${rc.g},${rc.b},${Math.min(0.9, b.gene_count*0.28)})`;
+      ctx.lineWidth = 0.9;
+      ctx.stroke();
+    }
+
+    // Selected indicator
+    if (b.id === selectedId) {
+      ctx.beginPath(); ctx.arc(px, py, r+5, 0, Math.PI*2);
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
+      ctx.setLineDash([3,2]); ctx.stroke(); ctx.setLineDash([]);
+    }
+  });
+
+  // HGT new events
+  if (document.getElementById('tog-hgt').checked) {
+    (state.hgt_events || []).slice(-8).forEach(ev => {
+      hgtFlashes.push({ x: ev.pos[0]*sx, y: ev.pos[1]*sy, r: 4, a: 0.95 });
+    });
+  }
+}
+
+function bacteriumColor(b) {
+  switch (renderMode) {
+    case 'species': return b.color_hex;
+    case 'resistance': {
+      const g = Math.min(b.gene_count, 4);
+      return ['#2d6a2d','#7aff4a','#ffaa00','#ff5500','#ff0033'][g];
+    }
+    case 'fitness': return lerpHex('#ff0000','#00e87a', b.fitness);
+    case 'state': return {growing:'#00e87a',stressed:'#ff3a5c',biofilm:'#ffb020',dormant:'#334455',dying:'#ff0000'}[b.state] || '#888';
+    case 'energy': return lerpHex('#ff0000','#20b4ff', b.energy);
+    default: return b.color_hex;
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// POPULATION HISTORY CHART
+// ────────────────────────────────────────────────────────────────────────────
+function renderPopChart() {
+  const wrap = document.getElementById('pop-chart-wrap');
+  popCv.width  = wrap.clientWidth;
+  popCv.height = wrap.clientHeight;
+  const W = popCv.width, H = popCv.height;
+  popCtx.clearRect(0, 0, W, H);
+  const n = hist.total.length;
+  if (n < 2) return;
+
+  const maxVal = Math.max(...hist.total, 1);
+
+  // Grid lines
+  popCtx.strokeStyle = 'rgba(32,120,180,0.08)';
+  popCtx.lineWidth   = 1;
+  for (let i=0; i<=4; i++) {
+    const y = H - (i/4)*(H-10) - 5;
+    popCtx.beginPath(); popCtx.moveTo(0,y); popCtx.lineTo(W,y); popCtx.stroke();
+  }
+
+  function drawLine(data, color, dash=[]) {
+    popCtx.beginPath();
+    data.forEach((v,i) => {
+      const x = (i/(n-1))*W;
+      const y = H - (v/maxVal)*(H-10) - 5;
+      i===0 ? popCtx.moveTo(x,y) : popCtx.lineTo(x,y);
+    });
+    popCtx.strokeStyle  = color;
+    popCtx.lineWidth    = 1.5;
+    popCtx.setLineDash(dash);
+    popCtx.stroke();
+    popCtx.setLineDash([]);
+  }
+  // Fill area under total
+  popCtx.beginPath();
+  hist.total.forEach((v,i) => {
+    const x=(i/(n-1))*W, y=H-(v/maxVal)*(H-10)-5;
+    i===0?popCtx.moveTo(x,y):popCtx.lineTo(x,y);
+  });
+  popCtx.lineTo(W,H); popCtx.lineTo(0,H); popCtx.closePath();
+  popCtx.fillStyle = 'rgba(32,180,255,0.06)'; popCtx.fill();
+
+  drawLine(hist.total,    '#20b4ff');
+  drawLine(hist.resistant,'#ff3a5c', [4,3]);
+
+  // Legend
+  popCtx.font = '8px IBM Plex Mono';
+  popCtx.fillStyle = 'rgba(32,180,255,.8)';
+  popCtx.fillText('Total', 4, 10);
+  popCtx.fillStyle = 'rgba(255,58,92,.8)';
+  popCtx.fillText('Resistant', 40, 10);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// UI UPDATE
+// ────────────────────────────────────────────────────────────────────────────
+function updateUI(state) {
+  const s = state.stats;
+
+  // Topbar
+  document.getElementById('step-display').textContent = `Step ${s.step}`;
+  document.getElementById('scenario-display').textContent = s.scenario || '–';
+
+  // Canvas labels
+  document.getElementById('lbl-pop').innerHTML = `<span>ALIVE</span>${s.total_bacteria}`;
+  const rPct = s.total_bacteria > 0 ? Math.round(s.resistant_bacteria/s.total_bacteria*100) : 0;
+  document.getElementById('lbl-res').innerHTML = `<span>RESISTANT</span>${s.resistant_bacteria} (${rPct}%)`;
+  document.getElementById('lbl-hgt').innerHTML = `<span>HGT EVENTS</span>${s.hgt_total}`;
+
+  // Status pill
+  const pill = document.getElementById('status-pill');
+  if (s.total_bacteria === 0) {
+    pill.className = 'pill pill-dead'; pill.textContent = 'EXTINCT';
+  } else if (isPlaying) {
+    pill.className = 'pill pill-run';  pill.innerHTML  = '&nbsp;RUNNING';
+  } else {
+    pill.className = 'pill pill-pause'; pill.textContent = 'PAUSED';
+  }
+
+  // Stats
+  document.getElementById('st-total').textContent  = s.total_bacteria;
+  document.getElementById('st-resist').textContent = s.resistant_bacteria;
+  document.getElementById('st-resist-pct').textContent = s.total_bacteria > 0
+    ? `${rPct}% of population` : '–';
+  document.getElementById('st-biofilm').textContent = s.biofilm_bacteria;
+  document.getElementById('st-persist').textContent = s.persister_cells;
+  document.getElementById('st-fit').textContent    = s.avg_fitness.toFixed(3);
+  document.getElementById('st-genes').textContent  = s.avg_resistance_genes.toFixed(2);
+  document.getElementById('st-hgt').textContent    = s.hgt_total;
+
+  document.getElementById('bar-fit').style.width   = (s.avg_fitness * 100) + '%';
+  document.getElementById('bar-genes').style.width = (Math.min(s.avg_resistance_genes / 5, 1) * 100) + '%';
+  maxHGT = Math.max(maxHGT, s.hgt_total, 1);
+  document.getElementById('bar-hgt').style.width   = (s.hgt_total / maxHGT * 100) + '%';
+
+  // Species list
+  const spEl = document.getElementById('species-list');
+  const spCounts = s.species_counts || {};
+  if (Object.keys(spCounts).length === 0) {
+    spEl.innerHTML = '<div class="ab-none">No bacteria present</div>';
+  } else {
+    spEl.innerHTML = Object.entries(spCounts).map(([sp, cnt]) => {
+      const meta = SP[sp] || { color:'#aaa', who:'HIGH' };
+      const whoClass = meta.who === 'CRITICAL' ? 'who-crit' : 'who-high';
+      const shortName = sp.split(' ').slice(0,2).join(' ');
+      return `<div class="species-row">
+        <div class="sp-dot" style="background:${meta.color}"></div>
+        <div>
+          <div class="sp-name" style="font-style:italic;">${shortName}</div>
+          <div class="sp-who ${whoClass}">WHO ${meta.who}</div>
+        </div>
+        <div class="sp-cnt" style="color:${meta.color}">${cnt}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Antibiotics
+  const abEl = document.getElementById('ab-list');
+  const abMap = state.antibiotic_heatmaps || {};
+  if (Object.keys(abMap).length === 0) {
+    abEl.innerHTML = '<div class="ab-none">None — bacteria are untreated</div>';
+  } else {
+    abEl.innerHTML = Object.entries(abMap).map(([key, hm]) => {
+      const maxC = hm.max || 0;
+      return `<div class="ab-row">
+        <div class="ab-swatch" style="background:${hm.color}"></div>
+        <div>
+          <div class="ab-name">${hm.name}</div>
+          <div class="ab-class">Max: ${maxC.toFixed(2)} µg/mL</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Gene bars
+  const geneEl = document.getElementById('gene-bars');
+  const geneDist = s.gene_distribution || {};
+  const geneEntries = Object.entries(geneDist).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const maxG = geneEntries[0]?.[1] || 1;
+  const total = s.total_bacteria || 1;
+  if (geneEntries.length === 0) {
+    geneEl.innerHTML = '<div style="font-size:9px; color:var(--text-faint); padding:4px">No resistance genes yet</div>';
+  } else {
+    geneEl.innerHTML = geneEntries.map(([g,c]) => {
+      const pct = Math.round(c/total*100);
+      const barW = Math.round(c/maxG*100);
+      return `<div class="gene-row">
+        <div class="gene-lbl" title="${g}">${g}</div>
+        <div class="gene-bg">
+          <div class="gene-fill" style="width:${barW}%"></div>
+          <span class="gene-pct">${pct}%</span>
+        </div>
+        <div class="gene-cnt">${c}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Events
+  const evScroll = document.getElementById('event-scroll');
+  const events   = state.event_log || [];
+  const lastLog  = evScroll.dataset.lastStep || -1;
+  events.filter(e => e.step > parseInt(lastLog)).forEach(ev => {
+    const cls = ev.type==='hgt_burst'          ? 'ev-hgt'
+              : ev.type.includes('antibiotic')  ? 'ev-ab'
+              : ev.type==='extinction'          ? 'ev-extinct'
+              : ev.type==='simulation_start'    ? 'ev-milestone'
+              : 'ev-science';
+    const div = document.createElement('div');
+    div.className = `ev-line ${cls}`;
+    div.innerHTML = `<span class="ev-step">${String(ev.step).padStart(4,'0')}</span><div class="ev-dot"></div><span class="ev-text">${ev.message}</span>`;
+    evScroll.appendChild(div);
+  });
+  if (events.length > 0) {
+    evScroll.dataset.lastStep = events[events.length-1].step;
+    evScroll.scrollTop = evScroll.scrollHeight;
+  }
+
+  // Pop history
+  if (s.step % 2 === 0) {
+    hist.steps.push(s.step);
+    hist.total.push(s.total_bacteria);
+    hist.resistant.push(s.resistant_bacteria);
+    if (hist.total.length > 200) { hist.steps.shift(); hist.total.shift(); hist.resistant.shift(); }
+    renderPopChart();
+  }
+
+  // Legend
+  updateLegend();
+}
+
+function updateLegend() {
+  const legend = document.getElementById('canvas-legend');
+  const data   = LEGENDS[renderMode];
+  if (!data) { legend.classList.remove('visible'); return; }
+  legend.classList.add('visible');
+  document.getElementById('legend-title').textContent = data.title;
+  document.getElementById('legend-items').innerHTML = data.items.map(i =>
+    `<div class="legend-item"><div class="legend-dot" style="background:${i.color}"></div><div class="legend-lbl">${i.label}</div></div>`
+  ).join('');
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// CANVAS INTERACTIONS
+// ────────────────────────────────────────────────────────────────────────────
+canvas.addEventListener('mousemove', e => {
+  if (!lastState) return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const sx = canvas.width/lastState.grid_width, sy = canvas.height/lastState.grid_height;
+  const gx = Math.floor(mx/sx), gy = Math.floor(my/sy);
+
+  const near = lastState.bacteria.filter(b =>
+    Math.abs(b.pos[0]-gx)<=1 && Math.abs(b.pos[1]-gy)<=1
+  );
+  const tip = document.getElementById('tip');
+  if (near.length > 0) {
+    const b = near[0];
+    const stateColors = {growing:'#00e87a',stressed:'#ff3a5c',biofilm:'#ffb020',dormant:'#8899aa',dying:'#ff4444',dead:'#333'};
+    const sc = stateColors[b.state] || '#888';
+    const shortSp = b.species.split(' ').slice(0,2).join(' ');
+    const genes = b.resistance_genes.length > 0
+      ? b.resistance_genes.map(g=>`<span style="display:inline-block;background:rgba(192,96,255,.15);color:var(--purple);font-family:var(--mono);font-size:8px;padding:1px 5px;border-radius:3px;margin:1px">${g}</span>`).join(' ')
+      : '<span style="color:var(--text-faint);font-size:9px;">None — susceptible</span>';
+
+    tip.style.display = 'block';
+    const tipX = Math.min(e.clientX - rect.left + 14, canvas.width - 220);
+    const tipY = Math.min(e.clientY - rect.top  + 14, canvas.height - 180);
+    tip.style.left = tipX + 'px';
+    tip.style.top  = tipY + 'px';
+    tip.innerHTML = `
+      <div class="tip-name" style="color:${b.color_hex}"><i>${shortSp}</i></div>
+      <span class="tip-state" style="background:${sc}22; color:${sc}; border:1px solid ${sc}44">${b.state.toUpperCase()}</span>
+      <div class="tip-row"><span>Fitness</span><strong>${b.fitness.toFixed(3)}</strong></div>
+      <div class="tip-row"><span>Energy</span><strong>${b.energy.toFixed(2)}</strong></div>
+      <div class="tip-row"><span>Generation</span><strong>${b.generation}</strong></div>
+      <div class="tip-row"><span>Mutations</span><strong>${b.total_mutations}</strong></div>
+      <div class="tip-row"><span>HGT events</span><strong>${b.hgt_events}</strong></div>
+      <div class="tip-row"><span>Offspring</span><strong>${b.offspring_count}</strong></div>
+      <div class="tip-row"><span>In biofilm</span><strong>${b.in_biofilm?'Yes':'No'}</strong></div>
+      <div class="tip-row"><span>SOS active</span><strong>${b.sos_active?'YES — mutating fast':'No'}</strong></div>
+      <div class="tip-genes"><div style="font-size:8px;color:var(--text-faint);margin-bottom:3px;">RESISTANCE GENES:</div>${genes}</div>
+    `;
+  } else {
+    tip.style.display = 'none';
+  }
+});
+canvas.addEventListener('mouseleave', () => { document.getElementById('tip').style.display='none'; });
+
+canvas.addEventListener('click', e => {
+  if (!lastState) return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX-rect.left, my = e.clientY-rect.top;
+  const sx = canvas.width/lastState.grid_width, sy = canvas.height/lastState.grid_height;
+  const gx = Math.floor(mx/sx), gy = Math.floor(my/sy);
+  const near = lastState.bacteria.filter(b =>
+    Math.abs(b.pos[0]-gx)<=1 && Math.abs(b.pos[1]-gy)<=1
+  );
+  if (near.length > 0) {
+    const b = near[0];
+    selectedId = b.id;
+    const shortSp = b.species.split(' ').slice(0,2).join(' ');
+    const stateColors = {growing:'var(--green)',stressed:'var(--red)',biofilm:'var(--amber)',dormant:'var(--text-dim)',dying:'var(--red)'};
+    const sc = stateColors[b.state] || 'var(--text-dim)';
+    const genes = b.resistance_genes.length > 0
+      ? b.resistance_genes.map(g=>`<span class="insp-gene-tag">${g}</span>`).join('')
+      : '<span style="color:var(--text-faint);font-size:9px;">No resistance genes — fully susceptible</span>';
+
+    document.getElementById('inspector').innerHTML = `
+      <div class="insp-name" style="color:${b.color_hex};font-style:italic">${shortSp}</div>
+      <div class="insp-kv"><span class="insp-key">State</span><strong class="insp-val" style="color:${sc}">${b.state}</strong></div>
+      <div class="insp-kv"><span class="insp-key">Generation</span><span class="insp-val">${b.generation}</span></div>
+      <div class="insp-kv"><span class="insp-key">Age (steps)</span><span class="insp-val">${b.age}</span></div>
+      <div class="insp-kv"><span class="insp-key">Fitness</span><span class="insp-val">${b.fitness.toFixed(4)}</span></div>
+      <div class="insp-kv"><span class="insp-key">Energy</span><span class="insp-val">${b.energy.toFixed(3)}</span></div>
+      <div class="insp-kv"><span class="insp-key">Stress level</span><span class="insp-val">${b.stress_level.toFixed(3)}</span></div>
+      <div class="insp-kv"><span class="insp-key">AB damage</span><span class="insp-val">${b.antibiotic_damage.toFixed(3)}</span></div>
+      <div class="insp-kv"><span class="insp-key">Biofilm</span><span class="insp-val">${b.in_biofilm?'Yes':'No'}</span></div>
+      <div class="insp-kv"><span class="insp-key">Persister</span><span class="insp-val">${b.is_persister?'Yes (dormant, tolerant)':'No'}</span></div>
+      <div class="insp-kv"><span class="insp-key">SOS active</span><span class="insp-val">${b.sos_active?'Yes — mutation rate ×8':'No'}</span></div>
+      <div class="insp-kv"><span class="insp-key">Mutations</span><span class="insp-val">${b.total_mutations}</span></div>
+      <div class="insp-kv"><span class="insp-key">HGT events</span><span class="insp-val">${b.hgt_events}</span></div>
+      <div class="insp-kv"><span class="insp-key">Offspring</span><span class="insp-val">${b.offspring_count}</span></div>
+      <div class="insp-section">Resistance genes (${b.resistance_genes.length})</div>
+      <div class="insp-genes">${genes}</div>
+    `;
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// API CALLS
+// ────────────────────────────────────────────────────────────────────────────
+async function fetchState() {
+  try {
+    const res = await fetch(`${API}/state`);
+    const state = await res.json();
+    lastState = state;
+    renderCanvas(state);
+    updateUI(state);
+  } catch {
+    document.getElementById('lbl-pop').innerHTML = '<span>STATUS</span>Cannot reach server';
+  }
+}
+
+async function stepOnce() {
+  try {
+    await fetch(`${API}/step`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({n_steps:1})});
+    fetchState();
+  } catch {}
+}
+
+async function applyAB() {
+  const key  = document.getElementById('sel-ab').value;
+  const conc = parseFloat(document.getElementById('rng-dose').value)/10;
+  const mode = document.getElementById('sel-mode').value;
+  try {
+    await fetch(`${API}/apply_antibiotic`,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({antibiotic_key:key,concentration:conc,mode})});
+    fetchState();
+  } catch {}
+}
+
+async function clearAllAB() {
+  const keys=['ciprofloxacin','meropenem','colistin','vancomycin','ampicillin','tetracycline'];
+  for (const k of keys) {
+    try { await fetch(`${API}/remove_antibiotic`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({antibiotic_key:k})}); } catch {}
+  }
+  fetchState();
+}
+
+async function spawnBacteria() {
+  const key = document.getElementById('sel-spawn').value;
+  const cnt = parseInt(document.getElementById('rng-spawn').value);
+  try {
+    await fetch(`${API}/spawn_bacteria`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({germ_key:key,count:cnt})});
+    fetchState();
+  } catch {}
+}
+
+async function confirmReset() {
+  const scenario = document.getElementById('sel-scenario').value;
+  const pop      = parseInt(document.getElementById('rng-pop').value);
+  try {
+    await fetch(`${API}/reset`,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({scenario,initial_bacteria:pop})});
+    // clear local state
+    hist.steps=[]; hist.total=[]; hist.resistant=[];
+    hgtFlashes=[]; selectedId=null; maxHGT=1;
+    document.getElementById('event-scroll').innerHTML='';
+    document.getElementById('event-scroll').dataset.lastStep='-1';
+    document.getElementById('inspector').innerHTML='<div class="insp-empty">Click a bacterium on the canvas to inspect it</div>';
+    fetchState();
+  } catch {}
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// PLAY / PAUSE
+// ────────────────────────────────────────────────────────────────────────────
+function togglePlay() {
+  isPlaying = !isPlaying;
+  const btn = document.getElementById('btn-play');
+  if (isPlaying) {
+    btn.textContent = '⏸ Pause'; btn.className = 'topbar-btn tbtn-reset';
+    fetch(`${API}/resume`,{method:'POST'});
+    startLoop();
+  } else {
+    btn.textContent = '▶ Play';  btn.className = 'topbar-btn tbtn-play';
+    clearInterval(playTimer);
+    fetch(`${API}/pause`,{method:'POST'});
+  }
+}
+
+function startLoop() {
+  clearInterval(playTimer);
+  const speed = parseInt(document.getElementById('rng-speed').value);
+  const ms    = Math.max(80, 650 - speed*28);
+  const steps = Math.max(1, Math.ceil(speed/5));
+  playTimer = setInterval(async () => {
+    if (!isPlaying) return;
+    try {
+      await fetch(`${API}/step`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({n_steps:steps})});
+      fetchState();
+    } catch { clearInterval(playTimer); }
+  }, ms);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// VISUAL MODE
+// ────────────────────────────────────────────────────────────────────────────
+function setMode(mode) {
+  renderMode = mode;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  event.target.classList.add('active');
+  updateLegend();
+  if (lastState) renderCanvas(lastState);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// UTILS
+// ────────────────────────────────────────────────────────────────────────────
+function hexRgb(hex) {
+  if (!hex||hex.length<6) return {r:100,g:100,b:100};
+  const h=hex.replace('#','');
+  return {r:parseInt(h.slice(0,2),16),g:parseInt(h.slice(2,4),16),b:parseInt(h.slice(4,6),16)};
+}
+function lerpHex(a,b,t) {
+  const ca=hexRgb(a), cb=hexRgb(b);
+  const r=Math.round(ca.r+(cb.r-ca.r)*t);
+  const g=Math.round(ca.g+(cb.g-ca.g)*t);
+  const bl=Math.round(ca.b+(cb.b-ca.b)*t);
+  return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${bl.toString(16).padStart(2,'0')}`;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// INIT
+// ────────────────────────────────────────────────────────────────────────────
+fetchState();
+setInterval(fetchState, 2500); // Fallback polling
+</script>
+</body>
+</html>

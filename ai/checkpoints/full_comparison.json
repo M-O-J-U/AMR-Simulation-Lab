@@ -1,0 +1,85 @@
+{
+  "baselines": {
+    "frequency_baseline": {
+      "model": "FrequencyBaseline (CARD acquisition_prob)",
+      "auroc_macro": 0.5,
+      "auprc_macro": 0.0011895202229975448,
+      "f1_macro": 0.0,
+      "per_gene_auroc": {
+        "blaTEM-1": 0.5,
+        "blaCTX-M-15": 0.5,
+        "blaKPC-2": 0.5,
+        "blaNDM-1": 0.5,
+        "mexAB-oprM": NaN,
+        "acrAB-tolC": 0.5,
+        "gyrA_S83L": 0.5,
+        "mcr-1": 0.5,
+        "tetM": 0.5,
+        "vanA": NaN
+      }
+    },
+    "logistic_regression": {
+      "model": "Logistic Regression (balanced class weight)",
+      "auroc_macro": 0.9746482595639809,
+      "auprc_macro": 0.05617017573435913,
+      "f1_macro": 0.09469094318860587,
+      "per_gene_auroc": {
+        "blaTEM-1": 0.9943106891722251,
+        "blaCTX-M-15": 0.9717809306402745,
+        "blaKPC-2": 0.9888506554768741,
+        "blaNDM-1": 0.9841874431770655,
+        "mexAB-oprM": NaN,
+        "acrAB-tolC": 0.9956008245496003,
+        "gyrA_S83L": 0.9054019166838334,
+        "mcr-1": 0.9935926731201559,
+        "tetM": 0.9634609436918191,
+        "vanA": NaN
+      }
+    },
+    "random_forest": {
+      "model": "Random Forest (100 trees, max_depth=8, balanced_subsample)",
+      "auroc_macro": 0.9896031767923688,
+      "auprc_macro": 0.05234274202078042,
+      "f1_macro": 0.08997963025984268,
+      "per_gene_auroc": {
+        "blaTEM-1": 0.9933115073552223,
+        "blaCTX-M-15": 0.9713702649470374,
+        "blaKPC-2": 0.9939192376335987,
+        "blaNDM-1": 0.9824962875750917,
+        "mexAB-oprM": NaN,
+        "acrAB-tolC": 0.9945892916273733,
+        "gyrA_S83L": 0.9913278181094922,
+        "mcr-1": 0.9960656764772887,
+        "tetM": 0.9937453306138451,
+        "vanA": NaN
+      }
+    },
+    "gnn_ours": {
+      "model": "AMRResistanceGNN (GAT, 3 layers, 4 heads, 128-dim) \u2014 OURS",
+      "auroc_macro": 0.9933850852989641,
+      "auprc_macro": 0.06024347066225716,
+      "f1_macro": 0.08846511382705707,
+      "per_gene_auroc": {
+        "blaTEM-1": 0.9961616187813648,
+        "blaCTX-M-15": 0.9941636574145791,
+        "blaKPC-2": 0.9914849907908119,
+        "blaNDM-1": 0.9888938595367308,
+        "mexAB-oprM": NaN,
+        "acrAB-tolC": 0.9983702267482664,
+        "gyrA_S83L": 0.9920142819159038,
+        "mcr-1": 0.9885450830648499,
+        "tetM": 0.9974469641392064,
+        "vanA": NaN
+      }
+    }
+  },
+  "ablation": {
+    "All features (full model)": 0.9879202485866444,
+    "No genomic genes": 0.9767703062446326,
+    "No physiological": 0.985653031494454,
+    "No behavioral (SOS/biofilm)": 0.967944418567961,
+    "No edge features": 0.986986436518524,
+    "No spatial position": 0.9855215702288059,
+    "No antibiotic exposure": 0.95954448115274
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "n_real_isolates": 123189,
+  "spearman_result": {
+    "rho": NaN,
+    "p_value": NaN,
+    "n_genes": 6,
+    "valid_genes": [
+      "blaTEM-1",
+      "blaCTX-M-15",
+      "blaKPC-2",
+      "blaNDM-1",
+      "acrAB-tolC",
+      "mcr-1"
+    ],
+    "interpretation": "NOT SIGNIFICANT (rho=nan, p=nan) \u2014 Keep negative-result paragraph in paper Section 4.4 as written.",
+    "gnn_probs": {
+      "blaTEM-1": 0.013091622984575224,
+      "blaCTX-M-15": 0.013983779514205708,
+      "blaKPC-2": 0.039629846616605846,
+      "blaNDM-1": 0.0017885102057562108,
+      "mexAB-oprM": 0.0016598389981936634,
+      "acrAB-tolC": 0.0963489455450599,
+      "gyrA_S83L": 0.004429151807947562,
+      "mcr-1": 0.09024468847174205,
+      "tetM": 0.0031940412636686233,
+      "vanA": 0.0010749810665524606
+    },
+    "real_prev": {
+      "blaTEM-1": 1.0,
+      "blaCTX-M-15": 1.0,
+      "blaKPC-2": 1.0,
+      "blaNDM-1": 1.0,
+      "mexAB-oprM": 0.0,
+      "acrAB-tolC": 1.0,
+      "gyrA_S83L": 0.0,
+      "mcr-1": 1.0,
+      "tetM": 0.0,
+      "vanA": 0.0
+    }
+  },
+  "timestamp": "2026-06-08 11:00:34",
+  "data_source": "BV-BRC local CSV download"
+}
