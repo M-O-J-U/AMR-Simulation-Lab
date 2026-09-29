@@ -162,6 +162,8 @@ def run_baselines(
     max_train_samples: int = 100_000,
     results_path: str = "ai/checkpoints/baseline_results.json",
     subsample_seed: int = 42,
+    model_seed: int = 42,
+    include_gnn: bool = True,
 ) -> Dict[str, Dict]:
     """
     Train all baselines on tr_ds, evaluate on te_ds.
@@ -248,6 +250,7 @@ def run_baselines(
             max_iter=500, C=1.0,
             class_weight="balanced",
             solver="saga", n_jobs=-1,
+            random_state=model_seed,   # saga shuffles; was unseeded before 2026-09-29
         )
         lr.fit(X_tr_scaled, y_g)
         lr_all_probs[:, g_idx] = lr.predict_proba(X_te_scaled)[:, 1]
@@ -281,7 +284,7 @@ def run_baselines(
             n_estimators=100,
             max_depth=8,
             class_weight="balanced_subsample",
-            n_jobs=-1, random_state=42,
+            n_jobs=-1, random_state=model_seed,   # default 42 = previous behaviour
         )
         rf.fit(X_tr_sub, y_g)  # RF doesn't need scaling
         rf_all_probs[:, g_idx] = rf.predict_proba(X_te)[:, 1]
@@ -301,6 +304,11 @@ def run_baselines(
     print(f"  AUROC={rf_metrics['auroc_macro']:.4f} | "
           f"AUPRC={rf_metrics['auprc_macro']:.4f} | "
           f"F1(calibrated)={rf_calib['f1_macro']:.4f}")
+
+    if not include_gnn:
+        # Multi-seed runs (ai/reseeded_results.py) evaluate the GNN themselves,
+        # per seed, on the same test set — no single training_results.json.
+        return results
 
     # ── 4. GNN results (from checkpoint) ─────────────────────────────────────
     # FIXED post-JBHI-03955-2026 remediation: this block previously
