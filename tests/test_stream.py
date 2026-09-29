@@ -21,6 +21,7 @@ from api.stream import (
     DETAIL_FIELDS, HGT_KEEP, Broadcaster, SNAPSHOT_MARKER, pack_grid, unpack_grid,
 )
 from simulation.amr_model import AMRSimulationModel
+from data.biology import LAB_V2
 
 SEED = 42
 
@@ -410,11 +411,12 @@ def test_streaming_run_identical_to_headless(client):
         via = client.get("/state").json()
 
     m = AMRSimulationModel(scenario="pakistan_crisis", initial_bacteria=80,
-                           seed=SEED, enable_logging=False)
+                           seed=SEED, enable_logging=False, biology=LAB_V2)
     for _ in range(5): m.step()
     m.apply_antibiotic("ciprofloxacin", concentration=1.0, mode="uniform")
     for _ in range(15): m.step()
     direct = json.loads(json.dumps(m.get_full_state()))
+    via.pop("biology")
     for s in (via, direct):
         for b in s["bacteria"]:
             b.pop("cell_id"); b.pop("parent_id", None)

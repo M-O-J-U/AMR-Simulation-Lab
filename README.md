@@ -183,6 +183,17 @@ GET  /analytics/diversity
 GET  /analytics/recommend
 ```
 
+### Biology versions
+`POST /reset` takes `"biology": "lab_v2"` (default) or `"paper_v1"`.
+`paper_v1` is the frozen biology that produced the AMRResistanceGNN paper
+(byte-identical, enforced by `tests/test_paper_v1_frozen.py`); it is also the
+default for `AMRSimulationModel` and the whole training/evaluation pipeline.
+`lab_v2` is the corrected biology used by the UI: MRSA carries *mecA* (CARD
+ARO:3000617) rather than *tetM*, and cannot acquire the Gram-negative
+AcrAB-TolC pump. mecA does not transfer (SCCmec mobilisation is not modelled),
+and its fitness cost is configurable in `data/lab_v2_config.json` (currently
+unset; the UI shows a warning). Details and sources: `data/biology.py`.
+
 ### Live stream: `WS /ws`
 Commands stay on REST; the WebSocket only streams state. On connect the
 server sends a `snapshot` (the same payload as `GET /state`), then one `diff`

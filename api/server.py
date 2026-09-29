@@ -22,7 +22,7 @@ Endpoints
   POST /apply_antibiotic            {"antibiotic_key", "concentration", "mode", "center"?, "radius"?}
   POST /remove_antibiotic           {"antibiotic_key"}
   POST /spawn_bacteria              {"germ_key", "count"}
-  POST /reset                       {"scenario", "initial_bacteria", "seed"?}
+  POST /reset                       {"scenario", "initial_bacteria", "seed"?, "biology"?: lab_v2|paper_v1}
   POST /pause, POST /resume
   POST /speed                       {"speed": 1..20}
   WS   /ws                          live stream
@@ -51,7 +51,8 @@ from pydantic import BaseModel, Field
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from simulation.amr_model import AMRSimulationModel
-from data.card_loader import ANTIBIOTIC_PROFILES, GERM_PROFILES, get_germ
+from data.card_loader import ANTIBIOTIC_PROFILES, GERM_PROFILES
+from data.biology import BIOLOGIES
 from ai.resistance_analytics import (
     estimate_population_mic, recommend_treatment, shannon_diversity,
 )
@@ -68,6 +69,9 @@ SCENARIOS = (
 DEFAULT_SCENARIO = "validation"
 DEFAULT_INITIAL_BACTERIA = 80    # matches the frontend's population slider default
 DEFAULT_SPEED = 5                # matches the frontend's speed slider default
+# The lab runs the corrected biology; paper_v1 (frozen, what the paper used)
+# stays selectable via POST /reset {"biology": "paper_v1"}. See data/biology.py.
+DEFAULT_BIOLOGY = "lab_v2"
 
 
 def play_timing(speed: int) -> Tuple[float, int]:
@@ -101,6 +105,7 @@ class ResetRequest(BaseModel):
     scenario: str = DEFAULT_SCENARIO
     initial_bacteria: int = Field(DEFAULT_INITIAL_BACTERIA, ge=1, le=1000)
     seed: Optional[int] = None
+    biology: Literal["lab_v2", "paper_v1"] = DEFAULT_BIOLOGY
 
 class SpeedRequest(BaseModel):
     speed: int = Field(DEFAULT_SPEED, ge=1, le=20)
@@ -158,11 +163,13 @@ class SimulationSession:
                 self.reset(DEFAULT_SCENARIO, DEFAULT_INITIAL_BACTERIA, None)
             return self._model
 
-    def reset(self, scenario: str, initial_bacteria: int, seed: Optional[int]):
+    def reset(self, scenario: str, initial_bacteria: int, seed: Optional[int],
+              biology: str = DEFAULT_BIOLOGY):
         with self.lock:
             self._model = AMRSimulationModel(
                 scenario=scenario, initial_bacteria=initial_bacteria,
                 seed=seed, enable_logging=self.enable_logging,
+                biology=BIOLOGIES[biology],
             )
             snap = self.tracker.rebase(self._model)
             snap["status"] = self.status()
@@ -225,6 +232,7 @@ class SimulationSession:
         s = {"type": "status", "playing": self.playing, "speed": self.speed,
              "paused": bool(m.paused) if m else True,
              "scenario": m.sim_scenario if m else None,
+             "biology": m.biology.name if m else None,
              "step": m.current_step if m else 0}
         if reason:
             s["reason"] = reason
@@ -346,7 +354,7 @@ def create_app(enable_logging: bool = True,
             raise HTTPException(404, f"Unknown germ: {req.germ_key}")
         def do(m):
             before = m.count_living_bacteria()
-            profile = get_germ(req.germ_key)
+            profile = m.biology.germ(req.germ_key)
             m._spawn_bacteria_cluster(profile, req.count)
             spawned = m.count_living_bacteria() - before
             m._log_event("bacteria_spawned", f"{spawned} {profile.species} spawned")
@@ -359,8 +367,8 @@ def create_app(enable_logging: bool = True,
         if req.scenario not in SCENARIOS:
             raise HTTPException(404, f"Unknown scenario: {req.scenario}")
         with session.lock:
-            session.reset(req.scenario, req.initial_bacteria, req.seed)
-            return {"ok": True, "scenario": req.scenario,
+            session.reset(req.scenario, req.initial_bacteria, req.seed, req.biology)
+            return {"ok": True, "scenario": req.scenario, "biology": req.biology,
                     "total_bacteria": session.model.count_living_bacteria()}
 
     @app.post("/pause")

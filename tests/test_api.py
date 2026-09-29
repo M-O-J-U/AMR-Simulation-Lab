@@ -20,6 +20,7 @@ from fastapi.testclient import TestClient
 from api.server import create_app, SCENARIOS
 from data.card_loader import ANTIBIOTIC_PROFILES, GERM_PROFILES, get_germ
 from simulation.amr_model import AMRSimulationModel
+from data.biology import LAB_V2
 
 JSON = {"Content-Type": "application/json"}
 SEED = 42
@@ -268,6 +269,7 @@ def _strip_cell_ids(s):
     for b in s["bacteria"]:
         b.pop("cell_id")
         b.pop("parent_id", None)
+    s.pop("biology", None)      # API adds the active biology version
     return s
 
 
@@ -287,7 +289,8 @@ class TestAPIMatchesHeadless:
         via_api = state(client)
 
         m = AMRSimulationModel(scenario=scenario, initial_bacteria=80,
-                               seed=SEED, enable_logging=False)
+                               seed=SEED, enable_logging=False,
+                               biology=LAB_V2)   # the server's default biology
         for _ in range(5): m.step()
         m.apply_antibiotic("ciprofloxacin", concentration=1.0, mode="uniform")
         for _ in range(15): m.step()

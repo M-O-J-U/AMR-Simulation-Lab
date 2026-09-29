@@ -78,8 +78,10 @@ def unpack_grid(p: dict) -> List[List[float]]:
 
 def full_state(model) -> dict:
     """GET /state payload: get_full_state() plus each bacterium's parent_id
-    (read from the agent; to_dict() does not include it)."""
+    (read from the agent; to_dict() does not include it) and the active
+    biology version with any warnings (data/biology.py)."""
     state = model.get_full_state()
+    state["biology"] = model.biology.summary()
     parents = {a.unique_id: getattr(a, "parent_id", None) for a in model.agents}
     for b in state["bacteria"]:
         b["parent_id"] = parents.get(b["id"])

@@ -17,6 +17,7 @@ from data.card_loader import (
     GermProfile, AntibioticProfile, get_germ, get_antibiotic
 )
 from simulation.sim_logger import SimLogger, LogLevel
+from data.biology import Biology, PAPER_V1
 
 DEFAULT_WIDTH  = 80
 DEFAULT_HEIGHT = 60
@@ -33,8 +34,12 @@ class AMRSimulationModel(Model):
 
     def __init__(self, scenario="validation", width=DEFAULT_WIDTH,
                  height=DEFAULT_HEIGHT, initial_bacteria=80,
-                 nutrient_level=0.9, seed=None, enable_logging=True):
+                 nutrient_level=0.9, seed=None, enable_logging=True,
+                 biology: Optional[Biology] = None):
         super().__init__(seed=seed)
+        # Versioned biology (data/biology.py). Default paper_v1 = the frozen
+        # tables that produced the paper; the lab server passes lab_v2.
+        self.biology = biology or PAPER_V1
 
         self.sim_scenario = scenario
         self.width      = width
@@ -114,10 +119,10 @@ class AMRSimulationModel(Model):
 
         per_species = initial_bacteria // max(1, len(self.active_germ_keys))
         for gk in self.active_germ_keys:
-            self._spawn_bacteria_cluster(get_germ(gk), per_species)
+            self._spawn_bacteria_cluster(self.biology.germ(gk), per_species)
 
         for abk in self.active_antibiotic_keys:
-            ab = get_antibiotic(abk)
+            ab = self.biology.antibiotic(abk)
             self.antibiotic_profiles[abk] = ab
             self.antibiotic_grids[abk] = np.zeros((self.width, self.height), dtype=np.float32)
 
@@ -140,9 +145,9 @@ class AMRSimulationModel(Model):
     # ── Antibiotic management ─────────────────────────────────────────────────
     def apply_antibiotic(self, antibiotic_key, concentration=1.0, mode="uniform",
                          center=None, radius=None):
-        if antibiotic_key not in ANTIBIOTIC_PROFILES:
+        if antibiotic_key not in self.biology.antibiotics:
             raise ValueError(f"Unknown antibiotic: {antibiotic_key}")
-        ab = get_antibiotic(antibiotic_key)
+        ab = self.biology.antibiotic(antibiotic_key)
         if antibiotic_key not in self.antibiotic_grids:
             self.antibiotic_profiles[antibiotic_key] = ab
             self.antibiotic_grids[antibiotic_key] = np.zeros((self.width,self.height), dtype=np.float32)

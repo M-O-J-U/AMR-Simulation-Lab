@@ -160,6 +160,19 @@ Goal: modern, smooth, informative, still fast at 4800 grid cells with hundreds o
 - Changing simulation biology/parameters beyond what's needed to fix real bugs found in
   Phase 0 (report bugs found, don't silently "improve" biology while upgrading visuals).
 
+- Two-version biology (2026-09-29, approved): `data/biology.py`. `paper_v1` = the exact
+  card_loader tables, FROZEN, and `AMRSimulationModel`'s default (paper pipeline unchanged);
+  `tests/test_paper_v1_frozen.py` proves byte-identical states + GNN training pairs against
+  `tests/golden/paper_v1.json` (generated from pre-change code, PYTHONHASHSEED=0).
+  `lab_v2` = the API server's default: MRSA carries mecA (CARD ARO:3000617) instead of
+  tetM; acrAB-tolC removed from MRSA's acquirable pool; mecA non-transferring. mecA's
+  fitness cost lives in `data/lab_v2_config.json` and is UNSET (null -> 0, with a visible
+  warning in the API/UI) until the values measured by Ender et al. 2004 are entered.
+  Klebsiella and the antibiotic diffusion step are NOT yet changed in lab_v2.
+- **Known limitation (lab_v2): SCCmec-style transfer of mecA is not modelled.** The sim's
+  only HGT mechanism is conjugation-style transfer between neighbours, which is the wrong
+  mechanism for SCCmec, so mecA is marked non-transferring rather than moved by it.
+
 ## Paper-phase TODO (do NOT act on these during the lab phase)
 - **NaN AUROC for mexAB-oprM** (noted 2026-09-29, not investigated): the checkpoint's
   stored validation metrics (`ai/checkpoints/best_model.pt`, `val_metrics`) and
@@ -180,3 +193,22 @@ Goal: modern, smooth, informative, still fast at 4800 grid cells with hundreds o
   tetracycline and ampicillin; EUCAST ERP v1.2 rule 1.7 lists K. pneumoniae as expected
   resistant only to ampicillin/amoxicillin and ticarcillin. Klebsiella is in 2 of the 4
   DEFAULT_CONFIG training scenarios, so this shapes the paper's training data.
+- **Seeded runs are not reproducible across Python processes** (found 2026-09-29, not
+  fixed — `core/`). The trajectory depends on PYTHONHASHSEED: e.g. ecoli_cipro seed 100 ends
+  with 711/770/718/765 bacteria for hash seeds 0/1/2/3. Cause: `_attempt_hgt` iterates the
+  `resistance_genes` set with a conditional RNG draw per gene, so set order (string-hash
+  dependent) changes which draw goes with which gene. In-process reproducibility tests pass,
+  which is why this was not caught. Check what the paper claims about reproducibility and
+  whether reported numbers were produced under a fixed PYTHONHASHSEED.
+- **GNN training pairs are not reproducible run-to-run** (found 2026-09-29, not fixed):
+  `build_graph_from_state` subsamples populations > max_nodes with the global, unseeded
+  `random.sample`; 7 of the 12 DEFAULT_CONFIG runs hit it (e.g. 20 calls in
+  xdr_acinetobacter seed 100).
+- **Antibiotic "diffusion" removes drug instead of spreading it** (found 2026-09-29, not
+  fixed): `_diffuse_antibiotics` convolves with a kernel summing to 1.0 and then multiplies
+  by `diffusion_rate`, so total drug is scaled by diffusion_rate*(1-decay_rate) every step
+  (half-lives 0.57-6 steps vs 69-231 from decay_rate alone; lower "diffusion_rate" = faster
+  loss). Contradicts the manuscript's "Diffusion follows a discrete Laplacian (Fick's second
+  law)", which conserves mass. Neither rate cites a source, and no step duration is defined
+  anywhere, so decay rates cannot be checked against real PK yet. Training runs dose once at
+  step 15, so this shapes the training data.

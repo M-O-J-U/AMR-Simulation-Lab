@@ -1,0 +1,6 @@
+{
+  "_comment": "Adjustable parameters for the lab_v2 biology (data/biology.py). The paper_v1 biology ignores this file.",
+
+  "mecA_fitness_cost": null,
+  "_mecA_fitness_cost_note": "UNSET. To be filled with the value(s) measured by Ender M, McCallum N, Adhikari R, Berger-Bachi B (2004), 'Fitness cost of SCCmec and methicillin resistance levels in Staphylococcus aureus', Antimicrob Agents Chemother 48(6):2295-2297, doi:10.1128/AAC.48.6.2295-2297.2004 - one measured point (type I SCCmec transformants, where cost varied inversely with resistance level), not a species constant. While null, no mecA fitness cost is applied and the API/UI report that it is unset."
+}

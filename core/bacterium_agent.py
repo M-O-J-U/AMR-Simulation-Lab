@@ -70,6 +70,11 @@ class BacteriumAgent(Agent):
         self.cell_id          = str(uuid.uuid4())[:8]
         self.profile          = profile
         self.species          = profile.species
+        # Versioned biology (data/biology.py). Models without one (e.g. test
+        # doubles) get the paper_v1 tables, i.e. exactly the old behaviour.
+        bio = getattr(model, "biology", None)
+        self._genes = bio.genes if bio is not None else RESISTANCE_GENES
+        self._no_transfer = bio.non_transferable if bio is not None else frozenset()
         self.generation       = generation
         self.parent_id        = parent_id
         self.age              = 0
@@ -106,8 +111,8 @@ class BacteriumAgent(Agent):
         self.local_density = 0
 
     def _recalculate_fitness(self):
-        cost = sum(RESISTANCE_GENES[g].fitness_cost
-                   for g in self.resistance_genes if g in RESISTANCE_GENES)
+        cost = sum(self._genes[g].fitness_cost
+                   for g in self.resistance_genes if g in self._genes)
         self.fitness = max(0.05, self.profile.baseline_fitness - cost)
 
     def get_resistance_to(self, antibiotic: AntibioticProfile) -> float:
@@ -115,8 +120,8 @@ class BacteriumAgent(Agent):
             return 0.0
         resistances = []
         for gn in self.resistance_genes:
-            if gn in RESISTANCE_GENES:
-                r = resistance_probability(RESISTANCE_GENES[gn], antibiotic)
+            if gn in self._genes:
+                r = resistance_probability(self._genes[gn], antibiotic)
                 if r > 0:
                     resistances.append(r)
         if not resistances:
@@ -164,9 +169,11 @@ class BacteriumAgent(Agent):
             if recipient.species != self.species:
                 continue
             for gn in list(self.resistance_genes):
-                if gn not in RESISTANCE_GENES:
+                if gn not in self._genes:
                     continue
-                gene = RESISTANCE_GENES[gn]
+                if gn in self._no_transfer:     # e.g. mecA in lab_v2 (SCCmec not modelled)
+                    continue
+                gene = self._genes[gn]
                 hgt_prob = gene.acquisition_prob * (2.0 if self.sos_active else 1.0)
                 # Biofilm-enhanced conjugation (Hausner & Wuertz 1999;
                 # Madsen et al. 2012 — biofilm matrices increase plasmid
@@ -207,7 +214,7 @@ class BacteriumAgent(Agent):
                 self._recalculate_fitness()
                 self.mutation_history.append(MutationEvent(
                     self.model.steps, "gyrA_S83L",
-                    -RESISTANCE_GENES["gyrA_S83L"].fitness_cost,
+                    -self._genes["gyrA_S83L"].fitness_cost,
                     "Point mutation → fluoroquinolone resistance"))
             else:
                 delta = self.random.gauss(-0.01, 0.02)
@@ -222,8 +229,8 @@ class BacteriumAgent(Agent):
                 self._recalculate_fitness()
                 self.mutation_history.append(MutationEvent(
                     self.model.steps, gn,
-                    -RESISTANCE_GENES[gn].fitness_cost,
-                    f"Gene acquisition: {RESISTANCE_GENES[gn].mechanism}"))
+                    -self._genes[gn].fitness_cost,
+                    f"Gene acquisition: {self._genes[gn].mechanism}"))
 
     def _check_persister_switch(self, ab_conc: float):
         if not self.is_persister:

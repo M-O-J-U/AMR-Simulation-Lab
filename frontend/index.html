@@ -520,7 +520,10 @@ function renderPopChart(){
 function updateUI(state){
   const s=state.stats;
   document.getElementById('step-display').textContent=`Step ${s.step}`;
-  document.getElementById('scenario-display').textContent=s.scenario||'-';
+  const bio=state.biology,sd=document.getElementById('scenario-display');
+  sd.textContent=(s.scenario||'-')+(bio?` · ${bio.name}${bio.warnings?.length?' ⚠':''}`:'');
+  sd.title=bio?`Biology: ${bio.name}`+(bio.warnings?.length?' | '+bio.warnings.join(' | '):''):'';
+  sd.style.color=bio?.warnings?.length?'var(--amber)':'var(--text-dim)';
   document.getElementById('lbl-pop').innerHTML=`<span>ALIVE</span>${s.total_bacteria}`;
   const rPct=s.total_bacteria>0?Math.round(s.resistant_bacteria/s.total_bacteria*100):0;
   document.getElementById('lbl-res').innerHTML=`<span>RESISTANT</span>${s.resistant_bacteria} (${rPct}%)`;
