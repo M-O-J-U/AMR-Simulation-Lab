@@ -38,12 +38,20 @@ every Decision Point below or any judgment call.
 ## Current state (found during read, verify before relying on this)
 - Frontend: one 59KB `frontend/index.html`, inline CSS/JS, `<canvas>` 2D rendering,
   `setInterval(fetchState, 2500)` polling — not WebSocket despite the README badge.
-- Backend: FastAPI (`api/server.py`), REST endpoints for state/step/antibiotic/spawn/reset,
-  plus GNN inference/advisory endpoints. No WebSocket route found.
-- `core/antibiotic_agent.py` is a 0-byte file. Antibiotic profile logic actually lives in
-  `data/card_loader.py` (`AntibioticProfile` class). Determine whether the empty file is
-  dead code to delete or a planned module that was never finished, before doing anything
-  with it.
+- Backend (corrected 2026-09-29, Phase 0): the original `api/server.py` had been
+  overwritten with a byte-for-byte copy of `ai/gnn_inference.py`, so there was no server
+  at all and `python main.py server` failed. It was rebuilt as a REST-only FastAPI server
+  matching the frontend's calls (13 routes incl. GNN + analytics), with
+  `tests/test_api.py` covering every route. Still no WebSocket route. Server defaults to
+  `127.0.0.1`.
+- `core/antibiotic_agent.py` (0-byte, unreferenced) was deleted as dead code
+  (2026-09-29, approved). Antibiotics are concentration grids on the model, diffused and
+  decayed in `AMRSimulationModel._diffuse_antibiotics()`; profiles live in
+  `data/card_loader.py` (`AntibioticProfile`).
+- Root-level `test_gnn.py` (pre-leakage-fix edge layout) archived to
+  `archive/pre_leakage_fix/`; `pytest.ini` restricts collection to `tests/`.
+- Repo is under git as of 2026-09-29 (local only, never pushed). Raw BV-BRC CSVs
+  (`ecoli_amr.csv`, `klebsiella_amr.csv`, ~830 MB) are gitignored.
 - Simulation: Mesa 3.x, 80x60 MultiGrid, bacteria agents with SOS response, persister
   switching, biofilm, HGT conjugation, Hill-equation PK/PD killing. 5 pathogen species, 6
   antibiotics, 10 resistance genes from CARD, 7 preset scenarios.

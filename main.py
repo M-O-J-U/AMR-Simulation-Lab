@@ -285,8 +285,10 @@ def main():
     )
     subparsers = parser.add_subparsers(dest="command")
 
-    srv = subparsers.add_parser("server", help="Start API server + open frontend")
-    srv.add_argument("--host", default="0.0.0.0")
+    srv = subparsers.add_parser("server", help="Start the REST API server (then open frontend/index.html yourself)")
+    srv.add_argument("--host", default="127.0.0.1",
+                     help="Bind address. Default is localhost only; 0.0.0.0 exposes the "
+                          "unauthenticated API to your network.")
     srv.add_argument("--port", type=int, default=8000)
 
     hl = subparsers.add_parser("headless", help="Run headless simulation, print stats")

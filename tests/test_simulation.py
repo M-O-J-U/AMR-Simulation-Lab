@@ -5,8 +5,11 @@ Tests are organized in layers:
   1. Data integrity - CARD profiles are internally consistent
   2. Agent biology - BacteriumAgent behaves according to real biology
   3. Model dynamics - population grows, resists, dies correctly
-  4. API contracts - endpoints return expected shapes
+  4. AI analytics - MIC estimation, treatment recommendation, diversity
   5. Science validation - simulation matches known biology
+  6. Reproducibility - seeded runs are identical
+
+REST API contract tests live in tests/test_api.py.
 
 Run with: python -m pytest tests/ -v
 """

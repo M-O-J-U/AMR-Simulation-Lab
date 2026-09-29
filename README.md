@@ -2,10 +2,9 @@
 
 **Agent-Based Simulation of Antimicrobial Resistance Dynamics**
 
-[![Python](https://img.shields.io/badge/Python-3.9%2B-blue?logo=python)](https://python.org)
+[![Python](https://img.shields.io/badge/Python-3.12%2B%20(tested%203.14)-blue?logo=python)](https://python.org)
 [![Mesa](https://img.shields.io/badge/Mesa-ABM-orange)](https://mesa.readthedocs.io)
 [![FastAPI](https://img.shields.io/badge/FastAPI-REST-green)](https://fastapi.tiangolo.com)
-[![License](https://img.shields.io/badge/License-MIT-lightgrey)](LICENSE)
 [![WHO Priority](https://img.shields.io/badge/WHO%20Priority%20Pathogens-CRITICAL-red)](https://www.who.int/publications/i/item/WHO-EMP-IAU-2017.12)
 
 A scientifically grounded, interactive agent-based simulation of antimicrobial resistance (AMR) dynamics. Bacteria live, grow, mutate, form biofilms, transfer resistance genes via horizontal gene transfer (HGT), and die — all driven by real resistance mechanisms from the [CARD database](https://card.mcmaster.ca/).
@@ -107,28 +106,32 @@ cd amr-simulation
 pip install -r requirements.txt
 ```
 
-### 2. Run demo (no server, just terminal output)
+### 2. Headless run (no server, just terminal output)
 ```bash
-python main.py --demo --scenario ecoli_cipro
+python main.py headless --scenario ecoli_cipro --steps 40 --seed 42
 ```
 
-### 3. Start full simulation with UI
+### 3. Start the API server, then open the UI
 ```bash
-python main.py --scenario pakistan_crisis
-# Opens frontend/index.html + API at http://localhost:8000
+python main.py server            # http://127.0.0.1:8000 (localhost only)
+# then open frontend/index.html in your browser (it is not opened for you);
+# pick a scenario in the UI and press Reset.
+# Interactive API docs: http://127.0.0.1:8000/docs
 ```
+`--host 0.0.0.0` exposes the server to your local network; it has no
+authentication and allows cross-origin requests, so only do that deliberately.
 
 ### 4. Run tests
 ```bash
-python main.py --test
+python main.py test
 # or
-pytest tests/ -v
+pytest            # pytest.ini limits collection to tests/
 ```
 
-### 5. API only (headless)
+### 5. Other commands
 ```bash
-python main.py --headless --port 8000
-# Interactive API docs: http://localhost:8000/docs
+python main.py validate          # 4 quick biology checks
+python main.py --help            # train-gnn, baselines, calibrate, ablation-gnn, multiseed, validate-external
 ```
 
 ---
@@ -248,7 +251,7 @@ If you use this simulation in academic work, please cite:
 
 ## License
 
-MIT License. See [LICENSE](LICENSE).
+No license file is included yet, so no license is granted at this time.
 
 ---
 
@@ -279,7 +282,9 @@ fabrication paths.
 cd "C:\Users\mojua\Desktop\AMR Simulation Lab"
 python main.py test
 ```
-This must show `114 passed` before you do anything else. If it doesn't,
+This must show 0 failed before you do anything else (189 passed as of
+2026-09-29; it was 114 when these instructions were written, before
+`tests/test_api.py` and later GNN tests were added). If it doesn't,
 something didn't sync correctly from this session's fixes — stop and
 re-sync the files, don't proceed to training on a broken pipeline.
 
@@ -388,7 +393,7 @@ honestly (see prior discussion) rather than being blocked on it.
 
 ## What "done" looks like
 
-- `python main.py test` → 114 passed
+- `python main.py test` → 0 failed
 - Step 4's two `True` checks both pass
 - You have four JSON files in `ai/checkpoints/` that all agree with each
   other because they're computed from the same pipeline and the same
