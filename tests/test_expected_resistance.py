@@ -173,6 +173,24 @@ class TestAdvisory:
                    gene_probs={"mcr-1": 0.9})
         assert "colistin" not in d["safe_antibiotics"]
 
+    @pytest.mark.parametrize("n_genes,level", [(2, "HIGH"), (4, "CRITICAL")])
+    def test_high_critical_text_reflects_population(self, engine, monkeypatch, n_genes, level):
+        """HIGH/CRITICAL text is a readout of this population: no hard-coded
+        drug advice, and it names the drugs that actually still work."""
+        genes = ["tetM", "vanA", "blaTEM-1", "blaCTX-M-15"][:n_genes]
+        d = advise(engine, monkeypatch,
+                   [bacterium_dict("e_coli", ["gyrA_S83L"]) for _ in range(20)],
+                   gene_probs={g: 0.9 for g in genes})
+        t = d["advisory_text"]
+        assert d["risk_level"] == level
+        for banned in ("Combination therapy", "colistin + carbapenem",
+                       "specialist", "Recommend switching"):
+            assert banned not in t
+        assert "ciprofloxacin" in t and "Already failing" in t   # present resistance named
+        for ab in d["safe_antibiotics"]:
+            assert ab in t
+        assert "ciprofloxacin" not in d["safe_antibiotics"]
+
     def test_no_safe_options_text(self, engine, monkeypatch):
         """MRSA carrying vanA + gyrA + tetM: nothing available works."""
         d = advise(engine, monkeypatch,

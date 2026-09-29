@@ -385,16 +385,23 @@ class GNNInferenceEngine:
             genes_str = ", ".join(imminent) or "unknown"
             return (f"GNN predicts {genes_str} may spread within the next "
                     f"few simulation steps. Monitor resistance emergence." + present)
-        elif risk_level == "HIGH":
-            genes_str = ", ".join(imminent)
-            ab_str    = ", ".join(threatened) or "none"
-            return (f"WARNING: {genes_str} predicted to spread imminently. "
-                    f"Drug classes at risk: {ab_str}. "
-                    f"Recommend switching to: {', '.join(safe_options[:2]) or 'consult specialist'}.")
+        # HIGH / CRITICAL: a descriptive readout of this simulated population only.
+        # Deliberately no clinical recommendation (the previous text hard-coded
+        # "Combination therapy required. Consider colistin + carbapenem", which
+        # was unsourced and ignored the population's actual resistance).
+        genes_str = ", ".join(sorted(imminent))
+        ab_str    = ", ".join(sorted(threatened)) or "none identified"
+        options   = (", ".join(safe_options) if safe_options
+                     else "none of the available antibiotics")
+        readout = (f"Drug classes at risk: {ab_str}. "
+                   f"Effective against the current simulated population "
+                   f"(>={SAFE_MIN_SUSCEPTIBLE_PCT:.0f}% susceptible, not predicted "
+                   f"to be undermined): {options}." + present)
+        if risk_level == "HIGH":
+            return f"WARNING: {genes_str} predicted to spread imminently. " + readout
         else:  # CRITICAL
-            return (f"CRITICAL: {len(imminent)} resistance genes spreading rapidly. "
-                    f"Multiple drug classes threatened. Combination therapy required. "
-                    f"Consider colistin + carbapenem or seek specialist guidance.")
+            return (f"CRITICAL: {len(imminent)} resistance genes predicted to spread "
+                    f"({genes_str}). " + readout)
 
     # ─────────────────────────────────────────────────────────────────────────
     # STATUS / DIAGNOSTICS
