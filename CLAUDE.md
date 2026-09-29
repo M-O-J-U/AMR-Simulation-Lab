@@ -211,17 +211,15 @@ pipeline; nothing below is to be reconciled with the retired draft.
   tetracycline and ampicillin; EUCAST ERP v1.2 rule 1.7 lists K. pneumoniae as expected
   resistant only to ampicillin/amoxicillin and ticarcillin. Klebsiella is in 2 of the 4
   DEFAULT_CONFIG training scenarios, so this shapes the paper's training data.
-- **Seeded runs are not reproducible across Python processes** (found 2026-09-29, not
-  fixed — `core/`). The trajectory depends on PYTHONHASHSEED: e.g. ecoli_cipro seed 100 ends
-  with 711/770/718/765 bacteria for hash seeds 0/1/2/3. Cause: `_attempt_hgt` iterates the
-  `resistance_genes` set with a conditional RNG draw per gene, so set order (string-hash
-  dependent) changes which draw goes with which gene. In-process reproducibility tests pass,
-  which is why this was not caught. Check what the paper claims about reproducibility and
-  whether reported numbers were produced under a fixed PYTHONHASHSEED.
-- **GNN training pairs are not reproducible run-to-run** (found 2026-09-29, not fixed):
-  `build_graph_from_state` subsamples populations > max_nodes with the global, unseeded
-  `random.sample`; 7 of the 12 DEFAULT_CONFIG runs hit it (e.g. 20 calls in
-  xdr_acinetobacter seed 100).
+- **Seeding bugs — FIXED 2026-09-29 (approved):** (1) seeded runs depended on
+  PYTHONHASHSEED because gene *sets* were iterated around RNG draws and float sums
+  (`_attempt_hgt`, `get_resistance_to`, `_recalculate_fitness`; plus output order in
+  `to_dict`, gene distribution, HGT-burst message) — all now iterate `sorted(...)`;
+  (2) `build_graph_from_state` subsampled with the global unseeded `random.sample` — now a
+  seeded local RNG (per-run in `collect_training_snapshots`, step-seeded otherwise).
+  Verified: identical fingerprints under PYTHONHASHSEED 11/22/33 with no global seeding;
+  `tests/test_paper_v1_frozen.py` checks two different hash seeds. This intentionally
+  changed paper_v1 trajectories; golden regenerated (previous baseline: commit 89cb849).
 - **Antibiotic "diffusion" removes drug instead of spreading it** (found 2026-09-29, not
   fixed): `_diffuse_antibiotics` convolves with a kernel summing to 1.0 and then multiplies
   by `diffusion_rate`, so total drug is scaled by diffusion_rate*(1-decay_rate) every step

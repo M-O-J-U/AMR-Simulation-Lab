@@ -308,7 +308,7 @@ class AMRSimulationModel(Model):
     def get_resistance_gene_distribution(self) -> Dict[str,int]:
         dist = defaultdict(int)
         for a in self._living():
-            for g in a.resistance_genes:
+            for g in sorted(a.resistance_genes):
                 dist[g] += 1
         return dict(dist)
 
@@ -449,7 +449,7 @@ class AMRSimulationModel(Model):
 
         # HGT burst log
         if self.hgt_events_this_step:
-            genes = set(e.gene for e in self.hgt_events_this_step)
+            genes = sorted(set(e.gene for e in self.hgt_events_this_step))
             positions = [list(e.position) for e in self.hgt_events_this_step]
             self._log_event("hgt_burst",
                 f"{len(self.hgt_events_this_step)} HGT events — genes: {genes}")

@@ -309,10 +309,17 @@ def extract_edge_features(
 # GRAPH CONSTRUCTION FROM SIMULATION STATE
 # ─────────────────────────────────────────────────────────────────────────────
 
+# Base seed for the node subsample when the caller passes no rng (fixed
+# 2026-09-29: this used the GLOBAL, unseeded `random.sample`, so training
+# pairs differed run-to-run whenever a population exceeded max_nodes).
+SUBSAMPLE_BASE_SEED = 20260929
+
+
 def build_graph_from_state(
     state: dict,
     max_edge_distance: int = 3,
     max_nodes: int = 500,
+    rng: Optional["random.Random"] = None,
 ) -> Optional[dict]:
     """
     Build a graph from a full simulation state snapshot.
@@ -346,10 +353,15 @@ def build_graph_from_state(
     if not bacteria:
         return None
 
-    # Sample if too many
+    # Sample if too many — with a seeded local RNG (never the global one).
+    # Default: seeded from the snapshot's step, so the same state always yields
+    # the same graph. collect_training_snapshots passes a per-run rng instead.
     if len(bacteria) > max_nodes:
         import random
-        bacteria = random.sample(bacteria, max_nodes)
+        if rng is None:
+            step = int(state.get("stats", {}).get("step", 0))
+            rng = random.Random(SUBSAMPLE_BASE_SEED + step)
+        bacteria = rng.sample(bacteria, max_nodes)
 
     gw = state.get("grid_width",  80)
     gh = state.get("grid_height", 60)
@@ -588,6 +600,10 @@ def collect_training_snapshots(
         scenario=scenario, initial_bacteria=120,
         seed=seed, enable_logging=False
     )
+    # Per-run node-subsample RNG, independent of the model's RNG (so graph
+    # building can never perturb the simulation) and fixed by the run's seed.
+    import random as _random
+    subsample_rng = _random.Random(SUBSAMPLE_BASE_SEED * 1000 + seed)
 
     # Apply antibiotic after warmup so we get resistance selection data
     for _ in range(15):
@@ -617,7 +633,8 @@ def collect_training_snapshots(
 
         if step % snapshot_interval == 0:
             state = model.get_full_state()
-            graph = build_graph_from_state(state, max_edge_distance=3, max_nodes=300)
+            graph = build_graph_from_state(state, max_edge_distance=3, max_nodes=300,
+                                           rng=subsample_rng)
             if graph is None:
                 continue
 

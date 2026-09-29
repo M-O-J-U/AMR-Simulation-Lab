@@ -113,8 +113,9 @@ class BacteriumAgent(Agent):
         self.local_density = 0
 
     def _recalculate_fitness(self):
+        # sorted(): float sums must not depend on set order (PYTHONHASHSEED)
         cost = sum(self._genes[g].fitness_cost
-                   for g in self.resistance_genes if g in self._genes)
+                   for g in sorted(self.resistance_genes) if g in self._genes)
         self.fitness = max(0.05, self.profile.baseline_fitness - cost)
 
     def get_resistance_to(self, antibiotic: AntibioticProfile) -> float:
@@ -127,7 +128,7 @@ class BacteriumAgent(Agent):
         if intrinsic:
             from data.biology import INTRINSIC_PROTECTION
             resistances.append(INTRINSIC_PROTECTION)
-        for gn in self.resistance_genes:
+        for gn in sorted(self.resistance_genes):   # order-independent across processes
             if gn in self._genes:
                 r = resistance_probability(self._genes[gn], antibiotic)
                 if r > 0:
@@ -176,7 +177,10 @@ class BacteriumAgent(Agent):
                 continue
             if recipient.species != self.species:
                 continue
-            for gn in list(self.resistance_genes):
+            # sorted(): each gene's conditional RNG draw must not depend on set
+            # iteration order, which varies with PYTHONHASHSEED across processes
+            # (fixed 2026-09-29; previously seeded runs differed between processes).
+            for gn in sorted(self.resistance_genes):
                 if gn not in self._genes:
                     continue
                 if gn in self._no_transfer:     # e.g. mecA in lab_v2 (SCCmec not modelled)
@@ -387,7 +391,7 @@ class BacteriumAgent(Agent):
             "fitness": round(self.fitness, 3),
             "stress_level": round(self.stress_level, 3),
             "antibiotic_damage": round(self.antibiotic_damage, 3),
-            "resistance_genes": list(self.resistance_genes),
+            "resistance_genes": sorted(self.resistance_genes),
             "gene_count": len(self.resistance_genes),
             "in_biofilm": self.in_biofilm,
             "sos_active": self.sos_active,

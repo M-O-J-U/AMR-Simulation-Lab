@@ -2,13 +2,14 @@
 Fingerprints of the paper_v1 simulation, used to prove that the frozen paper
 biology stays byte-identical as the lab code evolves.
 
-  PYTHONHASHSEED=0 python tests/golden/fingerprint.py --write   # (re)generate
-  PYTHONHASHSEED=0 python tests/golden/fingerprint.py           # compare
+  python tests/golden/fingerprint.py --write   # (re)generate paper_v1.json
+  python tests/golden/fingerprint.py           # compare against it
 
-PYTHONHASHSEED MUST be fixed: the simulation's trajectory depends on Python's
-per-process string-hash randomisation (set iteration order feeds RNG draw
-order; found 2026-09-29, see CLAUDE.md paper-phase TODO). The script refuses
-to run without it.
+History: the first golden (commit 89cb849) had to be generated under
+PYTHONHASHSEED=0 with the global `random` pre-seeded, because seeded runs
+depended on string-hash order and graph subsampling used the unseeded global
+RNG. Both were fixed on 2026-09-29, so this harness now sets neither, and the
+test runs it under several different hash seeds to prove determinism.
 
 Covers exactly the paper's training data path (ai/gnn_trainer.py
 DEFAULT_CONFIG: 4 scenarios x seeds 100-102, 80 steps, snapshot_interval 3,
@@ -55,26 +56,11 @@ def state_fingerprint(scenario, seed):
     return h.hexdigest()
 
 
-# build_graph_from_state() subsamples populations > max_nodes with Python's
-# GLOBAL, unseeded `random.sample`, so the paper pipeline's training pairs are
-# not reproducible run-to-run (found 2026-09-29; 7 of these 12 runs are
-# affected; logged in CLAUDE.md as a paper-phase item, NOT fixed). This harness
-# seeds the global RNG before each run only so the fingerprint is stable; the
-# paper pipeline itself is untouched.
-HARNESS_GLOBAL_SEED = 20260929
-
-
 def pairs_fingerprint(scenario, seed):
-    import random
     import numpy as np
     from ai.feature_engineering import collect_training_snapshots
-    saved = random.getstate()
-    random.seed(HARNESS_GLOBAL_SEED)
-    try:
-        pairs = collect_training_snapshots(n_steps=STEPS, scenario=scenario, seed=seed,
-                                           snapshot_interval=INTERVAL)
-    finally:
-        random.setstate(saved)
+    pairs = collect_training_snapshots(n_steps=STEPS, scenario=scenario, seed=seed,
+                                       snapshot_interval=INTERVAL)
     h = hashlib.sha256()
     for g0, g1 in pairs:
         for g in (g0, g1):
@@ -103,11 +89,7 @@ def compute():
     return out
 
 
-REQUIRED_HASHSEED = "0"
-
 if __name__ == "__main__":
-    if os.environ.get("PYTHONHASHSEED") != REQUIRED_HASHSEED:
-        sys.exit(f"set PYTHONHASHSEED={REQUIRED_HASHSEED} (trajectories depend on it)")
     fp = compute()
     if "--write" in sys.argv:
         json.dump(fp, open(GOLDEN, "w"), indent=1)
