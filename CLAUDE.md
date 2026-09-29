@@ -251,3 +251,36 @@ pipeline; nothing below is to be reconciled with the retired draft.
   (`ai/checkpoints/patric_validation.json`); the `--synthetic` path crashes on a console
   encoding error (`external_validation_rerun.txt`). Real validation needs gene re-annotation
   of BV-BRC assemblies (scoped, not started).
+
+## RESUME HERE (saved 2026-09-29; last commit fffd163; tree clean; nothing pushed)
+**Waiting on the user for two decisions; do not proceed on either without an answer.**
+1. **lab_v2 dosing protocol.** Approved: option (b), time-limited course. Time-limiting alone
+   fails at the current dose 1.5 ug/mL (pakistan_crisis extinct at every N). PROPOSED, not
+   approved: dose **0.25 ug/mL, cleared after N=5 steps** -> 0/12 runs extinct, 312 pairs,
+   1,011 positives (paper_v1: 301 / 1,222); pakistan_crisis min pop 119 (real pressure).
+   Survey scripts were in the session scratchpad (lost); rerun via
+   `collect_training_snapshots(..., biology="lab_v2", dose=..., dose_duration=...)`.
+   On approval: set `DEFAULT_CONFIG["dose_duration_steps"]=5` and add a config key for the
+   dose (pipeline currently passes only dose_duration; `dose` defaults to 1.5 — thread
+   `config["dose"]` through the 3 callers like dose_duration), label both as invented
+   protocol parameters, then run:
+   `python -m ai.reseeded_results --biology lab_v2` and
+   `python -m ai.hparam_sweep --part gnn --biology lab_v2` / `--part rf` / `--summarize`,
+   then report the three-column summary: retired draft -> paper_v1 corrected -> lab_v2
+   corrected (every headline number). NO paper text until the user says so.
+2. **External validation:** user is deciding whether the paper waits for a ResFinder
+   re-annotation of BV-BRC assemblies (~1-2 weeks; gene->phenotype concordance is the
+   feasible, useful check; per-edge HGT cannot be validated from genomes) or ships with it as
+   a labelled limitation.
+
+**Numbers so far (paper_v1, corrected; test AUROC mean ± SD over seeds 0-4):**
+- Default hparams (`reseeded/paper_v1`): GNN 0.9261±0.0211, RF 0.9226±0.0263, LR 0.8466±0.0406.
+- Tuned (`sweep/paper_v1`, validation-selected): GNN full 0.9665±0.0048 (hidden 128, lr 1e-3,
+  2 layers); edge features zeroed 0.9673±0.0035; graph-free (no message passing)
+  0.9546±0.0084; RF 0.9306±0.0317 (300 trees, depth 8). Supports: GNN > RF (5/5 seeds);
+  message passing +0.012 (5/5); edge feature vectors add nothing. Default lr 3e-4 was the cause
+  of the earlier "GNN ≈ RF, edges hurt" result.
+- Retired draft (invalid, pre-leakage-fix, 36-dim): GNN 0.9934, RF 0.9896, LR 0.9746.
+
+**Lab (Phases 1-2) is done** (WebSocket stream, frontend rebuild). Phase 3 (UX/experiment
+mode, run comparison) and Phase 4 (final validation) not started.
