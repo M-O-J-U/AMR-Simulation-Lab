@@ -1,0 +1,2 @@
+# Vendored third-party files must stay byte-identical to the verified releases
+frontend/vendor/** -text
