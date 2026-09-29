@@ -1,6 +1,6 @@
 {
   "_comment": "Adjustable parameters for the lab_v2 biology (data/biology.py). The paper_v1 biology ignores this file.",
 
-  "mecA_fitness_cost": null,
-  "_mecA_fitness_cost_note": "UNSET. To be filled with the value(s) measured by Ender M, McCallum N, Adhikari R, Berger-Bachi B (2004), 'Fitness cost of SCCmec and methicillin resistance levels in Staphylococcus aureus', Antimicrob Agents Chemother 48(6):2295-2297, doi:10.1128/AAC.48.6.2295-2297.2004 - one measured point (type I SCCmec transformants, where cost varied inversely with resistance level), not a species constant. While null, no mecA fitness cost is applied and the API/UI report that it is unset."
+  "mecA_fitness_cost": 0.275,
+  "_mecA_fitness_cost_note": "0.275 = 1 - 29/40: the doubling-time ratio of the susceptible parent BB255 to the high-level oxacillin-resistant type I SCCmec transformant RA120, from Ender M, McCallum N, Adhikari R, Berger-Bachi B (2004), 'Fitness cost of SCCmec and methicillin resistance levels in Staphylococcus aureus', Antimicrob Agents Chemother 48(6):2295-2297, doi:10.1128/AAC.48.6.2295-2297.2004. ONE measured point for a HIGH-resistance lineage in one study, not a general constant: the paper's own finding is that cost varies inversely with resistance level (faster-growing variants were selected at the cost of lower resistance). Value and strain names supplied by the project owner from the paper; the full text was not machine-readable in this session. Applied with the simulation's existing convention (fitness = baseline - sum of gene costs), so MRSA's 0.88 baseline becomes 0.605 (a 31% relative reduction, vs the measured 27.5% growth-rate reduction)."
 }

@@ -70,10 +70,16 @@ class TestLabV2Contents:
         for germ in LAB_V2.germs.values():
             assert "mecA" not in germ.acquired_resistance_pool
 
+    def test_meca_fitness_cost_from_ender_2004(self):
+        """0.275 = 1 - 29/40 (BB255 vs RA120 doubling times, Ender et al. 2004)."""
+        assert load_lab_v2_config()["mecA_fitness_cost"] == 0.275
+        assert LAB_V2.genes["mecA"].fitness_cost == 0.275
+        assert LAB_V2.warnings == []
+
     def test_meca_fitness_cost_unset_is_explicit(self):
-        assert load_lab_v2_config()["mecA_fitness_cost"] is None
-        assert LAB_V2.genes["mecA"].fitness_cost == 0.0
-        assert any("UNSET" in w for w in LAB_V2.warnings)
+        bio = build_lab_v2(mecA_fitness_cost=None)
+        assert bio.genes["mecA"].fitness_cost == 0.0
+        assert any("UNSET" in w for w in bio.warnings)
 
     def test_meca_fitness_cost_configurable(self):
         bio = build_lab_v2(mecA_fitness_cost=0.07)
@@ -157,8 +163,7 @@ class TestServerBiology:
         from api.server import create_app
         with TestClient(create_app(enable_logging=False)) as c:
             s = c.get("/state").json()
-            assert s["biology"]["name"] == "lab_v2"
-            assert any("UNSET" in w for w in s["biology"]["warnings"])
+            assert s["biology"] == {"name": "lab_v2", "warnings": []}
             r = c.post("/reset", json={"scenario": "mrsa_hospital", "initial_bacteria": 10,
                                        "biology": "paper_v1"})
             assert r.status_code == 200
