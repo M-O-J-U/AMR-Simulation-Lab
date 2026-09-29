@@ -1,62 +1,62 @@
 {
  "ecoli_cipro/100": {
-  "state": "78a810cf91e0231091a52ae8231ea60ce6e8e0fbdc35967eda11c97d043b3496",
-  "pairs": "1bfbcad3fb225814ec0f4f11cd82e25828f48f68f3d2ad532d8f51d9d3eab7dc",
+  "state": "e4a9ea6f5758823d98629f5bc98c1683e267e731678cbd3022960fd012786477",
+  "pairs": "49cef7a8d539908d00c69c2e7d6e438c53d76d00881ad60a93be4128d4c8cdfb",
   "n_pairs": 26
  },
  "ecoli_cipro/101": {
-  "state": "d01eb99638eacf9266f6f2a8376a38a54a2ac1f89ce2ffb6d109e6a588f15d53",
-  "pairs": "904a6ffdcb64ffef371d46af9f1ba2b9cfe96119956933e6c84abf845360b2d0",
+  "state": "6a2cdda651067deb4c2708ee437a4b12b19daaf401f916384b2203707cbab234",
+  "pairs": "775b6162c46fb26c21e6a008a0a07a94a04621cc3265579a002a0baa9f67228e",
   "n_pairs": 26
  },
  "ecoli_cipro/102": {
-  "state": "96dd21ed9eb9da1965cb9052c7237f7ec5bdcb1fbb6085ab8cf649da6bce0458",
-  "pairs": "358d94aeefedd3cdb41ad31aa8bf475401224e80979aea861654b2f7d88d23fb",
+  "state": "60caebff9b58870fad48c55eef89bd6b6c999d5e4fa2dbd83bb53f8454a1d97c",
+  "pairs": "f864c962fd3706ccee34252c3c1a14540e008ccc3c7994523e856c99b0f12ef2",
   "n_pairs": 26
  },
  "klebsiella_carbapenem/100": {
-  "state": "99d6305ae87a34d158c4c7f0a610a069b03a7794d153c17e89beae1875437629",
-  "pairs": "3a0252ed3fabc136fd0d3b0f3e4499ec02d8e27f434c41587f80404525b2eafe",
+  "state": "afce86686b003f0095bcca3847dfa03a419dbaa58824daf86113959a82538973",
+  "pairs": "90e5048bfe35ce0b6fa8f7a73446c839a6000b2e41567592afb7e15ad7700b9e",
   "n_pairs": 26
  },
  "klebsiella_carbapenem/101": {
-  "state": "a942119da87cea83d38898175f9df7ba6255825ef2f2dd934465a0d87eb05bc3",
-  "pairs": "d9870e038d0f9e37e3f6e87d5724d880e53a7720b0496625eb18c2d0c3525bc3",
+  "state": "fd53a8aa1122ac0aaab60bcf1296296aced250609c623bd39cec8f6aa72c8bc5",
+  "pairs": "d17480cd4b8bdfa36b1e2927d44dff2b5009db21487c79671af1c80d4bbf946e",
   "n_pairs": 26
  },
  "klebsiella_carbapenem/102": {
-  "state": "57815dfda07920e6fec971f959569249ba4de87280701e608613577eeeeae593",
-  "pairs": "8640691ea88433732a80276ce6b135431e58c0f80dec0bac6d1424f82d5ce89e",
+  "state": "350d5abfc691aa2b1e92fe14f333fb99a2c10374108e523677fd2cc6d0fb5882",
+  "pairs": "2bb0cf78fc0965bf13e8d113678375b359398674ab06212acbba27ac8bbb9993",
   "n_pairs": 26
  },
  "pakistan_crisis/100": {
-  "state": "d3b3044a5887a099659304a41112bd4e27aaba0e8337b928b945810365be8b65",
-  "pairs": "ba853909e1e862d06a114f520379ca25d11d1133cfe0a1fa8cfeb8fd6e270f8f",
+  "state": "dc3a5f8aa44324cf88c4cff8ed41d022cf0c80a1a3a12ae7da7d49ae89ccb1a4",
+  "pairs": "dc80c6779dd02174e57f9cc2080e3a091a737f27c3b4b8f6d4a3a9bcbecf86f3",
   "n_pairs": 23
  },
  "pakistan_crisis/101": {
-  "state": "2f9bd08e32865f45ca18597468a679fddc8f51b2d4468890dccaa4219ac4d4c1",
-  "pairs": "d6ba716c26e46fa2898f0865ba6f5d90d90e0de840ba50153fa8a44da56024ad",
+  "state": "a55b2b32ac681ddfda3243f1febec191f7e9d5c7b504fa8be8b89caa759bcd60",
+  "pairs": "4e1a604db952cfc3732afd1a6844c928a0d0b931ba7c3ac19ba6e8c72b2344fb",
   "n_pairs": 18
  },
  "pakistan_crisis/102": {
-  "state": "9e0e715ff2134fa7a5a7aa7c8353f66c412f4b009175723fc40f3ec0846deffa",
-  "pairs": "1f64a986049ae1d837667f416f739e448da0835e9b8fb2645309e08f1596c1ea",
+  "state": "d6396550c3a3c80063565f8e32f5152f5e037eaf4bc60106778b400e3fadea14",
+  "pairs": "7245b698566253f8c9bf660d71b0fde3a2a169911b11dba2065095783bf23a6d",
   "n_pairs": 26
  },
  "xdr_acinetobacter/100": {
-  "state": "184f2cb5d1afd74b7aafb88073dbb8ed4a18666cd160183c8341ce938ec50ad3",
-  "pairs": "d9688b0cf78c7e2e88b4e0e3ff60722b52ea8d9cc1b54cb10e492f3582d6694b",
+  "state": "29b96a7a5014d82d7b37516189fc1d09e313e0f0367be338243c1d253d281142",
+  "pairs": "baa1d9e9edb26d57fa33b2f4b6df980db99cceab62da871ea9974022ba57d22e",
   "n_pairs": 26
  },
  "xdr_acinetobacter/101": {
-  "state": "1087f2fdf74345bea06401189137e5c29fc36a9fb4f31cf0f4bb97dc0b5ededf",
-  "pairs": "a5e94464a466cbac1f79ec24b85ab02288d5f8b6749fe50ad1c561a90567e796",
+  "state": "96575724fee0a0a99ac6fe510bb554cd0b28afd3c8020106d8cffe9397c5c9d5",
+  "pairs": "14153483d81f0a25b0a3b3fd2bda4e1d7f47672c5316dd1d06619d8355f59c68",
   "n_pairs": 26
  },
  "xdr_acinetobacter/102": {
-  "state": "f50f0d0ac8566994fc65269e8a648fc00b0b152e3408061cbbd490e3c5267a5c",
-  "pairs": "f396b4afbf4215c8ea333d708d3832da8ee81e3d5997724de7b95221d0651a71",
+  "state": "2ed2d0c416426c19d9326b3e3b02c8a7aba76342aacf74514c6cfe96fb2ab43a",
+  "pairs": "8cebfdaa8b60c8a0737de8cb3bf2b07d46f11c10db58653ebbebaa93152676a7",
   "n_pairs": 26
  }
 }

@@ -2,8 +2,13 @@
 Fingerprints of the paper_v1 simulation, used to prove that the frozen paper
 biology stays byte-identical as the lab code evolves.
 
-  python tests/golden/fingerprint.py --write   # (re)generate paper_v1.json
-  python tests/golden/fingerprint.py           # compare against it
+  PYTHONHASHSEED=0 python tests/golden/fingerprint.py --write   # (re)generate
+  PYTHONHASHSEED=0 python tests/golden/fingerprint.py           # compare
+
+PYTHONHASHSEED MUST be fixed: the simulation's trajectory depends on Python's
+per-process string-hash randomisation (set iteration order feeds RNG draw
+order; found 2026-09-29, see CLAUDE.md paper-phase TODO). The script refuses
+to run without it.
 
 Covers exactly the paper's training data path (ai/gnn_trainer.py
 DEFAULT_CONFIG: 4 scenarios x seeds 100-102, 80 steps, snapshot_interval 3,
@@ -98,7 +103,11 @@ def compute():
     return out
 
 
+REQUIRED_HASHSEED = "0"
+
 if __name__ == "__main__":
+    if os.environ.get("PYTHONHASHSEED") != REQUIRED_HASHSEED:
+        sys.exit(f"set PYTHONHASHSEED={REQUIRED_HASHSEED} (trajectories depend on it)")
     fp = compute()
     if "--write" in sys.argv:
         json.dump(fp, open(GOLDEN, "w"), indent=1)
