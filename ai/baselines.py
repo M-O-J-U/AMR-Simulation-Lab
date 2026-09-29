@@ -20,7 +20,7 @@ import os
 import time
 import numpy as np
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -164,6 +164,8 @@ def run_baselines(
     subsample_seed: int = 42,
     model_seed: int = 42,
     include_gnn: bool = True,
+    rf_params: Optional[dict] = None,
+    models: Optional[tuple] = None,
 ) -> Dict[str, Dict]:
     """
     Train all baselines on tr_ds, evaluate on te_ds.
@@ -217,93 +219,95 @@ def run_baselines(
     X_tr_scaled = scaler.fit_transform(X_tr_sub)
     X_te_scaled = scaler.transform(X_te)
 
-    # ── 1. Frequency baseline ────────────────────────────────────────────────
-    print("\n[1/4] Frequency Baseline (CARD acquisition probs)...")
-    freq = FrequencyBaseline()
-    freq_probs = freq.predict(X_te.shape[0])
-    freq_metrics = compute_metrics(y_te, freq_probs)
-    freq_calib   = calibrated_macro_f1(y_te, freq_probs)
-    results["frequency_baseline"] = {
-        "model": freq.name(),
-        "auroc_macro": freq_metrics["auroc_macro"],
-        "auprc_macro": freq_metrics["auprc_macro"],
-        "f1_macro":        freq_calib["f1_macro"],
-        "precision_macro": freq_calib["precision_macro"],
-        "recall_macro":    freq_calib["recall_macro"],
-        "per_gene_auroc": {g: freq_metrics.get(f"auroc_{g}", float("nan"))
-                           for g in GENE_INDEX},
-    }
-    print(f"  AUROC={freq_metrics['auroc_macro']:.4f} | "
-          f"AUPRC={freq_metrics['auprc_macro']:.4f} | "
-          f"F1(calibrated)={freq_calib['f1_macro']:.4f}")
+    if models is None or "frequency_baseline" in models:
+        # ── 1. Frequency baseline ────────────────────────────────────────────────
+        print("\n[1/4] Frequency Baseline (CARD acquisition probs)...")
+        freq = FrequencyBaseline()
+        freq_probs = freq.predict(X_te.shape[0])
+        freq_metrics = compute_metrics(y_te, freq_probs)
+        freq_calib   = calibrated_macro_f1(y_te, freq_probs)
+        results["frequency_baseline"] = {
+            "model": freq.name(),
+            "auroc_macro": freq_metrics["auroc_macro"],
+            "auprc_macro": freq_metrics["auprc_macro"],
+            "f1_macro":        freq_calib["f1_macro"],
+            "precision_macro": freq_calib["precision_macro"],
+            "recall_macro":    freq_calib["recall_macro"],
+            "per_gene_auroc": {g: freq_metrics.get(f"auroc_{g}", float("nan"))
+                               for g in GENE_INDEX},
+        }
+        print(f"  AUROC={freq_metrics['auroc_macro']:.4f} | "
+              f"AUPRC={freq_metrics['auprc_macro']:.4f} | "
+              f"F1(calibrated)={freq_calib['f1_macro']:.4f}")
 
-    # ── 2. Logistic Regression ───────────────────────────────────────────────
-    print("\n[2/4] Logistic Regression (per-gene, one-vs-rest)...")
-    lr_all_probs = np.zeros((X_te.shape[0], N_GENES), dtype=np.float32)
+    if models is None or "logistic_regression" in models:
+        # ── 2. Logistic Regression ───────────────────────────────────────────────
+        print("\n[2/4] Logistic Regression (per-gene, one-vs-rest)...")
+        lr_all_probs = np.zeros((X_te.shape[0], N_GENES), dtype=np.float32)
 
-    for g_idx, gene in enumerate(GENE_INDEX):
-        y_g = y_tr_sub[:, g_idx]
-        if y_g.sum() < 5:  # skip genes with very few positives in train
-            lr_all_probs[:, g_idx] = 0.001
-            continue
-        lr = LogisticRegression(
-            max_iter=500, C=1.0,
-            class_weight="balanced",
-            solver="saga", n_jobs=-1,
-            random_state=model_seed,   # saga shuffles; was unseeded before 2026-09-29
-        )
-        lr.fit(X_tr_scaled, y_g)
-        lr_all_probs[:, g_idx] = lr.predict_proba(X_te_scaled)[:, 1]
+        for g_idx, gene in enumerate(GENE_INDEX):
+            y_g = y_tr_sub[:, g_idx]
+            if y_g.sum() < 5:  # skip genes with very few positives in train
+                lr_all_probs[:, g_idx] = 0.001
+                continue
+            lr = LogisticRegression(
+                max_iter=500, C=1.0,
+                class_weight="balanced",
+                solver="saga", n_jobs=-1,
+                random_state=model_seed,   # saga shuffles; was unseeded before 2026-09-29
+            )
+            lr.fit(X_tr_scaled, y_g)
+            lr_all_probs[:, g_idx] = lr.predict_proba(X_te_scaled)[:, 1]
 
-    lr_metrics = compute_metrics(y_te, lr_all_probs)
-    lr_calib   = calibrated_macro_f1(y_te, lr_all_probs)
-    results["logistic_regression"] = {
-        "model": "Logistic Regression (balanced class weight)",
-        "auroc_macro": lr_metrics["auroc_macro"],
-        "auprc_macro": lr_metrics["auprc_macro"],
-        "f1_macro":        lr_calib["f1_macro"],
-        "precision_macro": lr_calib["precision_macro"],
-        "recall_macro":    lr_calib["recall_macro"],
-        "per_gene_auroc": {g: lr_metrics.get(f"auroc_{g}", float("nan"))
-                           for g in GENE_INDEX},
-    }
-    print(f"  AUROC={lr_metrics['auroc_macro']:.4f} | "
-          f"AUPRC={lr_metrics['auprc_macro']:.4f} | "
-          f"F1(calibrated)={lr_calib['f1_macro']:.4f}")
+        lr_metrics = compute_metrics(y_te, lr_all_probs)
+        lr_calib   = calibrated_macro_f1(y_te, lr_all_probs)
+        results["logistic_regression"] = {
+            "model": "Logistic Regression (balanced class weight)",
+            "auroc_macro": lr_metrics["auroc_macro"],
+            "auprc_macro": lr_metrics["auprc_macro"],
+            "f1_macro":        lr_calib["f1_macro"],
+            "precision_macro": lr_calib["precision_macro"],
+            "recall_macro":    lr_calib["recall_macro"],
+            "per_gene_auroc": {g: lr_metrics.get(f"auroc_{g}", float("nan"))
+                               for g in GENE_INDEX},
+        }
+        print(f"  AUROC={lr_metrics['auroc_macro']:.4f} | "
+              f"AUPRC={lr_metrics['auprc_macro']:.4f} | "
+              f"F1(calibrated)={lr_calib['f1_macro']:.4f}")
 
-    # ── 3. Random Forest ─────────────────────────────────────────────────────
-    print("\n[3/4] Random Forest (100 trees, balanced subsample)...")
-    rf_all_probs = np.zeros((X_te.shape[0], N_GENES), dtype=np.float32)
+    if models is None or "random_forest" in models:
+        # ── 3. Random Forest ─────────────────────────────────────────────────────
+        print("\n[3/4] Random Forest (100 trees, balanced subsample)...")
+        rf_all_probs = np.zeros((X_te.shape[0], N_GENES), dtype=np.float32)
 
-    for g_idx, gene in enumerate(GENE_INDEX):
-        y_g = y_tr_sub[:, g_idx]
-        if y_g.sum() < 5:
-            rf_all_probs[:, g_idx] = 0.001
-            continue
-        rf = RandomForestClassifier(
-            n_estimators=100,
-            max_depth=8,
-            class_weight="balanced_subsample",
-            n_jobs=-1, random_state=model_seed,   # default 42 = previous behaviour
-        )
-        rf.fit(X_tr_sub, y_g)  # RF doesn't need scaling
-        rf_all_probs[:, g_idx] = rf.predict_proba(X_te)[:, 1]
+        for g_idx, gene in enumerate(GENE_INDEX):
+            y_g = y_tr_sub[:, g_idx]
+            if y_g.sum() < 5:
+                rf_all_probs[:, g_idx] = 0.001
+                continue
+            rf = RandomForestClassifier(
+                **{"n_estimators": 100, "max_depth": 8, **(rf_params or {})},
+                class_weight="balanced_subsample",
+                n_jobs=-1, random_state=model_seed,   # default 42 = previous behaviour
+            )
+            rf.fit(X_tr_sub, y_g)  # RF doesn't need scaling
+            rf_all_probs[:, g_idx] = rf.predict_proba(X_te)[:, 1]
 
-    rf_metrics = compute_metrics(y_te, rf_all_probs)
-    rf_calib   = calibrated_macro_f1(y_te, rf_all_probs)
-    results["random_forest"] = {
-        "model": "Random Forest (100 trees, max_depth=8, balanced_subsample)",
-        "auroc_macro": rf_metrics["auroc_macro"],
-        "auprc_macro": rf_metrics["auprc_macro"],
-        "f1_macro":        rf_calib["f1_macro"],
-        "precision_macro": rf_calib["precision_macro"],
-        "recall_macro":    rf_calib["recall_macro"],
-        "per_gene_auroc": {g: rf_metrics.get(f"auroc_{g}", float("nan"))
-                           for g in GENE_INDEX},
-    }
-    print(f"  AUROC={rf_metrics['auroc_macro']:.4f} | "
-          f"AUPRC={rf_metrics['auprc_macro']:.4f} | "
-          f"F1(calibrated)={rf_calib['f1_macro']:.4f}")
+        rf_metrics = compute_metrics(y_te, rf_all_probs)
+        rf_calib   = calibrated_macro_f1(y_te, rf_all_probs)
+        results["random_forest"] = {
+            "model": "Random Forest (100 trees, max_depth=8, balanced_subsample)",
+            "auroc_macro": rf_metrics["auroc_macro"],
+            "auprc_macro": rf_metrics["auprc_macro"],
+            "f1_macro":        rf_calib["f1_macro"],
+            "precision_macro": rf_calib["precision_macro"],
+            "recall_macro":    rf_calib["recall_macro"],
+            "per_gene_auroc": {g: rf_metrics.get(f"auroc_{g}", float("nan"))
+                               for g in GENE_INDEX},
+        }
+        print(f"  AUROC={rf_metrics['auroc_macro']:.4f} | "
+              f"AUPRC={rf_metrics['auprc_macro']:.4f} | "
+              f"F1(calibrated)={rf_calib['f1_macro']:.4f}")
 
     if not include_gnn:
         # Multi-seed runs (ai/reseeded_results.py) evaluate the GNN themselves,

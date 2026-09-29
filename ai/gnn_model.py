@@ -341,11 +341,13 @@ class AMRResistanceGNN(nn.Module):
             "hidden_dim":        self.hidden_dim,
             "edge_enc_dim":      self.edge_enc_dim,
             "n_gat_layers":      self.n_layers,
-            "attention_heads":   self.gat_layers[0].gat.heads,
+            "attention_heads":   self.gat_layers[0].gat.heads if self.n_layers else None,
             "output_dim":        self.n_genes,
             "output_genes":      GENE_INDEX,
             "trainable_params":  self.count_parameters(),
-            "architecture":      "NodeEncoder → EdgeEncoder → 3×GAT+EdgeAttn → EdgePredictorHead",
+            "architecture":      (f"NodeEncoder → EdgeEncoder → {self.n_layers}×GAT+EdgeAttn → EdgePredictorHead"
+                                  if self.n_layers else
+                                  "NodeEncoder → EdgeEncoder → EdgePredictorHead (no message passing)"),
         }
 
 
