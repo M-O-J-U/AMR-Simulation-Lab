@@ -11,3 +11,6 @@ desktop.ini
 # limit is 100 MB per file); re-download from BV-BRC (bv-brc.org) if needed.
 ecoli_amr.csv
 klebsiella_amr.csv
+
+# Run logs: historical files up to 2026-09-29 stay committed; new runs are not tracked.
+logs/
