@@ -167,3 +167,16 @@ Goal: modern, smooth, informative, still fast at 4800 grid cells with hundreds o
   because `/gnn/status` failed to JSON-encode it (the API now reports it as null; the
   files are untouched). Before the paper phase, determine how macro AUROC handles this
   gene and whether any reported figure depends on it.
+- **8 of 10 CARD ARO IDs in `data/card_loader.py` point at the wrong CARD entry** (audited
+  2026-09-29 against card.mcmaster.ca; not fixed). Correct: blaNDM-1 ARO:3000589, tetM
+  ARO:3000186. Wrong (what the ID actually is): blaTEM-1 and blaCTX-M-15 both ARO:3000237
+  (TolC); blaKPC-2 ARO:3000159 (generic efflux term); mexAB-oprM ARO:3000157 (rifamycin drug
+  class); acrAB-tolC ARO:3000055 (SME beta-lactamase); gyrA_S83L ARO:3000181 (tet(V));
+  mcr-1 ARO:3000745 (dihydrofolate reductase); vanA ARO:3000089 (AER beta-lactamase).
+  `card_id` is metadata only (no code reads it), so no simulated number depends on it — but
+  check whether the paper cites these IDs.
+- **Klebsiella / MRSA profile biology** (see lab-phase proposal, 2026-09-29): every Klebsiella
+  starts with `acrAB-tolC`, which the sim treats as 0.90 protection vs ciprofloxacin,
+  tetracycline and ampicillin; EUCAST ERP v1.2 rule 1.7 lists K. pneumoniae as expected
+  resistant only to ampicillin/amoxicillin and ticarcillin. Klebsiella is in 2 of the 4
+  DEFAULT_CONFIG training scenarios, so this shapes the paper's training data.
