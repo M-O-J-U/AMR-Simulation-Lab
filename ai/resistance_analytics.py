@@ -26,6 +26,13 @@ from data.card_loader import (
     RESISTANCE_GENES, ANTIBIOTIC_PROFILES,
     ResistanceGene, AntibioticProfile, resistance_probability
 )
+from data.expected_resistance import is_expected_resistant
+
+
+def _is_expected_resistant(b, antibiotic_key: str) -> bool:
+    """Species-level expected resistance (EUCAST; see data/expected_resistance.py).
+    Objects without a `species` attribute are treated as having none."""
+    return is_expected_resistant(getattr(b, "species", None), antibiotic_key)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # FITNESS LANDSCAPE
@@ -97,6 +104,10 @@ def estimate_population_mic(
     resistant_count = 0
 
     for b in bacteria_list:
+        if _is_expected_resistant(b, antibiotic_key):
+            # Expected resistant phenotype: report R without estimating an MIC.
+            resistant_count += 1
+            continue
         r = _calculate_mic_fold_change(b.resistance_genes, ab)
         effective_mic = ab.mic_susceptible * r
 
@@ -151,12 +162,17 @@ def recommend_treatment(bacteria_list: list, available_antibiotics: List[str]) -
             continue
         ab = ANTIBIOTIC_PROFILES[ab_key]
 
-        # Calculate fraction susceptible
+        # Calculate fraction susceptible (species with an expected resistant
+        # phenotype for this drug never count as susceptible)
+        expected_r_count = sum(
+            1 for b in bacteria_list if _is_expected_resistant(b, ab_key))
         susceptible_count = sum(
             1 for b in bacteria_list
-            if _calculate_mic_fold_change(b.resistance_genes, ab) <= 2.0
+            if not _is_expected_resistant(b, ab_key)
+            and _calculate_mic_fold_change(b.resistance_genes, ab) <= 2.0
         )
         pct_susceptible = susceptible_count / len(bacteria_list)
+        pct_expected_r = expected_r_count / len(bacteria_list)
 
         # Score: weighted by susceptibility, bactericidal bonus
         score = pct_susceptible * 100
@@ -183,13 +199,19 @@ def recommend_treatment(bacteria_list: list, available_antibiotics: List[str]) -
             "pct_susceptible": round(pct_susceptible * 100, 1),
             "bactericidal": ab.bactericidal,
             "mechanism": ab.mechanism_of_action,
-            "rationale": _build_rationale(ab, pct_susceptible, gene_prevalence),
+            "pct_expected_resistant": round(pct_expected_r * 100, 1),
+            "rationale": _build_rationale(ab, pct_susceptible, gene_prevalence,
+                                          pct_expected_r),
         })
 
     return sorted(recommendations, key=lambda x: x["score"], reverse=True)
 
-def _build_rationale(ab: AntibioticProfile, pct_susceptible: float, gene_prevalence: float) -> str:
+def _build_rationale(ab: AntibioticProfile, pct_susceptible: float, gene_prevalence: float,
+                     pct_expected_r: float = 0.0) -> str:
     parts = []
+    if pct_expected_r > 0:
+        parts.append(f"{pct_expected_r*100:.0f}% of population is a species with "
+                     f"expected resistance to {ab.name} (EUCAST)")
     if pct_susceptible > 0.8:
         parts.append(f"{pct_susceptible*100:.0f}% of population susceptible")
     elif pct_susceptible < 0.2:

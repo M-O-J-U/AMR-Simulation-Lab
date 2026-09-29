@@ -28,6 +28,12 @@ from ai.gnn_model import AMRResistanceGNN, build_model
 DEFAULT_CHECKPOINT = "ai/checkpoints/best_model.pt"
 TRANSFER_THRESHOLD = 0.35
 
+# Treatment advisory: an antibiotic is only listed as "safe" if at least this
+# % of the CURRENT population is susceptible to it. SIMPLIFICATION / INVENTED
+# PARAMETER: a UI heuristic for the simulation, not a clinical cutoff and not
+# taken from any cited source.
+SAFE_MIN_SUSCEPTIBLE_PCT = 80.0
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # INFERENCE ENGINE
@@ -299,11 +305,32 @@ class GNNInferenceEngine:
                 gene = RESISTANCE_GENES[gene_name]
                 threatened_antibiotics.update(gene.drug_classes)
 
-        # Safe antibiotics: available ones NOT threatened by imminent genes
+        # Current population susceptibility per antibiotic: acquired genes AND
+        # species-level expected resistance (data/expected_resistance.py).
+        bacteria = state.get("bacteria", [])
+        population = [
+            type("B", (), {"resistance_genes": set(b["resistance_genes"]),
+                           "fitness": b["fitness"],
+                           "species": b.get("species")})()
+            for b in bacteria
+        ]
+        known = [ab for ab in available_antibiotics if ab in ANTIBIOTIC_PROFILES]
+        current = {r["key"]: r for r in recommend_treatment(population, known)}
+
+        # Antibiotics already failing on the population as it is now
+        already_resistant = {
+            ab: current[ab]["pct_susceptible"]
+            for ab in known
+            if ab in current and current[ab]["pct_susceptible"] < SAFE_MIN_SUSCEPTIBLE_PCT
+        }
+
+        # Safe antibiotics: NOT threatened by GNN-predicted imminent genes AND
+        # not already failing because of resistance present right now.
         safe_antibiotics = [
-            ab for ab in available_antibiotics
-            if ab in ANTIBIOTIC_PROFILES and
-            ANTIBIOTIC_PROFILES[ab].drug_class not in threatened_antibiotics
+            ab for ab in known
+            if ANTIBIOTIC_PROFILES[ab].drug_class not in threatened_antibiotics
+            and ab not in already_resistant
+            and (ab in current or not population)
         ]
 
         # Risk level based on how many genes are spreading
@@ -315,25 +342,21 @@ class GNNInferenceEngine:
             "LOW"
         )
 
-        # Get current bacteria for treatment recommendation
-        bacteria = state.get("bacteria", [])
-        recs     = recommend_treatment(
-            [type("B", (), {"resistance_genes": set(b["resistance_genes"]),
-                             "fitness": b["fitness"]})()
-             for b in bacteria],
-            safe_antibiotics or available_antibiotics
-        )
+        recs = recommend_treatment(population, safe_antibiotics or known)
 
         return {
             "risk_level":            risk_level,
             "imminent_resistance":   list(imminent_genes),
             "threatened_antibiotics":list(threatened_antibiotics),
             "safe_antibiotics":      safe_antibiotics,
+            "already_resistant":     already_resistant,   # {ab_key: % susceptible now}
+            "safe_min_susceptible_pct": SAFE_MIN_SUSCEPTIBLE_PCT,
             "recommendations":       recs[:3],
             "n_high_risk_cells":     len(gnn_result.get("high_risk_cells", [])),
             "gnn_confidence":        float(np.mean(list(gene_probs.values()))),
             "advisory_text":         self._build_advisory_text(
-                risk_level, imminent_genes, threatened_antibiotics, safe_antibiotics
+                risk_level, imminent_genes, threatened_antibiotics, safe_antibiotics,
+                already_resistant,
             ),
         }
 
@@ -343,14 +366,25 @@ class GNNInferenceEngine:
         imminent:      set,
         threatened:    set,
         safe_options:  list,
+        already_resistant: Optional[dict] = None,
     ) -> str:
+        already_resistant = already_resistant or {}
+        present = ""
+        if already_resistant:
+            present = (" Already failing on the current population (<"
+                       f"{SAFE_MIN_SUSCEPTIBLE_PCT:.0f}% susceptible): "
+                       f"{', '.join(sorted(already_resistant))}.")
         if risk_level == "LOW":
+            if not safe_options:
+                return ("No imminent resistance gene transfers predicted, but no "
+                        "available antibiotic is effective against the current "
+                        "population." + present)
             return ("No imminent resistance gene transfers predicted. "
-                    "Current treatment options remain effective.")
+                    f"Effective options now: {', '.join(safe_options)}." + present)
         elif risk_level == "MEDIUM":
             genes_str = ", ".join(imminent) or "unknown"
             return (f"GNN predicts {genes_str} may spread within the next "
-                    f"few simulation steps. Monitor resistance emergence.")
+                    f"few simulation steps. Monitor resistance emergence." + present)
         elif risk_level == "HIGH":
             genes_str = ", ".join(imminent)
             ab_str    = ", ".join(threatened) or "none"
