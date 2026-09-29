@@ -11,6 +11,10 @@ happens inside AMRSimulationModel methods, exactly as in headless runs.
 Transport: REST only. The frontend polls GET /state (every 2.5 s, and after
 each action). There is no WebSocket route.
 
+Pause semantics: Play is driven by the frontend's own timer posting /step.
+/pause and /resume set model.paused, but an explicit POST /step always
+advances (see step()), so while paused the '+1 Step' button still works.
+
 Endpoints
   GET  /state                       full simulation snapshot
   POST /step                        {"n_steps": int}
@@ -174,10 +178,19 @@ def create_app(enable_logging: bool = True,
 
     @app.post("/step")
     def step(req: StepRequest = StepRequest()):
+        """An explicit step request always advances n_steps, even while paused
+        (e.g. the '+1 Step' button after Pause). model.step() returns early when
+        model.paused is set, so the flag is cleared for the duration of this
+        request and restored afterwards; model.step() itself is unchanged."""
         with session.lock:
             m = session.model
-            for _ in range(req.n_steps):
-                m.step()
+            was_paused = m.paused
+            m.paused = False
+            try:
+                for _ in range(req.n_steps):
+                    m.step()
+            finally:
+                m.paused = was_paused
             return {"step": m.current_step, "paused": m.paused,
                     "running": m.running,
                     "total_bacteria": m.count_living_bacteria()}

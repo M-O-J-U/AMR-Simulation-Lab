@@ -119,13 +119,29 @@ class TestStepPauseResume:
     def test_step_rejects_out_of_range(self, client, n):
         assert client.post("/step", json={"n_steps": n}).status_code == 422
 
-    def test_pause_blocks_step_resume_restores(self, client):
+    def test_step_while_paused_advances_and_stays_paused(self, client):
+        """'+1 Step' after Pause must step once; the pause flag survives."""
         assert client.post("/pause").json() == {"paused": True}
-        client.post("/step", json={"n_steps": 3})
-        assert state(client)["stats"]["step"] == 0   # model.step() is a no-op while paused
+        r = client.post("/step", json={"n_steps": 1}).json()
+        assert r["step"] == 1 and r["paused"] is True
+        assert state(client)["stats"]["step"] == 1
         assert client.post("/resume").json() == {"paused": False}
         client.post("/step", json={"n_steps": 2})
-        assert state(client)["stats"]["step"] == 2
+        assert state(client)["stats"]["step"] == 3
+
+    def test_paused_step_matches_unpaused_step(self):
+        """Stepping while paused must give the same trajectory as unpaused."""
+        runs = []
+        for pause in (False, True):
+            with TestClient(create_app(enable_logging=False)) as c:
+                c.post("/reset", json={"scenario": "pakistan_crisis",
+                                       "initial_bacteria": 80, "seed": SEED})
+                if pause:
+                    c.post("/pause")
+                for _ in range(6):
+                    c.post("/step", json={"n_steps": 1})
+                runs.append(_strip_cell_ids(state(c)))
+        assert runs[0] == runs[1]
 
 
 # ─────────────────────────────────────────────────────────────────────────────

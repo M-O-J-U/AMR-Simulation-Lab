@@ -442,15 +442,17 @@ function renderCanvas(state){
   ctx.strokeStyle='rgba(20,60,90,0.3)';ctx.lineWidth=0.5;
   for(let x=0;x<GW;x+=10){ctx.beginPath();ctx.moveTo(x*sx,0);ctx.lineTo(x*sx,H);ctx.stroke()}
   for(let y=0;y<GH;y+=10){ctx.beginPath();ctx.moveTo(0,y*sy);ctx.lineTo(W,y*sy);ctx.stroke()}
+  // Heatmaps come from numpy grids shaped (width, height), so data[x][y]: the
+  // outer array is columns (x), the inner is rows (y).
   if(document.getElementById('tog-nut').checked&&nutrient_heatmap?.length){
-    const nh=nutrient_heatmap.length,nw=nutrient_heatmap[0]?.length||1,nsx=W/nw,nsy=H/nh;
-    nutrient_heatmap.forEach((row,y)=>row.forEach((v,x)=>{if(v>0.05){ctx.fillStyle=`rgba(0,200,80,${v*0.07})`;ctx.fillRect(x*nsx,y*nsy,nsx+1,nsy+1)}}));
+    const nw=nutrient_heatmap.length,nh=nutrient_heatmap[0]?.length||1,nsx=W/nw,nsy=H/nh;
+    nutrient_heatmap.forEach((col,x)=>col.forEach((v,y)=>{if(v>0.05){ctx.fillStyle=`rgba(0,200,80,${v*0.07})`;ctx.fillRect(x*nsx,y*nsy,nsx+1,nsy+1)}}));
   }
   if(document.getElementById('tog-ab').checked){
     Object.values(antibiotic_heatmaps||{}).forEach(hm=>{
       if(!hm.data?.length)return;
-      const c=hexRgb(hm.color),nh=hm.data.length,nw=hm.data[0]?.length||1,nsx=W/nw,nsy=H/nh;
-      hm.data.forEach((row,y)=>row.forEach((v,x)=>{if(v>0.01){ctx.fillStyle=`rgba(${c.r},${c.g},${c.b},${Math.min(0.6,v*0.28)})`;ctx.fillRect(x*nsx,y*nsy,nsx+1,nsy+1)}}));
+      const c=hexRgb(hm.color),nw=hm.data.length,nh=hm.data[0]?.length||1,nsx=W/nw,nsy=H/nh;
+      hm.data.forEach((col,x)=>col.forEach((v,y)=>{if(v>0.01){ctx.fillStyle=`rgba(${c.r},${c.g},${c.b},${Math.min(0.6,v*0.28)})`;ctx.fillRect(x*nsx,y*nsy,nsx+1,nsy+1)}}));
     });
   }
   if(document.getElementById('tog-hgt').checked){
