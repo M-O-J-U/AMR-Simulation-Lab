@@ -167,6 +167,8 @@ Goal: modern, smooth, informative, still fast at 4800 grid cells with hundreds o
   `lab_v2` = the API server's default: MRSA carries mecA (CARD ARO:3000617) instead of
   tetM; acrAB-tolC removed from MRSA's acquirable pool; mecA non-transferring. mecA's
   fitness cost lives in `data/lab_v2_config.json`.
+  lab_v2 Klebsiella: intrinsic acrAB-tolC removed; EUCAST ERP v1.2 rule 1.7 applied via
+  `Biology.intrinsic_resistance` (ampicillin, 0.90 gene convention; ticarcillin not simulated).
   lab_v2 diffusion conserves total drug (2026-09-29); decay_rate values unchanged and
   UNVALIDATED against real PK/PD. mecA fitness cost 0.275 (Ender 2004, RA120 vs BB255).
 - **Known limitation (lab_v2): SCCmec-style transfer of mecA is not modelled.** The sim's
@@ -214,3 +216,12 @@ Goal: modern, smooth, informative, still fast at 4800 grid cells with hundreds o
   law)", which conserves mass. Neither rate cites a source, and no step duration is defined
   anywhere, so decay rates cannot be checked against real PK yet. Training runs dose once at
   step 15, so this shapes the training data.
+- **Gene-less cells get no biofilm or persister protection** (found 2026-09-29, not fixed —
+  `core/`, both versions): `BacteriumAgent.get_resistance_to` returns 0.0 when a cell has no
+  resistance genes *before* applying biofilm (60%) and persister (95%) protection. The
+  manuscript says persisters are tolerant "regardless of genotype". Affects E. coli (no
+  intrinsic genes) in both versions, and lab_v2 Klebsiella for non-ampicillin drugs.
+- Lab-phase note: the analytics expected-resistance table (`data/expected_resistance.py`)
+  includes EUCAST header rules (e.g. glycopeptides for all Gram-negatives); the lab_v2
+  *simulation* applies only rule 1.7 for Klebsiella, so the sim still kills Gram-negatives
+  with vancomycin while analytics reports them resistant.

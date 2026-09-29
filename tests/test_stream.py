@@ -293,8 +293,9 @@ class TestEvents:
             recv(ws, ref, 1)
             prev_ids = set(ref.bmap)
             prev_hgt = ref.state["stats"]["hgt_total"]
+            # 0.3 (sub-MBC) leaves survivors under lab_v2, so births and deaths both occur
             client.post("/apply_antibiotic", json={"antibiotic_key": "ciprofloxacin",
-                        "concentration": 1.0, "mode": "uniform"})
+                        "concentration": 0.3, "mode": "uniform"})
             recv(ws, ref, 1)
             client.post("/step", json={"n_steps": 25})
             births = deaths = 0
@@ -406,14 +407,14 @@ def test_streaming_run_identical_to_headless(client):
         recv_until(ws, ref, lambda f: f["type"] == "detail")
         client.post("/step", json={"n_steps": 5}); recv(ws, ref, 5)
         client.post("/apply_antibiotic", json={"antibiotic_key": "ciprofloxacin",
-                    "concentration": 1.0, "mode": "uniform"}); recv(ws, ref, 1)
+                    "concentration": 0.3, "mode": "uniform"}); recv(ws, ref, 1)
         client.post("/step", json={"n_steps": 15}); recv(ws, ref, 15)
         via = client.get("/state").json()
 
     m = AMRSimulationModel(scenario="pakistan_crisis", initial_bacteria=80,
                            seed=SEED, enable_logging=False, biology=LAB_V2)
     for _ in range(5): m.step()
-    m.apply_antibiotic("ciprofloxacin", concentration=1.0, mode="uniform")
+    m.apply_antibiotic("ciprofloxacin", concentration=0.3, mode="uniform")
     for _ in range(15): m.step()
     direct = json.loads(json.dumps(m.get_full_state()))
     via.pop("biology")

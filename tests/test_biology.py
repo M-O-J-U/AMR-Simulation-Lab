@@ -48,11 +48,15 @@ class TestLabV2Contents:
         for k, g in PAPER_V1.genes.items():
             assert LAB_V2.genes[k] is g
         for k, g in PAPER_V1.germs.items():
-            if k != "mrsa":
-                assert LAB_V2.germs[k] is g          # incl. Klebsiella: unchanged for now
-        assert LAB_V2.antibiotics is PAPER_V1.antibiotics   # diffusion/decay unchanged for now
+            if k not in ("mrsa", "klebsiella_pneumoniae"):
+                assert LAB_V2.germs[k] is g
+        assert LAB_V2.antibiotics is PAPER_V1.antibiotics   # decay_rate values unchanged
         a, b = dataclasses.asdict(PAPER_V1.germs["mrsa"]), dataclasses.asdict(LAB_V2.germs["mrsa"])
         assert {k for k in a if a[k] != b[k]} == {"natural_resistances", "acquired_resistance_pool"}
+        a = dataclasses.asdict(PAPER_V1.germs["klebsiella_pneumoniae"])
+        b = dataclasses.asdict(LAB_V2.germs["klebsiella_pneumoniae"])
+        assert {k for k in a if a[k] != b[k]} == {"natural_resistances"}
+        assert PAPER_V1.intrinsic_resistance == {} and not PAPER_V1.mass_conserving_diffusion
 
     def test_mrsa_profile(self):
         mrsa = LAB_V2.germs["mrsa"]
@@ -247,3 +251,56 @@ class TestLabV2Diffusion:
         m.apply_antibiotic("vancomycin", 1.0, "uniform")
         m._diffuse_antibiotics()
         assert float(m.antibiotic_grids["vancomycin"].sum()) < 0.35 * 4800
+
+
+class TestLabV2Klebsiella:
+    def _cells(self, bio):
+        m = AMRSimulationModel(scenario="klebsiella_carbapenem", initial_bacteria=30,
+                               seed=3, enable_logging=False, biology=bio)
+        return m, living(m)
+
+    def test_profile_follows_eucast_rule_1_7(self):
+        assert LAB_V2.germs["klebsiella_pneumoniae"].natural_resistances == []
+        assert LAB_V2.intrinsic_resistance == {"Klebsiella pneumoniae": frozenset({"ampicillin"})}
+
+    def test_protection_values(self):
+        _, cells = self._cells(LAB_V2)
+        c = cells[0]
+        assert c.resistance_genes == set()
+        assert c.get_resistance_to(LAB_V2.antibiotics["ampicillin"]) == pytest.approx(0.90)
+        for ab in ("ciprofloxacin", "tetracycline", "meropenem", "colistin"):
+            assert c.get_resistance_to(LAB_V2.antibiotics[ab]) == 0.0
+
+    def test_paper_v1_klebsiella_unchanged(self):
+        _, cells = self._cells(PAPER_V1)
+        c = cells[0]
+        assert c.resistance_genes == {"acrAB-tolC"}
+        for ab in ("ampicillin", "ciprofloxacin", "tetracycline"):
+            assert c.get_resistance_to(PAPER_V1.antibiotics[ab]) == pytest.approx(0.90)
+
+    def test_intrinsic_combines_with_acquired_genes_and_biofilm(self):
+        _, cells = self._cells(LAB_V2)
+        c = cells[0]
+        c.resistance_genes.add("blaTEM-1")          # also protects vs ampicillin (0.90)
+        assert c.get_resistance_to(LAB_V2.antibiotics["ampicillin"]) == pytest.approx(1 - 0.1 * 0.1)
+        c.resistance_genes.clear(); c.in_biofilm = True
+        assert c.get_resistance_to(LAB_V2.antibiotics["ampicillin"]) == pytest.approx(1 - 0.1 * 0.4)
+
+    def test_other_species_have_no_intrinsic_entries(self):
+        for key in ("e_coli", "acinetobacter_baumannii", "pseudomonas_aeruginosa", "mrsa"):
+            m = AMRSimulationModel(scenario="validation", initial_bacteria=3, seed=1,
+                                   enable_logging=False, biology=LAB_V2)
+            m._spawn_bacteria_cluster(LAB_V2.germ(key), 3)
+            assert all(a._intrinsic == frozenset() for a in living(m)
+                       if a.species == LAB_V2.germ(key).species)
+
+    def test_lab_v2_klebsiella_now_killed_by_ciprofloxacin(self):
+        def survivors(bio, seed):
+            m = AMRSimulationModel(scenario="klebsiella_carbapenem", initial_bacteria=80,
+                                   seed=seed, enable_logging=False, biology=bio)
+            for _ in range(5): m.step()
+            m.apply_antibiotic("ciprofloxacin", concentration=2.0, mode="uniform")
+            for _ in range(8): m.step()
+            return m.count_living_bacteria()
+        for seed in (1, 2):
+            assert survivors(LAB_V2, seed) < survivors(PAPER_V1, seed)

@@ -75,6 +75,8 @@ class BacteriumAgent(Agent):
         bio = getattr(model, "biology", None)
         self._genes = bio.genes if bio is not None else RESISTANCE_GENES
         self._no_transfer = bio.non_transferable if bio is not None else frozenset()
+        self._intrinsic = (getattr(bio, "intrinsic_resistance", {}).get(profile.species, frozenset())
+                           if bio is not None else frozenset())
         self.generation       = generation
         self.parent_id        = parent_id
         self.age              = 0
@@ -116,9 +118,15 @@ class BacteriumAgent(Agent):
         self.fitness = max(0.05, self.profile.baseline_fitness - cost)
 
     def get_resistance_to(self, antibiotic: AntibioticProfile) -> float:
-        if not self.resistance_genes:
+        # Species-level intrinsic resistance (lab_v2 only; always empty in paper_v1,
+        # where this block is a no-op and the original path runs unchanged).
+        intrinsic = bool(self._intrinsic) and             antibiotic.name.lower().replace(" ", "_") in self._intrinsic
+        if not self.resistance_genes and not intrinsic:
             return 0.0
         resistances = []
+        if intrinsic:
+            from data.biology import INTRINSIC_PROTECTION
+            resistances.append(INTRINSIC_PROTECTION)
         for gn in self.resistance_genes:
             if gn in self._genes:
                 r = resistance_probability(self._genes[gn], antibiotic)

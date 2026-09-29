@@ -280,7 +280,7 @@ class TestAPIMatchesHeadless:
                                     "initial_bacteria": 80, "seed": SEED})
         client.post("/step", json={"n_steps": 5})
         client.post("/apply_antibiotic", json={
-            "antibiotic_key": "ciprofloxacin", "concentration": 1.0, "mode": "uniform"})
+            "antibiotic_key": "ciprofloxacin", "concentration": 0.3, "mode": "uniform"})
         client.post("/step", json={"n_steps": 10})
         # Read-only calls interleaved must not change anything
         client.get("/analytics/diversity")
@@ -292,7 +292,7 @@ class TestAPIMatchesHeadless:
                                seed=SEED, enable_logging=False,
                                biology=LAB_V2)   # the server's default biology
         for _ in range(5): m.step()
-        m.apply_antibiotic("ciprofloxacin", concentration=1.0, mode="uniform")
+        m.apply_antibiotic("ciprofloxacin", concentration=0.3, mode="uniform")
         for _ in range(15): m.step()
         direct = json.loads(json.dumps(m.get_full_state()))
 

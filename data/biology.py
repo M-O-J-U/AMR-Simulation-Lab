@@ -16,6 +16,8 @@ Versioned biology for the simulation.
               - acrAB-tolC removed from MRSA's acquirable pool (AcrAB-TolC is
                 a Gram-negative tripartite system; CARD ARO:3000237 / 3000384).
               - mecA is non-transferring (see KNOWN LIMITATION below).
+              - K. pneumoniae: blanket intrinsic acrAB-tolC replaced by EUCAST
+                ERP v1.2 rule 1.7 (ampicillin; ticarcillin not simulated).
               - Antibiotic diffusion conserves total drug; only decay_rate
                 removes it. decay_rate values are UNVALIDATED against real
                 PK/PD (no cited source, no defined step duration).
@@ -37,6 +39,11 @@ from data.card_loader import (
     ResistanceGene, GermProfile, AntibioticProfile,
 )
 
+# Protection from an intrinsic (expected) resistance: the same 0.90 that
+# card_loader.resistance_probability() gives a gene whose drug class matches
+# (the model's existing convention, not a separately measured value).
+INTRINSIC_PROTECTION = 0.90
+
 LAB_V2_CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                   "lab_v2_config.json")
 
@@ -52,6 +59,10 @@ class Biology:
     # lab_v2 only: diffusion that conserves total drug (paper_v1's scales it by
     # diffusion_rate every step). See AMRSimulationModel._diffuse_antibiotics.
     mass_conserving_diffusion: bool = False
+    # Species-level intrinsic resistance (expected resistant phenotype) that is
+    # not tied to a gene: species name -> antibiotic keys. Applied in
+    # BacteriumAgent.get_resistance_to with INTRINSIC_PROTECTION. Empty in paper_v1.
+    intrinsic_resistance: Dict[str, FrozenSet[str]] = field(default_factory=dict)
 
     def germ(self, key: str) -> GermProfile:
         if key not in self.germs:
@@ -94,6 +105,12 @@ LAB_V2_CHANGES = [
      "CARD ARO:3000384 (AcrAB-TolC: RND efflux system 'in Gram-negative bacteria')."),
     ("mecA does not transfer by the model's conjugation-style HGT",
      "Known limitation: SCCmec mobilisation is not modelled (wrong mechanism to reuse)."),
+    ("K. pneumoniae: intrinsic acrAB-tolC removed; intrinsic resistance = ampicillin only",
+     "EUCAST Expected Resistant Phenotypes v1.2 (Jan 2023) Table 1 rule 1.7: K. pneumoniae "
+     "complex expected resistant to ampicillin/amoxicillin and ticarcillin (ticarcillin not "
+     "simulated); not ciprofloxacin or tetracycline. Padilla et al. 2009 (AAC 54:177, "
+     "doi:10.1128/AAC.00715-09): AcrAB is present in a wild-type strain. Applied with "
+     "the model's 0.90 gene convention."),
     ("Antibiotic diffusion conserves total drug mass (no-flux boundaries)",
      "Bug fix: paper_v1 multiplies the field by diffusion_rate after a kernel that already "
      "sums to 1, removing 10-70% of the drug per step, contradicting the manuscript's "
@@ -140,7 +157,15 @@ def build_lab_v2(**overrides) -> Biology:
         acquired_resistance_pool=[g for g in GERM_PROFILES["mrsa"].acquired_resistance_pool
                                   if g != "acrAB-tolC"],
     )
-    germs = {**GERM_PROFILES, "mrsa": mrsa}
+    # Klebsiella: blanket intrinsic acrAB-tolC (0.90 protection vs ciprofloxacin,
+    # tetracycline and ampicillin from birth) replaced by EUCAST Expected
+    # Resistant Phenotypes v1.2, Table 1 rule 1.7 (K. pneumoniae complex):
+    # ampicillin/amoxicillin and ticarcillin only. Ticarcillin is not one of the
+    # simulated drugs, so only ampicillin applies. acrAB-tolC is not in its
+    # acquirable pool in either version, so it is simply absent in lab_v2.
+    kleb = dataclasses.replace(GERM_PROFILES["klebsiella_pneumoniae"], natural_resistances=[])
+    germs = {**GERM_PROFILES, "mrsa": mrsa, "klebsiella_pneumoniae": kleb}
+    intrinsic = {kleb.species: frozenset({"ampicillin"})}
 
     return Biology(
         name="lab_v2",
@@ -150,6 +175,7 @@ def build_lab_v2(**overrides) -> Biology:
         non_transferable=frozenset({"mecA"}),
         warnings=warnings,
         mass_conserving_diffusion=True,
+        intrinsic_resistance=intrinsic,
     )
 
 

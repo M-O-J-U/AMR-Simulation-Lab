@@ -190,7 +190,10 @@ GET  /analytics/recommend
 default for `AMRSimulationModel` and the whole training/evaluation pipeline.
 `lab_v2` is the corrected biology used by the UI: MRSA carries *mecA* (CARD
 ARO:3000617) rather than *tetM*, and cannot acquire the Gram-negative
-AcrAB-TolC pump. mecA does not transfer (SCCmec mobilisation is not modelled),
+AcrAB-TolC pump; *K. pneumoniae* no longer starts with blanket `acrAB-tolC`
+(0.90 protection vs ciprofloxacin, tetracycline and ampicillin) and instead
+follows EUCAST Expected Resistant Phenotypes v1.2 rule 1.7 (ampicillin; the
+rule's ticarcillin is not simulated). mecA does not transfer (SCCmec mobilisation is not modelled),
 and its fitness cost is configurable in `data/lab_v2_config.json` (0.275: one
 measured point from Ender et al. 2004 for a high-resistance lineage, not a
 general constant). In `lab_v2`, antibiotic diffusion conserves total drug (in
