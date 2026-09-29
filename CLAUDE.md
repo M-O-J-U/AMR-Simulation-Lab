@@ -241,3 +241,13 @@ pipeline; nothing below is to be reconciled with the retired draft.
   includes EUCAST header rules (e.g. glycopeptides for all Gram-negatives); the lab_v2
   *simulation* applies only rule 1.7 for Klebsiella, so the sim still kills Gram-negatives
   with vancomycin while analytics reports them resistant.
+- **Follow-up (not done): real time scale for dosing.** lab_v2 uses a time-limited course
+  measured in steps (approved option (b), 2026-09-29). Replacing it with a defined step
+  duration and SOURCED per-drug half-lives (option (c)) is real follow-up work; nothing in
+  the code or manuscript currently defines how long a step is.
+- **External validation is currently non-functional** (found 2026-09-29): the BV-BRC files
+  (`ecoli_amr.csv`, `klebsiella_amr.csv`) are AMR *phenotype* tables with no gene calls, so
+  `run_patric_validation.py` yields degenerate prevalences (1.0/0.0) and Spearman rho = NaN
+  (`ai/checkpoints/patric_validation.json`); the `--synthetic` path crashes on a console
+  encoding error (`external_validation_rerun.txt`). Real validation needs gene re-annotation
+  of BV-BRC assemblies (scoped, not started).
