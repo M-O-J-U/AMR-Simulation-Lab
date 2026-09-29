@@ -1,0 +1,13 @@
+# Python / tooling caches
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Windows folder metadata
+desktop.ini
+
+# Raw BV-BRC AMR phenotype downloads (~450 MB + ~380 MB), read by
+# run_patric_validation.py from the repo root. Too large for git (GitHub's hard
+# limit is 100 MB per file); re-download from BV-BRC (bv-brc.org) if needed.
+ecoli_amr.csv
+klebsiella_amr.csv

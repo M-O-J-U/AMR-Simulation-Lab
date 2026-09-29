@@ -1,0 +1,125 @@
+{
+  "results": {
+    "All features (full model)": {
+      "auroc_macro": 0.9530895279556327,
+      "auprc_macro": 0.009103833046965996,
+      "f1_macro": 0.002452483139178418,
+      "delta_auroc_vs_full": 0.0,
+      "n_epochs_trained": 52,
+      "elapsed_s": 45.20353865623474,
+      "checkpoint": "ai\\checkpoints\\_ablation\\model_all_features_full_model.pt"
+    },
+    "No genomic genes": {
+      "auroc_macro": 0.833471169001692,
+      "auprc_macro": 0.0018837181053733185,
+      "f1_macro": 0.0,
+      "delta_auroc_vs_full": -0.11961835895394068,
+      "n_epochs_trained": 60,
+      "elapsed_s": 51.4797158241272,
+      "checkpoint": "ai\\checkpoints\\_ablation\\model_no_genomic_genes.pt"
+    },
+    "No physiological": {
+      "auroc_macro": 0.9565579006869382,
+      "auprc_macro": 0.009737155505207404,
+      "f1_macro": 0.004201680672268907,
+      "delta_auroc_vs_full": 0.0034683727313055135,
+      "n_epochs_trained": 60,
+      "elapsed_s": 53.1038932800293,
+      "checkpoint": "ai\\checkpoints\\_ablation\\model_no_physiological.pt"
+    },
+    "No behavioral": {
+      "auroc_macro": 0.94734560327279,
+      "auprc_macro": 0.009586482223687288,
+      "f1_macro": 0.003913894324853229,
+      "delta_auroc_vs_full": -0.005743924682842683,
+      "n_epochs_trained": 59,
+      "elapsed_s": 50.793426752090454,
+      "checkpoint": "ai\\checkpoints\\_ablation\\model_no_behavioral.pt"
+    },
+    "No spatial position": {
+      "auroc_macro": 0.9490119715381853,
+      "auprc_macro": 0.009128530330699535,
+      "f1_macro": 0.006493506493506494,
+      "delta_auroc_vs_full": -0.004077556417447448,
+      "n_epochs_trained": 53,
+      "elapsed_s": 46.09575152397156,
+      "checkpoint": "ai\\checkpoints\\_ablation\\model_no_spatial_position.pt"
+    },
+    "No population": {
+      "auroc_macro": 0.935955794556965,
+      "auprc_macro": 0.008525015819651618,
+      "f1_macro": 0.0,
+      "delta_auroc_vs_full": -0.01713373339866775,
+      "n_epochs_trained": 55,
+      "elapsed_s": 47.573899030685425,
+      "checkpoint": "ai\\checkpoints\\_ablation\\model_no_population.pt"
+    },
+    "No species": {
+      "auroc_macro": 0.9424752521786903,
+      "auprc_macro": 0.008386595235417835,
+      "f1_macro": 0.006015037593984962,
+      "delta_auroc_vs_full": -0.010614275776942406,
+      "n_epochs_trained": 60,
+      "elapsed_s": 52.5995717048645,
+      "checkpoint": "ai\\checkpoints\\_ablation\\model_no_species.pt"
+    },
+    "No gram stain": {
+      "auroc_macro": 0.9434003884412745,
+      "auprc_macro": 0.007877970111713494,
+      "f1_macro": 0.0,
+      "delta_auroc_vs_full": -0.009689139514358236,
+      "n_epochs_trained": 55,
+      "elapsed_s": 47.48070025444031,
+      "checkpoint": "ai\\checkpoints\\_ablation\\model_no_gram_stain.pt"
+    },
+    "No antibiotic exposure": {
+      "auroc_macro": 0.9530191985750912,
+      "auprc_macro": 0.007761497148700994,
+      "f1_macro": 0.0,
+      "delta_auroc_vs_full": -7.032938054152282e-05,
+      "n_epochs_trained": 58,
+      "elapsed_s": 50.319019079208374,
+      "checkpoint": "ai\\checkpoints\\_ablation\\model_no_antibiotic_exposure.pt"
+    },
+    "No edge features": {
+      "auroc_macro": 0.9616436574073915,
+      "auprc_macro": 0.009466250204986435,
+      "f1_macro": 0.0,
+      "delta_auroc_vs_full": 0.008554129451758818,
+      "n_epochs_trained": 54,
+      "elapsed_s": 47.43908715248108,
+      "checkpoint": "ai\\checkpoints\\_ablation\\model_no_edge_features.pt"
+    }
+  },
+  "config": {
+    "scenarios": [
+      "ecoli_cipro",
+      "klebsiella_carbapenem",
+      "pakistan_crisis",
+      "xdr_acinetobacter"
+    ],
+    "seeds_per_scenario": 3,
+    "steps_per_run": 80,
+    "split_seed": 42,
+    "snapshot_interval": 3,
+    "hidden_dim": 128,
+    "edge_enc_dim": 64,
+    "n_layers": 3,
+    "heads": 4,
+    "dropout": 0.15,
+    "epochs": 60,
+    "batch_size": 8,
+    "lr": 0.0003,
+    "weight_decay": 0.0001,
+    "pos_weight": 15.0,
+    "grad_clip": 1.0,
+    "patience": 12,
+    "min_delta": 0.001,
+    "train_frac": 0.7,
+    "val_frac": 0.15,
+    "checkpoint_dir": "ai/checkpoints",
+    "log_dir": "logs"
+  },
+  "methodology": "GNN-native: each row is a FULL AMRResistanceGNN retrained from scratch with the named feature group zeroed in both node and/or edge features, evaluated on the SAME held-out test set (same split_seed) as every other condition. This is NOT the LR-proxy ablation in ai/baselines.py \u2014 compare the two explicitly rather than treating either alone as definitive.",
+  "timestamp": "2026-07-10 04:00:05"
+}

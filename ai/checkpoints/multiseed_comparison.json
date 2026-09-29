@@ -1,0 +1,99 @@
+{
+  "per_seed": [
+    {
+      "seed_idx": 0,
+      "torch_seed": 1000,
+      "rf_seed": 2000,
+      "subsample_seed": 3000,
+      "gnn_auroc": 0.9191860689575096,
+      "rf_auroc": 0.9247306936781214,
+      "gnn_elapsed_s": 53.93501257896423,
+      "rf_elapsed_s": 7.294988632202148
+    },
+    {
+      "seed_idx": 1,
+      "torch_seed": 1001,
+      "rf_seed": 2001,
+      "subsample_seed": 3001,
+      "gnn_auroc": 0.9083845899756591,
+      "rf_auroc": 0.8956463150296609,
+      "gnn_elapsed_s": 62.3699734210968,
+      "rf_elapsed_s": 13.019423961639404
+    },
+    {
+      "seed_idx": 2,
+      "torch_seed": 1002,
+      "rf_seed": 2002,
+      "subsample_seed": 3002,
+      "gnn_auroc": 0.9363341826626864,
+      "rf_auroc": 0.9137830292869599,
+      "gnn_elapsed_s": 63.95155572891235,
+      "rf_elapsed_s": 15.316783905029297
+    },
+    {
+      "seed_idx": 3,
+      "torch_seed": 1003,
+      "rf_seed": 2003,
+      "subsample_seed": 3003,
+      "gnn_auroc": 0.9322132506654969,
+      "rf_auroc": 0.9271740956207527,
+      "gnn_elapsed_s": 58.21866035461426,
+      "rf_elapsed_s": 15.520806312561035
+    },
+    {
+      "seed_idx": 4,
+      "torch_seed": 1004,
+      "rf_seed": 2004,
+      "subsample_seed": 3004,
+      "gnn_auroc": 0.9264684747724099,
+      "rf_auroc": 0.917218720509821,
+      "gnn_elapsed_s": 56.666523933410645,
+      "rf_elapsed_s": 8.253963947296143
+    }
+  ],
+  "summary": {
+    "gnn_mean": 0.9245173134067523,
+    "gnn_std": 0.01108331868912617,
+    "gnn_min": 0.9083845899756591,
+    "gnn_max": 0.9363341826626864,
+    "rf_mean": 0.9157105708250631,
+    "rf_std": 0.01246333933484258,
+    "rf_min": 0.8956463150296609,
+    "rf_max": 0.9271740956207527,
+    "mean_diff": 0.00880674258168912,
+    "mannwhitney_u": 18.0,
+    "mannwhitney_p": 0.30952380952380953
+  },
+  "n_seeds": 5,
+  "config": {
+    "scenarios": [
+      "ecoli_cipro",
+      "klebsiella_carbapenem",
+      "pakistan_crisis",
+      "xdr_acinetobacter"
+    ],
+    "seeds_per_scenario": 3,
+    "steps_per_run": 80,
+    "split_seed": 42,
+    "snapshot_interval": 3,
+    "hidden_dim": 128,
+    "edge_enc_dim": 64,
+    "n_layers": 3,
+    "heads": 4,
+    "dropout": 0.15,
+    "epochs": 60,
+    "batch_size": 8,
+    "lr": 0.0003,
+    "weight_decay": 0.0001,
+    "pos_weight": 15.0,
+    "grad_clip": 1.0,
+    "patience": 12,
+    "min_delta": 0.001,
+    "train_frac": 0.7,
+    "val_frac": 0.15,
+    "checkpoint_dir": "ai/checkpoints",
+    "log_dir": "logs"
+  },
+  "ranges_overlap": true,
+  "timestamp": "2026-07-31 14:48:26"
+}

@@ -1,0 +1,98 @@
+{
+  "baselines": {
+    "frequency_baseline": {
+      "model": "FrequencyBaseline (CARD acquisition_prob)",
+      "auroc_macro": 0.5,
+      "auprc_macro": 0.0002331228009386059,
+      "f1_macro": 0.00046607267997521713,
+      "precision_macro": 0.0002331228009386059,
+      "recall_macro": 1.0,
+      "per_gene_auroc": {
+        "blaTEM-1": 0.5,
+        "blaCTX-M-15": 0.5,
+        "blaKPC-2": 0.5,
+        "blaNDM-1": 0.5,
+        "mexAB-oprM": NaN,
+        "acrAB-tolC": 0.5,
+        "gyrA_S83L": 0.5,
+        "mcr-1": 0.5,
+        "tetM": NaN,
+        "vanA": NaN
+      }
+    },
+    "logistic_regression": {
+      "model": "Logistic Regression (balanced class weight)",
+      "auroc_macro": 0.9408709454113117,
+      "auprc_macro": 0.005009414730994014,
+      "f1_macro": 0.013472786688264706,
+      "precision_macro": 0.0072991033514104,
+      "recall_macro": 0.31662458378698094,
+      "per_gene_auroc": {
+        "blaTEM-1": 0.9141064006279324,
+        "blaCTX-M-15": 0.8842268124545292,
+        "blaKPC-2": 0.9654688865505002,
+        "blaNDM-1": 0.9720260221739565,
+        "mexAB-oprM": NaN,
+        "acrAB-tolC": 0.9523274887992632,
+        "gyrA_S83L": 0.9654521108529028,
+        "mcr-1": 0.9324888964200988,
+        "tetM": NaN,
+        "vanA": NaN
+      }
+    },
+    "random_forest": {
+      "model": "Random Forest (100 trees, max_depth=8, balanced_subsample)",
+      "auroc_macro": 0.8770040808871651,
+      "auprc_macro": 0.006887449347102744,
+      "f1_macro": 0.029211026766121844,
+      "precision_macro": 0.025046714518637787,
+      "recall_macro": 0.1435139151669659,
+      "per_gene_auroc": {
+        "blaTEM-1": 0.9375242100515038,
+        "blaCTX-M-15": 0.8325046961552667,
+        "blaKPC-2": 0.554984706343969,
+        "blaNDM-1": 0.9663480472807822,
+        "mexAB-oprM": NaN,
+        "acrAB-tolC": 0.9273348331909533,
+        "gyrA_S83L": 0.9631594504240052,
+        "mcr-1": 0.9571726227636765,
+        "tetM": NaN,
+        "vanA": NaN
+      }
+    },
+    "gnn_ours": {
+      "model": "AMRResistanceGNN (GAT, 3 layers, 4 heads, 128-dim) \u2014 OURS",
+      "auroc_macro": 0.9448429940527243,
+      "auprc_macro": 0.007761767914897558,
+      "f1_macro": 0.04500005905741685,
+      "precision_macro": 0.07768143543326737,
+      "recall_macro": 0.22335247435456626,
+      "f1_note": "F1/precision/recall computed at the F1-optimal calibrated threshold (see threshold_calibration.py), NOT at a fixed default threshold \u2014 the latter is degenerate (F1=0.0) at this dataset's ~0.01% positive rate.",
+      "source_files": {
+        "auroc_auprc": "ai/checkpoints/training_results.json",
+        "f1_precision_recall": "ai/checkpoints/calibration_results.json"
+      },
+      "per_gene_auroc": {
+        "blaTEM-1": 0.9758007539463595,
+        "blaCTX-M-15": 0.8646396419728786,
+        "blaKPC-2": 0.9812759658230977,
+        "blaNDM-1": 0.9317770621121384,
+        "mexAB-oprM": NaN,
+        "acrAB-tolC": 0.9848681897573365,
+        "gyrA_S83L": 0.9013648554526377,
+        "mcr-1": 0.974174489304622,
+        "tetM": NaN,
+        "vanA": NaN
+      }
+    }
+  },
+  "ablation": {
+    "All features (full model)": 0.8502370522240769,
+    "No genomic genes": 0.7106432689284502,
+    "No physiological": 0.8696575419085526,
+    "No behavioral": 0.8596295187512271,
+    "No spatial position": 0.8559537845900628,
+    "No antibiotic exposure": 0.850878701121471,
+    "No edge features": 0.8536873140092058
+  }
+}
