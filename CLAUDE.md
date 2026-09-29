@@ -51,6 +51,10 @@ Rule 6 (nothing public, no push) still applies.
   at all and `python main.py server` failed. It was rebuilt as a REST-only FastAPI server
   matching the frontend's calls (13 routes incl. GNN + analytics), with
   `tests/test_api.py` covering every route. Server defaults to `127.0.0.1`.
+- Phase 2 done (2026-09-29): frontend split into `frontend/{index.html,css/,js/,vendor/}`
+  (no build step; plain scripts on `window.AMR`; also served at `/ui/`); rAF canvas renderer
+  with interpolated motion and event animations; uPlot charts (vendored, MIT); live
+  inspector; responsive layout. See commit fed7280 for details and measurements.
 - Phase 1 done (2026-09-29): `WS /ws` live stream (`api/stream.py`: snapshot + per-step
   field-level diffs, seq/resync, per-client bounded queues, events incl. birth with
   parent_id, age derived client-side, detail fields only for inspected cells, 8-bit
