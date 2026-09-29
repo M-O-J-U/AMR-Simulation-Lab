@@ -40,9 +40,11 @@ import threading
 from typing import Dict, List, Optional
 
 # Per-bacterium fields sent only for inspected cells (the rest are streamed).
-# None of these are used for rendering; local_density alone changes on ~55%
-# of agent-steps, so leaving it out is most of the saving.
-DETAIL_FIELDS = ("stress_level", "antibiotic_damage", "offspring_count", "local_density")
+# local_density alone changes on ~55% of agent-steps and is not drawn, so
+# leaving it out is most of the saving. stress_level and antibiotic_damage
+# (each changes on ~8-9% of agent-steps) ARE streamed: the renderer uses them
+# for SOS glow intensity and damage fading.
+DETAIL_FIELDS = ("offspring_count", "local_density")
 
 QUEUE_MAX = 8          # per-client frames buffered before we give up and resnapshot
 HGT_KEEP = 50          # get_full_state() reports the last 50 HGT events

@@ -408,3 +408,35 @@ class TestCORS:
             "Origin": "null", "Access-Control-Request-Method": "POST",
             "Access-Control-Request-Headers": "content-type"})
         assert r.status_code == 200
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 2 additions: /analytics/mic_all, /reference, frontend served at /ui/
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestPhase2Endpoints:
+    def test_mic_all_matches_single(self, client):
+        d = client.get("/analytics/mic_all").json()
+        assert set(d["antibiotics"]) == set(ANTIBIOTIC_PROFILES)
+        assert d["population"] == state(client)["stats"]["total_bacteria"]
+        single = client.get("/analytics/mic", params={"antibiotic_key": "colistin"}).json()
+        assert d["antibiotics"]["colistin"] == single
+
+    def test_reference_reflects_active_biology(self, client):
+        r = client.get("/reference").json()
+        assert r["biology"] == "lab_v2"
+        assert r["genes"]["mecA"]["transferable"] is False
+        assert r["genes"]["blaNDM-1"]["card_id"] == "ARO:3000589"
+        assert set(r["antibiotics"]) == set(ANTIBIOTIC_PROFILES)
+        client.post("/reset", json={"scenario": "validation", "initial_bacteria": 5,
+                                    "biology": "paper_v1"})
+        r = client.get("/reference").json()
+        assert r["biology"] == "paper_v1" and "mecA" not in r["genes"]
+
+    def test_frontend_served(self, client):
+        r = client.get("/ui/")
+        assert r.status_code == 200 and "js/main.js" in r.text
+        for path in ("/ui/js/render.js", "/ui/css/app.css", "/ui/vendor/uplot/uPlot.iife.min.js"):
+            assert client.get(path).status_code == 200, path
+        root = client.get("/", follow_redirects=False)
+        assert root.status_code in (302, 307) and root.headers["location"] == "/ui/"

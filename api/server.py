@@ -32,6 +32,9 @@ Endpoints
   GET  /analytics/mic?antibiotic_key=...
   GET  /analytics/diversity
   GET  /analytics/recommend
+  GET  /analytics/mic_all           S/I/R % for every antibiotic (for the live chart)
+  GET  /reference                   genes + antibiotics of the active biology
+  GET  /ui/                         the frontend (also works opened from disk)
 """
 
 import asyncio
@@ -46,6 +49,8 @@ from typing import List, Literal, Optional, Tuple
 import anyio
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -478,12 +483,46 @@ def create_app(enable_logging: bool = True,
         return {"shannon_diversity": h, "population": len(living),
                 "interpretation": text}
 
+    @app.get("/analytics/mic_all")
+    def analytics_mic_all():
+        with session.lock:
+            living = session.living_bacteria()
+            step = session.model.current_step
+            out = {k: estimate_population_mic(living, k) for k in ANTIBIOTIC_PROFILES} if living else {}
+        return {"step": step, "population": len(living), "antibiotics": out}
+
+    @app.get("/reference")
+    def reference():
+        with session.lock:
+            bio = session.model.biology
+        return {
+            "biology": bio.name,
+            "genes": {k: {"card_id": g.card_id, "mechanism": g.mechanism,
+                          "drug_classes": list(g.drug_classes),
+                          "transferable": k not in bio.non_transferable}
+                      for k, g in bio.genes.items()},
+            "antibiotics": {k: {"name": a.name, "drug_class": a.drug_class,
+                                "mic_s": a.mic_susceptible, "mic_r": a.mic_resistant,
+                                "color": a.color_hex}
+                            for k, a in bio.antibiotics.items()},
+        }
+
     @app.get("/analytics/recommend")
     def analytics_recommend():
         with session.lock:
             living = session.living_bacteria()
             recs = recommend_treatment(living, list(ANTIBIOTIC_PROFILES))
         return {"recommendations": recs, "population": len(living)}
+
+    # ── Frontend ─────────────────────────────────────────────────────────────
+    frontend_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                "frontend")
+    if os.path.isdir(frontend_dir):
+        app.mount("/ui", StaticFiles(directory=frontend_dir, html=True), name="ui")
+
+        @app.get("/", include_in_schema=False)
+        def root():
+            return RedirectResponse("/ui/")
 
     return app
 
