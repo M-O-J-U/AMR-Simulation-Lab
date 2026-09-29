@@ -174,7 +174,9 @@ input[type=range]{width:100%;accent-color:var(--cyan);cursor:pointer;margin:2px 
   <button class="topbar-btn tbtn-play" id="btn-play" onclick="togglePlay()">▶ Play</button>
   <button class="topbar-btn tbtn-step" onclick="stepOnce()">+1 Step</button>
   <button class="topbar-btn tbtn-reset" onclick="confirmReset()">↺ Reset</button>
-  <span id="step-display" style="margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--text-dim)">Step 0</span>
+  <span id="conn-display" title="Live stream status" style="margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--text-faint)">CONNECTING</span>
+  <div class="topbar-sep"></div>
+  <span id="step-display" style="font-family:var(--mono);font-size:11px;color:var(--text-dim)">Step 0</span>
 </header>
 
 <!-- LEFT PANEL -->
@@ -198,7 +200,7 @@ input[type=range]{width:100%;accent-color:var(--cyan);cursor:pointer;margin:2px 
     </div>
     <span class="field-label">Speed</span>
     <div class="range-row">
-      <input type="range" id="rng-speed" min="1" max="20" value="5" oninput="document.getElementById('val-speed').textContent=this.value;if(isPlaying)startLoop()">
+      <input type="range" id="rng-speed" min="1" max="20" value="5" oninput="document.getElementById('val-speed').textContent=this.value;setSpeed(this.value)">
       <span class="range-val" id="val-speed">5</span>
     </div>
   </div>
@@ -390,7 +392,11 @@ input[type=range]{width:100%;accent-color:var(--cyan);cursor:pointer;margin:2px 
 
 <script>
 const API = 'http://localhost:8000';
-let isPlaying=false,playTimer=null,renderMode='species',lastState=null,selectedId=null,hgtFlashes=[],maxHGT=1;
+let isPlaying=false,renderMode='species',lastState=null,selectedId=null,hgtFlashes=[],maxHGT=1;
+// Live stream state (see api/stream.py for the protocol)
+let ws=null,wsOpen=false,wsSeq=null,bmap=new Map(),pollTimer=null,reconnectDelay=500,renderPending=false;
+let flashQueue=[],lastPolledHgtStep=-1;
+const DETAIL_FIELDS=['stress_level','antibiotic_damage','offspring_count','local_density'];
 const hist={steps:[],total:[],resistant:[]};
 const SP={
   'Escherichia coli':{color:'#4CAF50',who:'HIGH'},
@@ -473,8 +479,9 @@ function renderCanvas(state){
     if(b.id===selectedId){ctx.beginPath();ctx.arc(px,py,r+5,0,Math.PI*2);ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.setLineDash([3,2]);ctx.stroke();ctx.setLineDash([])}
   });
   if(document.getElementById('tog-hgt').checked){
-    (state.hgt_events||[]).slice(-8).forEach(ev=>{hgtFlashes.push({x:ev.pos[0]*sx,y:ev.pos[1]*sy,r:4,a:0.95})});
+    flashQueue.slice(-8).forEach(ev=>{hgtFlashes.push({x:ev.pos[0]*sx+sx/2,y:ev.pos[1]*sy+sy/2,r:4,a:0.95})});
   }
+  flashQueue=[];
 }
 function bacteriumColor(b){
   switch(renderMode){
@@ -565,7 +572,7 @@ function updateUI(state){
     evScroll.appendChild(div);
   });
   if(events.length>0){evScroll.dataset.lastStep=events[events.length-1].step;evScroll.scrollTop=evScroll.scrollHeight}
-  if(s.step%2===0){hist.steps.push(s.step);hist.total.push(s.total_bacteria);hist.resistant.push(s.resistant_bacteria);if(hist.total.length>200){hist.steps.shift();hist.total.shift();hist.resistant.shift()}renderPopChart()}
+  if(s.step%2===0&&hist.steps[hist.steps.length-1]!==s.step){hist.steps.push(s.step);hist.total.push(s.total_bacteria);hist.resistant.push(s.resistant_bacteria);if(hist.total.length>200){hist.steps.shift();hist.total.shift();hist.resistant.shift()}renderPopChart()}
   updateLegend();
 }
 function updateLegend(){
@@ -612,6 +619,20 @@ canvas.addEventListener('click',e=>{
   const near=lastState.bacteria.filter(b=>Math.abs(b.pos[0]-gx)<=1&&Math.abs(b.pos[1]-gy)<=1);
   if(near.length>0){
     const b=near[0];selectedId=b.id;
+    if(ws&&wsOpen)ws.send(JSON.stringify({type:'inspect',id:b.id}));
+    renderInspector(b);
+  }
+});
+function refreshInspector(){
+  if(selectedId===null||!lastState)return;
+  const b=lastState.bacteria.find(x=>x.id===selectedId);
+  if(b)renderInspector(b);
+  else if(!document.getElementById('insp-gone')){
+    document.getElementById('inspector').insertAdjacentHTML('afterbegin',`<div id="insp-gone" style="font-size:9px;color:var(--red);margin-bottom:6px">No longer alive (gone by step ${lastState.stats.step}) - values below are its last state</div>`);
+  }
+}
+function renderInspector(b){
+  {
     const stateColors={growing:'var(--green)',stressed:'var(--red)',biofilm:'var(--amber)',dormant:'var(--text-dim)',dying:'var(--red)'},sc=stateColors[b.state]||'var(--text-dim)';
     const shortSp=b.species.split(' ').slice(0,2).join(' ');
     const genes=b.resistance_genes.length>0?b.resistance_genes.map(g=>`<span class="insp-gene-tag">${g}</span>`).join(''):'<span style="color:var(--text-faint);font-size:9px">No resistance genes - fully susceptible</span>';
@@ -630,63 +651,145 @@ canvas.addEventListener('click',e=>{
       <div class="insp-kv"><span class="insp-key">Mutations</span><span class="insp-val">${b.total_mutations}</span></div>
       <div class="insp-kv"><span class="insp-key">HGT events</span><span class="insp-val">${b.hgt_events}</span></div>
       <div class="insp-kv"><span class="insp-key">Offspring</span><span class="insp-val">${b.offspring_count}</span></div>
+      <div class="insp-kv"><span class="insp-key">Parent cell</span><span class="insp-val">${b.parent_id??'founder / spawned'}</span></div>
       <div class="insp-section">Resistance genes (${b.resistance_genes.length})</div>
       <div class="insp-genes">${genes}</div>`;
   }
-});
+}
 
 // ── SIMULATION API ────────────────────────────────────────────────────────────
 async function fetchState(){
   try{
     const res=await fetch(`${API}/state`),state=await res.json();
-    lastState=state;renderCanvas(state);updateUI(state);
+    (state.hgt_events||[]).filter(e=>e.step>lastPolledHgtStep).forEach(e=>flashQueue.push(e));
+    if(state.hgt_events?.length)lastPolledHgtStep=state.hgt_events[state.hgt_events.length-1].step;
+    lastState=state;renderCanvas(state);updateUI(state);refreshInspector();
   }catch{document.getElementById('lbl-pop').innerHTML='<span>STATUS</span>Cannot reach server'}
 }
-async function stepOnce(){try{await fetch(`${API}/step`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({n_steps:1})});fetchState()}catch{}}
+function refreshIfPolling(){if(!wsOpen)fetchState()}
+async function stepOnce(){try{await fetch(`${API}/step`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({n_steps:1})});refreshIfPolling()}catch{}}
 async function applyAB(){
   const key=document.getElementById('sel-ab').value,conc=parseFloat(document.getElementById('rng-dose').value)/10,mode=document.getElementById('sel-mode').value;
-  try{await fetch(`${API}/apply_antibiotic`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({antibiotic_key:key,concentration:conc,mode})});fetchState()}catch{}
+  try{await fetch(`${API}/apply_antibiotic`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({antibiotic_key:key,concentration:conc,mode})});refreshIfPolling()}catch{}
 }
 async function clearAllAB(){
   for(const k of['ciprofloxacin','meropenem','colistin','vancomycin','ampicillin','tetracycline']){
     try{await fetch(`${API}/remove_antibiotic`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({antibiotic_key:k})})}catch{}
   }
-  fetchState();
+  refreshIfPolling();
 }
 async function spawnBacteria(){
   const key=document.getElementById('sel-spawn').value,cnt=parseInt(document.getElementById('rng-spawn').value);
-  try{await fetch(`${API}/spawn_bacteria`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({germ_key:key,count:cnt})});fetchState()}catch{}
+  try{await fetch(`${API}/spawn_bacteria`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({germ_key:key,count:cnt})});refreshIfPolling()}catch{}
 }
 async function confirmReset(){
   const scenario=document.getElementById('sel-scenario').value,pop=parseInt(document.getElementById('rng-pop').value);
   try{
     await fetch(`${API}/reset`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scenario,initial_bacteria:pop})});
-    hist.steps=[];hist.total=[];hist.resistant=[];hgtFlashes=[];selectedId=null;maxHGT=1;
+    // With the stream up, the 'reset' snapshot calls resetLocalUI() in every open client.
+    if(!wsOpen){resetLocalUI();fetchState()}
+  }catch{}
+}
+function resetLocalUI(){
+  {
+    hist.steps=[];hist.total=[];hist.resistant=[];hgtFlashes=[];flashQueue=[];selectedId=null;maxHGT=1;lastPolledHgtStep=-1;
     document.getElementById('event-scroll').innerHTML='';
     document.getElementById('event-scroll').dataset.lastStep='-1';
     document.getElementById('inspector').innerHTML='<div class="insp-empty">Click a bacterium on the canvas to inspect it</div>';
     document.getElementById('gnn-predict-content').innerHTML='<div style="font-size:9px;color:var(--text-faint);font-style:italic">Click "Run Prediction" to see transfer predictions</div>';
     document.getElementById('advisory-content').innerHTML='<div style="font-size:9px;color:var(--text-faint);font-style:italic">Click "Treatment Advisory" for recommendations</div>';
     document.getElementById('analytics-content').innerHTML='<div style="font-size:9px;color:var(--text-faint);font-style:italic">Run an analysis above</div>';
-    fetchState();
-  }catch{}
+  }
 }
 
 // ── PLAY/PAUSE ────────────────────────────────────────────────────────────────
-function togglePlay(){
-  isPlaying=!isPlaying;
-  const btn=document.getElementById('btn-play');
-  if(isPlaying){btn.textContent='⏸ Pause';btn.className='topbar-btn tbtn-reset';fetch(`${API}/resume`,{method:'POST'});startLoop()}
-  else{btn.textContent='▶ Play';btn.className='topbar-btn tbtn-play';clearInterval(playTimer);fetch(`${API}/pause`,{method:'POST'})}
+// Play runs on the server (POST /resume, /pause, /speed); the button reflects
+// the server's status messages, so every open client stays in sync.
+async function togglePlay(){
+  const want=!isPlaying;
+  try{
+    await fetch(`${API}/${want?'resume':'pause'}`,{method:'POST'});
+    if(!wsOpen)applyStatus({playing:want});
+  }catch{}
 }
-function startLoop(){
-  clearInterval(playTimer);
-  const speed=parseInt(document.getElementById('rng-speed').value),ms=Math.max(80,650-speed*28),steps=Math.max(1,Math.ceil(speed/5));
-  playTimer=setInterval(async()=>{
-    if(!isPlaying)return;
-    try{await fetch(`${API}/step`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({n_steps:steps})});fetchState()}
-    catch{clearInterval(playTimer)}
-  },ms);
+function applyStatus(st){
+  isPlaying=!!st.playing;
+  const btn=document.getElementById('btn-play');
+  if(isPlaying){btn.textContent='⏸ Pause';btn.className='topbar-btn tbtn-reset'}
+  else{btn.textContent='▶ Play';btn.className='topbar-btn tbtn-play'}
+  if(st.speed!==undefined){const r=document.getElementById('rng-speed');if(document.activeElement!==r){r.value=st.speed;document.getElementById('val-speed').textContent=st.speed}}
+  if(lastState)updateUI(lastState);
+}
+let speedTimer=null;
+function setSpeed(v){
+  clearTimeout(speedTimer);
+  speedTimer=setTimeout(()=>fetch(`${API}/speed`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({speed:parseInt(v)})}).catch(()=>{}),120);
+}
+
+// ── LIVE STREAM (WS /ws) ──────────────────────────────────────────────────────
+// Snapshot on connect, then one diff per step (protocol: api/stream.py).
+// While disconnected: poll GET /state every 2.5 s, reconnect with backoff 0.5 s -> 5 s.
+function setConn(text,color){const el=document.getElementById('conn-display');el.textContent=text;el.style.color=color}
+function connectStream(){
+  try{ws=new WebSocket(API.replace(/^http/,'ws')+'/ws')}catch{onStreamDown();return}
+  ws.onopen=()=>{wsOpen=true;reconnectDelay=500;stopPolling();setConn('LIVE','var(--green)');
+    if(selectedId!==null)ws.send(JSON.stringify({type:'inspect',id:selectedId}))};
+  ws.onmessage=e=>handleFrame(JSON.parse(e.data));
+  ws.onclose=onStreamDown;
+}
+function onStreamDown(){
+  wsOpen=false;ws=null;wsSeq=null;
+  setConn('POLLING','var(--amber)');startPolling();
+  setTimeout(connectStream,reconnectDelay);reconnectDelay=Math.min(5000,reconnectDelay*2);
+}
+function startPolling(){if(!pollTimer){fetchState();pollTimer=setInterval(fetchState,2500)}}
+function stopPolling(){clearInterval(pollTimer);pollTimer=null}
+function resync(){wsSeq=null;if(ws&&wsOpen)ws.send(JSON.stringify({type:'resync'}))}
+function handleFrame(f){
+  if(f.type==='snapshot'){
+    wsSeq=f.seq;lastState=f.state;bmap=new Map(f.state.bacteria.map(b=>[b.id,b]));
+    if(f.reason==='reset')resetLocalUI();
+    if(f.status)applyStatus(f.status);
+    scheduleRender();
+  }else if(f.type==='diff')applyDiff(f);
+  else if(f.type==='status')applyStatus(f);
+  else if(f.type==='detail'){
+    const b=f.bacterium&&bmap.get(f.id);
+    if(b){DETAIL_FIELDS.forEach(k=>b[k]=f.bacterium[k]);scheduleRender()}
+  }
+}
+// Mirrors RefClient.apply in tests/test_stream.py.
+function applyDiff(f){
+  if(wsSeq===null||f.seq<=wsSeq)return;            // stale (queued before a snapshot)
+  if(f.base_seq!==wsSeq){resync();return}            // gap -> fresh snapshot
+  for(const id of f.removed)bmap.delete(id);
+  if(f.stepped)for(const b of bmap.values())b.age+=1;   // age only sent when it didn't advance by 1
+  for(const [id,d] of f.changed){const b=bmap.get(id);if(b)Object.assign(b,d)}
+  for(const b of f.added)bmap.set(b.id,b);
+  for(const [id,d] of Object.entries(f.detail)){const b=bmap.get(+id);if(b)Object.assign(b,d)}
+  const st=lastState;
+  st.stats=f.stats;
+  st.event_log=st.event_log.concat(f.log).slice(-20);
+  const hgt=f.events.filter(e=>e.kind==='hgt').map(e=>({step:e.step,donor:e.donor,recipient:e.recipient,gene:e.gene,pos:e.pos}));
+  st.hgt_events=st.hgt_events.concat(hgt).slice(-50);
+  hgt.forEach(e=>flashQueue.push(e));
+  for(const [k,p] of Object.entries(f.heatmaps))st.antibiotic_heatmaps[k]={data:unpackGrid(p),max:p.max,color:p.color,name:p.name};
+  if(f.nutrient)st.nutrient_heatmap=unpackGrid(f.nutrient);
+  st.bacteria=[...bmap.values()];
+  if(st.bacteria.length!==f.n_bacteria){resync();return}
+  wsSeq=f.seq;
+  scheduleRender();
+}
+function unpackGrid(p){
+  const raw=atob(p.b64),out=new Array(p.w);
+  for(let x=0;x<p.w;x++){const col=new Array(p.h);for(let y=0;y<p.h;y++)col[y]=raw.charCodeAt(x*p.h+y)/255*p.scale;out[x]=col}
+  return out;
+}
+// Frames can arrive faster than the display refreshes: apply every frame,
+// draw at most once per animation frame.
+function scheduleRender(){
+  if(renderPending)return;renderPending=true;
+  requestAnimationFrame(()=>{renderPending=false;if(!lastState)return;renderCanvas(lastState);updateUI(lastState);refreshInspector()});
 }
 function setMode(mode,el){
   renderMode=mode;
@@ -857,8 +960,8 @@ function lerpHex(a,b,t){const ca=hexRgb(a),cb=hexRgb(b),r=Math.round(ca.r+(cb.r-
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 fetchState();
+connectStream();
 checkGNNStatus();
-setInterval(fetchState, 2500);
 setInterval(checkGNNStatus, 15000);
 </script>
 </body>

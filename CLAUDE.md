@@ -43,14 +43,20 @@ recommendation and wait for approval) before:
 Rule 6 (nothing public, no push) still applies.
 
 ## Current state (found during read, verify before relying on this)
-- Frontend: one 59KB `frontend/index.html`, inline CSS/JS, `<canvas>` 2D rendering,
-  `setInterval(fetchState, 2500)` polling — not WebSocket despite the README badge.
+- Frontend: one `frontend/index.html`, inline CSS/JS, `<canvas>` 2D rendering. Originally
+  polled `GET /state` every 2.5 s (the README's WebSocket claim was false); since Phase 1
+  it consumes `WS /ws` and only polls as a fallback. Still single-file (Phase 2 decides).
 - Backend (corrected 2026-09-29, Phase 0): the original `api/server.py` had been
   overwritten with a byte-for-byte copy of `ai/gnn_inference.py`, so there was no server
   at all and `python main.py server` failed. It was rebuilt as a REST-only FastAPI server
   matching the frontend's calls (13 routes incl. GNN + analytics), with
-  `tests/test_api.py` covering every route. Still no WebSocket route. Server defaults to
-  `127.0.0.1`.
+  `tests/test_api.py` covering every route. Server defaults to `127.0.0.1`.
+- Phase 1 done (2026-09-29): `WS /ws` live stream (`api/stream.py`: snapshot + per-step
+  field-level diffs, seq/resync, per-client bounded queues, events incl. birth with
+  parent_id, age derived client-side, detail fields only for inspected cells, 8-bit
+  heatmaps). Play is server-side (`/resume`, `/pause`, `/speed`). Frontend consumes the
+  stream, falls back to polling. `parent_id` is read from the agent by the server;
+  `core/` and `simulation/` are unchanged (`git diff a098ff9 -- core simulation` empty).
 - `core/antibiotic_agent.py` (0-byte, unreferenced) was deleted as dead code
   (2026-09-29, approved). Antibiotics are concentration grids on the model, diffused and
   decayed in `AMRSimulationModel._diffuse_antibiotics()`; profiles live in

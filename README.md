@@ -4,7 +4,7 @@
 
 [![Python](https://img.shields.io/badge/Python-3.12%2B%20(tested%203.14)-blue?logo=python)](https://python.org)
 [![Mesa](https://img.shields.io/badge/Mesa-ABM-orange)](https://mesa.readthedocs.io)
-[![FastAPI](https://img.shields.io/badge/FastAPI-REST-green)](https://fastapi.tiangolo.com)
+[![FastAPI](https://img.shields.io/badge/FastAPI-REST%20%2B%20WebSocket-green)](https://fastapi.tiangolo.com)
 [![WHO Priority](https://img.shields.io/badge/WHO%20Priority%20Pathogens-CRITICAL-red)](https://www.who.int/publications/i/item/WHO-EMP-IAU-2017.12)
 
 A scientifically grounded, interactive agent-based simulation of antimicrobial resistance (AMR) dynamics. Bacteria live, grow, mutate, form biofilms, transfer resistance genes via horizontal gene transfer (HGT), and die — all driven by real resistance mechanisms from the [CARD database](https://card.mcmaster.ca/).
@@ -80,13 +80,16 @@ amr_sim/
 │   │   gnn_ablation.py, gnn_multiseed.py   # paper evaluation scripts
 │   └── checkpoints/            # Trained models and result JSONs
 ├── api/
-│   └── server.py               # FastAPI REST server (no WebSocket; the frontend polls GET /state)
+│   ├── server.py               # FastAPI: REST commands + WS /ws live state stream + server-side Play
+│   └── stream.py               # Stream protocol: snapshot + per-step diff frames, per-client queues
 ├── frontend/
-│   └── index.html              # Single-file Canvas UI; polls the REST API every 2.5 s
+│   └── index.html              # Single-file Canvas UI; live via WS /ws, falls back to polling GET /state
 ├── tests/
 │   ├── test_simulation.py      # Data, agent biology, model dynamics, analytics, science validation, reproducibility
 │   ├── test_gnn.py             # GNN feature engineering, model, inference
-│   └── test_api.py             # REST contract tests (FastAPI TestClient) for every endpoint the frontend calls
+│   ├── test_api.py             # REST contract tests (FastAPI TestClient) for every endpoint the frontend calls
+│   ├── test_stream.py          # WS stream: snapshot+diffs reproduce GET /state; play; resync; events
+│   └── test_expected_resistance.py  # EUCAST expected-resistance table + treatment advisory
 ├── main.py                     # Entry point
 └── requirements.txt
 ```
@@ -163,9 +166,11 @@ POST /spawn_bacteria  {"germ_key": "klebsiella_pneumoniae", "count": 30}
 # Reset to scenario
 POST /reset           {"scenario": "pakistan_crisis", "initial_bacteria": 100, "seed": 42}   # seed optional
 
-# Pause / resume (while paused, POST /step is a no-op)
-POST /pause
+# Server-side Play: resume/pause the step loop, set its rate (1-20)
 POST /resume
+POST /pause
+POST /speed           {"speed": 12}
+# POST /step always advances n steps, whether playing or paused.
 
 # GNN transfer prediction and advisory
 GET  /gnn/status
@@ -178,8 +183,21 @@ GET  /analytics/diversity
 GET  /analytics/recommend
 ```
 
-There is no WebSocket endpoint. The frontend polls `GET /state` every 2.5 s
-and after each action, and drives Play by POSTing `/step` on a timer.
+### Live stream: `WS /ws`
+Commands stay on REST; the WebSocket only streams state. On connect the
+server sends a `snapshot` (the same payload as `GET /state`), then one `diff`
+frame per simulation step and per state-changing command: added/removed
+cells, changed fields only, stats, new log lines, events (`birth` with
+`parent_id`, `death`, `spawn`, `hgt`, `sos_on/off`, `biofilm_on/off`,
+`persister_on/off`) and heatmaps (8-bit packed, only when they change).
+Frames carry `seq`/`base_seq`; a client that sees a gap sends
+`{"type":"resync"}` and gets a fresh snapshot, and a client that falls behind
+is resynced automatically. `{"type":"inspect","id":N}` adds that cell's
+detail fields (stress, antibiotic damage, offspring count, local density) to
+every frame. Full protocol and client apply rules: `api/stream.py`.
+
+The frontend shows `LIVE` when streaming; if the socket drops it shows
+`POLLING`, polls `GET /state` every 2.5 s, and reconnects automatically.
 Interactive docs: `http://localhost:8000/docs` while the server is running.
 
 ---

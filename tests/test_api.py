@@ -87,7 +87,7 @@ class TestState:
 
     def test_bacterium_fields_used_by_frontend(self, client):
         b = state(client)["bacteria"][0]
-        for k in ("id", "pos", "state", "shape", "color_hex", "gene_count",
+        for k in ("id", "parent_id", "pos", "state", "shape", "color_hex", "gene_count",
                   "fitness", "energy", "sos_active", "in_biofilm", "species",
                   "resistance_genes", "generation", "age", "stress_level",
                   "antibiotic_damage", "is_persister", "total_mutations",
@@ -121,11 +121,11 @@ class TestStepPauseResume:
 
     def test_step_while_paused_advances_and_stays_paused(self, client):
         """'+1 Step' after Pause must step once; the pause flag survives."""
-        assert client.post("/pause").json() == {"paused": True}
+        assert client.post("/pause").json() == {"paused": True, "playing": False}
         r = client.post("/step", json={"n_steps": 1}).json()
         assert r["step"] == 1 and r["paused"] is True
         assert state(client)["stats"]["step"] == 1
-        assert client.post("/resume").json() == {"paused": False}
+        assert client.post("/pause").json()["paused"] is True   # stop play before manual steps
         client.post("/step", json={"n_steps": 2})
         assert state(client)["stats"]["step"] == 3
 
@@ -262,9 +262,12 @@ class TestReset:
 def _strip_cell_ids(s):
     """BacteriumAgent.cell_id comes from uuid4 (not the seeded model RNG), so
     it differs between any two runs, even two direct ones. It is a display
-    label only — no simulation or feature code reads it — so it is excluded."""
+    label only — no simulation or feature code reads it — so it is excluded.
+    parent_id is added by the API (read from the agent; to_dict() lacks it),
+    so it is dropped too when comparing against a direct get_full_state()."""
     for b in s["bacteria"]:
         b.pop("cell_id")
+        b.pop("parent_id", None)
     return s
 
 

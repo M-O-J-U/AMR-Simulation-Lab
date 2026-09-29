@@ -1,28 +1,31 @@
 """
-AMR Simulation — FastAPI REST server.
+AMR Simulation — FastAPI server: REST commands + WebSocket live state stream.
 
 Rebuilt 2026-09-29: the original server source was lost (this file had been
-overwritten with a copy of ai/gnn_inference.py). The routes below are
-reconstructed from the calls frontend/index.html makes, and are thin wrappers
+overwritten with a copy of ai/gnn_inference.py). Routes are thin wrappers
 around existing model / analytics / GNN methods. This module contains no
 simulation logic and never touches the model RNG directly — every random draw
 happens inside AMRSimulationModel methods, exactly as in headless runs.
 
-Transport: REST only. The frontend polls GET /state (every 2.5 s, and after
-each action). There is no WebSocket route.
+Transport
+  REST = commands (and GET /state as a polling fallback).
+  WS /ws = live state stream: a snapshot on connect, then one diff frame per
+  simulation step and per state-changing command. Protocol: api/stream.py.
 
-Pause semantics: Play is driven by the frontend's own timer posting /step.
-/pause and /resume set model.paused, but an explicit POST /step always
-advances (see step()), so while paused the '+1 Step' button still works.
+Play is server-side: POST /resume starts a loop that steps the model on a
+timer (POST /speed sets the rate), POST /pause stops it. POST /step always
+advances n steps, playing or paused (the '+1 Step' button).
 
 Endpoints
-  GET  /state                       full simulation snapshot
+  GET  /state                       full snapshot (get_full_state() + parent_id)
   POST /step                        {"n_steps": int}
   POST /apply_antibiotic            {"antibiotic_key", "concentration", "mode", "center"?, "radius"?}
   POST /remove_antibiotic           {"antibiotic_key"}
   POST /spawn_bacteria              {"germ_key", "count"}
   POST /reset                       {"scenario", "initial_bacteria", "seed"?}
   POST /pause, POST /resume
+  POST /speed                       {"speed": 1..20}
+  WS   /ws                          live stream
   GET  /gnn/status
   POST /gnn/predict                 {"threshold", "max_nodes", "max_edge_distance"}
   POST /gnn/advisory                {"available_antibiotics": [...]}
@@ -31,13 +34,17 @@ Endpoints
   GET  /analytics/recommend
 """
 
+import asyncio
+import contextlib
+import json
 import math
 import os
 import sys
 import threading
 from typing import List, Literal, Optional, Tuple
 
-from fastapi import FastAPI, HTTPException
+import anyio
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -48,6 +55,7 @@ from data.card_loader import ANTIBIOTIC_PROFILES, GERM_PROFILES, get_germ
 from ai.resistance_analytics import (
     estimate_population_mic, recommend_treatment, shannon_diversity,
 )
+from api.stream import StateTracker, Broadcaster, SNAPSHOT_MARKER, full_state
 
 # Scenario keys handled by AMRSimulationModel._setup_scenario. The model
 # silently falls back to "validation" for unknown keys; the API rejects them
@@ -59,6 +67,13 @@ SCENARIOS = (
 
 DEFAULT_SCENARIO = "validation"
 DEFAULT_INITIAL_BACTERIA = 80    # matches the frontend's population slider default
+DEFAULT_SPEED = 5                # matches the frontend's speed slider default
+
+
+def play_timing(speed: int) -> Tuple[float, int]:
+    """(seconds between ticks, steps per tick). Same mapping the frontend's
+    old client-side play timer used, so Play feels the same as before."""
+    return max(80, 650 - speed * 28) / 1000.0, max(1, math.ceil(speed / 5))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -87,6 +102,9 @@ class ResetRequest(BaseModel):
     initial_bacteria: int = Field(DEFAULT_INITIAL_BACTERIA, ge=1, le=1000)
     seed: Optional[int] = None
 
+class SpeedRequest(BaseModel):
+    speed: int = Field(DEFAULT_SPEED, ge=1, le=20)
+
 class GNNPredictRequest(BaseModel):
     threshold: float = Field(0.35, ge=0.0, le=1.0)
     max_nodes: int = Field(300, ge=2, le=3000)
@@ -113,34 +131,123 @@ def json_safe(obj):
 # ─────────────────────────────────────────────────────────────────────────────
 
 class SimulationSession:
-    """Holds the single live model. FastAPI runs sync endpoints in a thread
-    pool, so every model access goes through `lock` to keep a /step from
-    interleaving with a /state read or another /step."""
+    """Holds the single live model. REST handlers run in a thread pool and the
+    play loop steps in a worker thread, so every model access goes through
+    `lock`. Every mutation produces stream frames, which are published while
+    the lock is still held so frame order always matches mutation order."""
 
-    def __init__(self, enable_logging: bool, checkpoint_path: Optional[str]):
+    def __init__(self, enable_logging: bool, checkpoint_path: Optional[str],
+                 broadcaster: Broadcaster):
         self.enable_logging = enable_logging
         self.checkpoint_path = checkpoint_path
         self.lock = threading.RLock()
+        self.bus = broadcaster
+        self.tracker = StateTracker()
+        self.playing = False
+        self.speed = DEFAULT_SPEED
         self._model: Optional[AMRSimulationModel] = None
         self._gnn = None
         self._gnn_trained = False
         self._gnn_lock = threading.Lock()
 
+    # -- model lifecycle ------------------------------------------------------
     @property
     def model(self) -> AMRSimulationModel:
-        if self._model is None:
-            self.reset(DEFAULT_SCENARIO, DEFAULT_INITIAL_BACTERIA, None)
-        return self._model
+        with self.lock:
+            if self._model is None:
+                self.reset(DEFAULT_SCENARIO, DEFAULT_INITIAL_BACTERIA, None)
+            return self._model
 
     def reset(self, scenario: str, initial_bacteria: int, seed: Optional[int]):
-        self._model = AMRSimulationModel(
-            scenario=scenario, initial_bacteria=initial_bacteria,
-            seed=seed, enable_logging=self.enable_logging,
-        )
+        with self.lock:
+            self._model = AMRSimulationModel(
+                scenario=scenario, initial_bacteria=initial_bacteria,
+                seed=seed, enable_logging=self.enable_logging,
+            )
+            snap = self.tracker.rebase(self._model)
+            snap["status"] = self.status()
+            self.bus.publish([snap])
+
+    # -- mutations (each publishes frames) ------------------------------------
+    def step(self, n: int) -> List[dict]:
+        """Advance n steps, playing or paused. model.step() is a no-op while
+        model.paused is set, so the flag is cleared for the duration of this
+        call and restored afterwards; model.step() itself is unchanged."""
+        with self.lock:
+            m = self.model
+            frames = []
+            was_paused = m.paused
+            m.paused = False
+            try:
+                for _ in range(n):
+                    m.step()
+                    frames.append(self.tracker.diff_frame(m, stepped=True))
+            finally:
+                m.paused = was_paused
+            self.bus.publish(frames)
+            return frames
+
+    def command(self, fn):
+        """Run a non-stepping state change and publish its diff."""
+        with self.lock:
+            result = fn(self.model)
+            self.bus.publish([self.tracker.diff_frame(self._model, stepped=False)])
+            return result
+
+    # -- play loop ------------------------------------------------------------
+    def set_playing(self, playing: bool):
+        with self.lock:
+            self.playing = playing
+            self.model.paused = not playing
+            self.publish_status()
+
+    def set_speed(self, speed: int):
+        with self.lock:
+            self.speed = speed
+            self.publish_status()
+
+    def play_tick(self) -> bool:
+        """One tick of server-side Play. Returns False if play stopped."""
+        with self.lock:
+            if not self.playing:
+                return False
+            _, n = play_timing(self.speed)
+            self.step(n)
+            if not self._model.running:          # extinction: stop playing
+                self.playing = False
+                self.publish_status(reason="extinct")
+                return False
+            return True
+
+    # -- stream helpers -------------------------------------------------------
+    def status(self, reason: Optional[str] = None) -> dict:
+        m = self._model
+        s = {"type": "status", "playing": self.playing, "speed": self.speed,
+             "paused": bool(m.paused) if m else True,
+             "scenario": m.sim_scenario if m else None,
+             "step": m.current_step if m else 0}
+        if reason:
+            s["reason"] = reason
+        return s
+
+    def publish_status(self, reason: Optional[str] = None):
+        self.bus.send_all(json.dumps(self.status(reason)))
+
+    def snapshot_text(self, reason: str) -> str:
+        with self.lock:
+            self.model   # ensure a model (and a tracker chain) exists
+            snap = self.tracker.snapshot_frame(reason)
+            snap["status"] = self.status()
+            return json.dumps(snap, separators=(",", ":"))
+
+    def detail_text(self, bid: Optional[int]) -> str:
+        with self.lock:
+            return json.dumps(self.tracker.detail_frame(bid), separators=(",", ":"))
 
     def living_bacteria(self) -> list:
         return self.model._living()
 
+    # -- GNN ------------------------------------------------------------------
     def gnn(self):
         """Lazily load the GNN (torch import + checkpoint load take seconds).
         Falls back to an untrained model if no checkpoint exists, which the
@@ -160,37 +267,53 @@ class SimulationSession:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def create_app(enable_logging: bool = True,
-               checkpoint_path: Optional[str] = None) -> FastAPI:
-    app = FastAPI(title="AMR Simulation Lab API", version="1.0")
+               checkpoint_path: Optional[str] = None,
+               queue_max: Optional[int] = None) -> FastAPI:
+    bus = Broadcaster(**({"queue_max": queue_max} if queue_max else {}))
+    session = SimulationSession(enable_logging, checkpoint_path, bus)
+
+    async def play_loop():
+        while True:
+            if session.playing:
+                interval, _ = play_timing(session.speed)
+                started = asyncio.get_running_loop().time()
+                await anyio.to_thread.run_sync(session.play_tick)
+                elapsed = asyncio.get_running_loop().time() - started
+                await asyncio.sleep(max(0.0, interval - elapsed))
+            else:
+                await asyncio.sleep(0.05)
+
+    @contextlib.asynccontextmanager
+    async def lifespan(app):
+        bus.attach(asyncio.get_running_loop())
+        task = asyncio.create_task(play_loop())
+        try:
+            yield
+        finally:
+            session.playing = False
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+
+    app = FastAPI(title="AMR Simulation Lab API", version="1.1", lifespan=lifespan)
     # The frontend is opened straight from disk (file://, origin "null") and
     # calls http://localhost:8000, so cross-origin requests must be allowed.
     app.add_middleware(CORSMiddleware, allow_origins=["*"],
                        allow_methods=["*"], allow_headers=["*"])
-
-    session = SimulationSession(enable_logging, checkpoint_path)
     app.state.session = session
+    app.state.bus = bus
 
     # ── Simulation ───────────────────────────────────────────────────────────
     @app.get("/state")
     def get_state():
         with session.lock:
-            return session.model.get_full_state()
+            return full_state(session.model)
 
     @app.post("/step")
     def step(req: StepRequest = StepRequest()):
-        """An explicit step request always advances n_steps, even while paused
-        (e.g. the '+1 Step' button after Pause). model.step() returns early when
-        model.paused is set, so the flag is cleared for the duration of this
-        request and restored afterwards; model.step() itself is unchanged."""
         with session.lock:
+            session.step(req.n_steps)
             m = session.model
-            was_paused = m.paused
-            m.paused = False
-            try:
-                for _ in range(req.n_steps):
-                    m.step()
-            finally:
-                m.paused = was_paused
             return {"step": m.current_step, "paused": m.paused,
                     "running": m.running,
                     "total_bacteria": m.count_living_bacteria()}
@@ -199,37 +322,37 @@ def create_app(enable_logging: bool = True,
     def apply_antibiotic(req: ApplyAntibioticRequest):
         if req.antibiotic_key not in ANTIBIOTIC_PROFILES:
             raise HTTPException(404, f"Unknown antibiotic: {req.antibiotic_key}")
-        with session.lock:
-            session.model.apply_antibiotic(
-                req.antibiotic_key, concentration=req.concentration,
-                mode=req.mode, center=req.center, radius=req.radius)
+        def do(m):
+            m.apply_antibiotic(req.antibiotic_key, concentration=req.concentration,
+                               mode=req.mode, center=req.center, radius=req.radius)
             return {"ok": True, "antibiotic_key": req.antibiotic_key,
-                    "active": list(session.model.antibiotic_grids)}
+                    "active": list(m.antibiotic_grids)}
+        return session.command(do)
 
     @app.post("/remove_antibiotic")
     def remove_antibiotic(req: RemoveAntibioticRequest):
         if req.antibiotic_key not in ANTIBIOTIC_PROFILES:
             raise HTTPException(404, f"Unknown antibiotic: {req.antibiotic_key}")
-        with session.lock:
-            present = req.antibiotic_key in session.model.antibiotic_grids
-            session.model.remove_antibiotic(req.antibiotic_key)
+        def do(m):
+            present = req.antibiotic_key in m.antibiotic_grids
+            m.remove_antibiotic(req.antibiotic_key)
             return {"ok": True, "antibiotic_key": req.antibiotic_key,
                     "was_present": present}
+        return session.command(do)
 
     @app.post("/spawn_bacteria")
     def spawn_bacteria(req: SpawnRequest):
         if req.germ_key not in GERM_PROFILES:
             raise HTTPException(404, f"Unknown germ: {req.germ_key}")
-        with session.lock:
-            m = session.model
+        def do(m):
             before = m.count_living_bacteria()
             profile = get_germ(req.germ_key)
             m._spawn_bacteria_cluster(profile, req.count)
             spawned = m.count_living_bacteria() - before
-            m._log_event("bacteria_spawned",
-                         f"{spawned} {profile.species} spawned")
+            m._log_event("bacteria_spawned", f"{spawned} {profile.species} spawned")
             return {"ok": True, "germ_key": req.germ_key, "spawned": spawned,
                     "total_bacteria": before + spawned}
+        return session.command(do)
 
     @app.post("/reset")
     def reset(req: ResetRequest = ResetRequest()):
@@ -242,15 +365,60 @@ def create_app(enable_logging: bool = True,
 
     @app.post("/pause")
     def pause():
-        with session.lock:
-            session.model.paused = True
-            return {"paused": True}
+        session.set_playing(False)
+        return {"paused": True, "playing": False}
 
     @app.post("/resume")
     def resume():
-        with session.lock:
-            session.model.paused = False
-            return {"paused": False}
+        session.set_playing(True)
+        return {"paused": False, "playing": True}
+
+    @app.post("/speed")
+    def speed(req: SpeedRequest):
+        session.set_speed(req.speed)
+        interval, n = play_timing(req.speed)
+        return {"speed": req.speed, "interval_ms": round(interval * 1000),
+                "steps_per_tick": n}
+
+    # ── Live stream ──────────────────────────────────────────────────────────
+    @app.websocket("/ws")
+    async def ws(websocket: WebSocket):
+        await websocket.accept()
+        client = bus.add()
+        token = object()
+        bus.request_snapshot(client)          # first message is always a snapshot
+
+        async def sender():
+            while True:
+                item = await client.queue.get()
+                if item is SNAPSHOT_MARKER:
+                    item = await anyio.to_thread.run_sync(session.snapshot_text, "sync")
+                await websocket.send_text(item)
+
+        send_task = asyncio.create_task(sender())
+        try:
+            while True:
+                try:
+                    msg = await websocket.receive_json()
+                except (ValueError, KeyError):
+                    continue                    # ignore malformed control messages
+                kind = msg.get("type") if isinstance(msg, dict) else None
+                if kind == "resync":
+                    bus.request_snapshot(client)
+                elif kind == "inspect":
+                    bid = msg.get("id")
+                    bid = bid if isinstance(bid, int) else None
+                    with session.lock:
+                        session.tracker.inspected[token] = bid
+                    client.queue.put_nowait(
+                        await anyio.to_thread.run_sync(session.detail_text, bid))
+        except WebSocketDisconnect:
+            pass
+        finally:
+            send_task.cancel()
+            bus.remove(client)
+            with session.lock:
+                session.tracker.inspected.pop(token, None)
 
     # ── GNN ──────────────────────────────────────────────────────────────────
     @app.get("/gnn/status")
