@@ -146,3 +146,11 @@ Goal: modern, smooth, informative, still fast at 4800 grid cells with hundreds o
 - Any non-bacterial pathogen.
 - Changing simulation biology/parameters beyond what's needed to fix real bugs found in
   Phase 0 (report bugs found, don't silently "improve" biology while upgrading visuals).
+
+## Paper-phase TODO (do NOT act on these during the lab phase)
+- **NaN AUROC for mexAB-oprM** (noted 2026-09-29, not investigated): the checkpoint's
+  stored validation metrics (`ai/checkpoints/best_model.pt`, `val_metrics`) and
+  `ai/checkpoints/training_results.json` contain `"auroc_mexAB-oprM": NaN`. Found only
+  because `/gnn/status` failed to JSON-encode it (the API now reports it as null; the
+  files are untouched). Before the paper phase, determine how macro AUROC handles this
+  gene and whether any reported figure depends on it.
