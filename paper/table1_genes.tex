@@ -1,0 +1,29 @@
+\begin{table}[!t]
+\renewcommand{\arraystretch}{1.15}
+\caption{Resistance Genes: CARD Identifiers and Biological Parameters}
+\label{tab:genes}
+\centering
+\scriptsize
+\begin{tabular}{@{}llccc@{}}
+\toprule
+\textbf{Gene} & \textbf{Mechanism} & \textbf{CARD ARO} &
+\textbf{Fit.\ cost} & \textbf{Acq./step} \\
+\midrule
+blaTEM-1    & $\beta$-lactamase   & 3000873         & 0.02 & 0.040 \\
+blaCTX-M-15 & ESBL                & 3001878         & 0.03 & 0.030 \\
+blaKPC-2    & Carbapenemase       & 3002312         & 0.04 & 0.020 \\
+blaNDM-1    & Metallo-BL          & 3000589         & 0.05 & 0.015 \\
+mexAB-oprM  & Efflux pump         & 3000386$^{a}$   & 0.06 & 0.025 \\
+acrAB-tolC  & Efflux pump         & 3000384$^{a}$   & 0.04 & 0.030 \\
+gyrA\_S83L  & Target alteration   & 3003294$^{b}$   & 0.01 & 0.010 \\
+mcr-1       & Polymyxin resist.   & 3003689$^{c}$   & 0.07 & 0.020 \\
+tetM        & Ribosomal prot.     & 3000186         & 0.02 & 0.050 \\
+vanA        & Glycopeptide resist.& 3000010         & 0.08 & 0.010 \\
+\bottomrule
+\end{tabular}
+\vspace{2pt}
+\footnotesize{$^{a}$CARD efflux-complex entries MexAB-OprM and AcrAB-TolC.
+$^{b}$CARD entry ``\textit{Escherichia coli gyrA} conferring resistance to
+fluoroquinolones''; S83L is one of the variants this model covers, not a
+standalone ARO entry. $^{c}$CARD entry name MCR-1.1.}
+\end{table}

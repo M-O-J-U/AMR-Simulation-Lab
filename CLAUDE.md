@@ -176,6 +176,20 @@ Goal: modern, smooth, informative, still fast at 4800 grid cells with hundreds o
   mechanism for SCCmec, so mecA is marked non-transferring rather than moved by it.
 
 ## Paper-phase TODO (do NOT act on these during the lab phase)
+**Status 2026-09-29:** the IEEE JBHI manuscript (JBHI-03955-2026) was rejected on
+2026-06-29 and not resubmitted. It is retired, along with `Downloads/amr_gnn.tex` and
+its numbers (AUROC 0.9934, 36-dim). A NEW paper will be written from the current
+pipeline; nothing below is to be reconciled with the retired draft.
+- **Leakage-fix provenance (confirmed 2026-09-29, for the new paper's methods note):**
+  the retired 0.9934 came from the 2026-06-07 01:32 run (`logs/gnn_training_20260607_013207.log`:
+  test AUROC 0.9934, AUPRC 0.0602, early stop epoch 42; 349,370 params). Rebuilding the
+  current architecture with the pre-fix inputs (behavioural node group 3-dim incl.
+  sos_active -> 36-dim nodes; 8-dim edges incl. raw distance, same_species,
+  transferable_genes_norm, either_sos) gives exactly 349,370 params; the post-fix 35/5
+  layout gives exactly 349,162, the count logged by every run from 2026-07-04 on (test
+  AUROC 0.9292-0.9599). Four features were removed, not three: sos_active too.
+  `ai/checkpoints/feature_leakage_remediation.md`, cited in feature_engineering.py as the
+  full audit, does not exist in the repo.
 - **NaN AUROC for mexAB-oprM** (noted 2026-09-29, not investigated): the checkpoint's
   stored validation metrics (`ai/checkpoints/best_model.pt`, `val_metrics`) and
   `ai/checkpoints/training_results.json` contain `"auroc_mexAB-oprM": NaN`. Found only
@@ -183,8 +197,8 @@ Goal: modern, smooth, informative, still fast at 4800 grid cells with hundreds o
   files are untouched). Before the paper phase, determine how macro AUROC handles this
   gene and whether any reported figure depends on it.
 - **8 of 10 CARD ARO IDs were wrong** — FIXED IN CODE 2026-09-29 (`data/card_loader.py`,
-  pinned by `tests/test_biology.py::test_card_ids_verified`); **manuscript Table 1
-  (`amr_gnn.tex`) still carries the old IDs and needs the same correction.** Original audit
+  pinned by `tests/test_biology.py::test_card_ids_verified`). Corrected Table 1 for the new
+  paper is generated from code: `paper/make_table1.py` -> `paper/table1_genes.tex`. Original audit
   (audited 2026-09-29 against card.mcmaster.ca). Correct: blaNDM-1 ARO:3000589, tetM
   ARO:3000186. Wrong (what the ID actually is): blaTEM-1 and blaCTX-M-15 both ARO:3000237
   (TolC); blaKPC-2 ARO:3000159 (generic efflux term); mexAB-oprM ARO:3000157 (rifamycin drug
