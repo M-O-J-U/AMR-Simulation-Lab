@@ -166,9 +166,9 @@ Goal: modern, smooth, informative, still fast at 4800 grid cells with hundreds o
   `tests/golden/paper_v1.json` (generated from pre-change code, PYTHONHASHSEED=0).
   `lab_v2` = the API server's default: MRSA carries mecA (CARD ARO:3000617) instead of
   tetM; acrAB-tolC removed from MRSA's acquirable pool; mecA non-transferring. mecA's
-  fitness cost lives in `data/lab_v2_config.json` and is UNSET (null -> 0, with a visible
-  warning in the API/UI) until the values measured by Ender et al. 2004 are entered.
-  Klebsiella and the antibiotic diffusion step are NOT yet changed in lab_v2.
+  fitness cost lives in `data/lab_v2_config.json`.
+  lab_v2 diffusion conserves total drug (2026-09-29); decay_rate values unchanged and
+  UNVALIDATED against real PK/PD. mecA fitness cost 0.275 (Ender 2004, RA120 vs BB255).
 - **Known limitation (lab_v2): SCCmec-style transfer of mecA is not modelled.** The sim's
   only HGT mechanism is conjugation-style transfer between neighbours, which is the wrong
   mechanism for SCCmec, so mecA is marked non-transferring rather than moved by it.

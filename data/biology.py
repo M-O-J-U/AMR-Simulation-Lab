@@ -16,8 +16,9 @@ Versioned biology for the simulation.
               - acrAB-tolC removed from MRSA's acquirable pool (AcrAB-TolC is
                 a Gram-negative tripartite system; CARD ARO:3000237 / 3000384).
               - mecA is non-transferring (see KNOWN LIMITATION below).
-            Klebsiella and the antibiotic diffusion step are NOT yet changed
-            in lab_v2 (pending decisions; see CLAUDE.md).
+              - Antibiotic diffusion conserves total drug; only decay_rate
+                removes it. decay_rate values are UNVALIDATED against real
+                PK/PD (no cited source, no defined step duration).
 
 KNOWN LIMITATION: SCCmec-style mobilisation of mecA is not modelled. The
 model's only horizontal transfer mechanism is conjugation-style HGT between
@@ -48,6 +49,9 @@ class Biology:
     antibiotics: Dict[str, AntibioticProfile]
     non_transferable: FrozenSet[str] = frozenset()
     warnings: List[str] = field(default_factory=list)
+    # lab_v2 only: diffusion that conserves total drug (paper_v1's scales it by
+    # diffusion_rate every step). See AMRSimulationModel._diffuse_antibiotics.
+    mass_conserving_diffusion: bool = False
 
     def germ(self, key: str) -> GermProfile:
         if key not in self.germs:
@@ -90,6 +94,12 @@ LAB_V2_CHANGES = [
      "CARD ARO:3000384 (AcrAB-TolC: RND efflux system 'in Gram-negative bacteria')."),
     ("mecA does not transfer by the model's conjugation-style HGT",
      "Known limitation: SCCmec mobilisation is not modelled (wrong mechanism to reuse)."),
+    ("Antibiotic diffusion conserves total drug mass (no-flux boundaries)",
+     "Bug fix: paper_v1 multiplies the field by diffusion_rate after a kernel that already "
+     "sums to 1, removing 10-70% of the drug per step, contradicting the manuscript's "
+     "'discrete Laplacian (Fick's second law)'. decay_rate values are unchanged and are "
+     "UNVALIDATED against real PK/PD: no source is cited for them and no step duration "
+     "is defined, so they cannot yet be compared with real half-lives."),
 ]
 
 
@@ -139,6 +149,7 @@ def build_lab_v2(**overrides) -> Biology:
         antibiotics=ANTIBIOTIC_PROFILES,
         non_transferable=frozenset({"mecA"}),
         warnings=warnings,
+        mass_conserving_diffusion=True,
     )
 
 

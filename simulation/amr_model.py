@@ -212,6 +212,11 @@ class AMRSimulationModel(Model):
 
     # ── Diffusion ─────────────────────────────────────────────────────────────
     def _diffuse_antibiotics(self):
+        if getattr(self.biology, "mass_conserving_diffusion", False):
+            return self._diffuse_antibiotics_conservative()
+        # paper_v1 (frozen): NOTE this multiplies the whole field by
+        # diffusion_rate after a kernel that already sums to 1, so total drug
+        # is scaled by diffusion_rate*(1-decay_rate) per step (see CLAUDE.md).
         kernel = np.array([[0.05,0.10,0.05],[0.10,0.40,0.10],[0.05,0.10,0.05]], dtype=np.float32)
         for key, grid in self.antibiotic_grids.items():
             if not np.any(grid > 0.001): continue
@@ -227,6 +232,34 @@ class AMRSimulationModel(Model):
                                 new_grid[nx,ny] += grid[x,y]*kernel[dx+1,dy+1]*ab.diffusion_rate
             new_grid *= (1.0 - ab.decay_rate)
             self.antibiotic_grids[key] = np.clip(new_grid, 0.0, 5.0)
+
+    def _diffuse_antibiotics_conservative(self):
+        """lab_v2 diffusion: conserves total drug; only decay_rate removes it.
+
+        A fraction diffusion_rate of each cell's drug is redistributed with the
+        same 3x3 kernel (weights sum to 1); the rest stays put. Boundaries are
+        no-flux: kernel weight that would leave the grid stays in the source
+        cell. So sum(after) = sum(before) * (1 - decay_rate), up to float32
+        rounding and the existing 5.0 ug/mL cap."""
+        kernel = np.array([[0.05,0.10,0.05],[0.10,0.40,0.10],[0.05,0.10,0.05]], dtype=np.float64)
+        W, H = self.width, self.height
+        for key, grid in self.antibiotic_grids.items():
+            if not np.any(grid > 0.0): continue
+            ab = self.antibiotic_profiles[key]
+            g = grid.astype(np.float64)
+            spread = np.zeros_like(g)
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    part = g * kernel[dx+1, dy+1]
+                    sx = slice(max(0, -dx), W - max(0, dx)); tx = slice(max(0, dx), W - max(0, -dx))
+                    sy = slice(max(0, -dy), H - max(0, dy)); ty = slice(max(0, dy), H - max(0, -dy))
+                    spread[tx, ty] += part[sx, sy]
+                    stays = part.copy(); stays[sx, sy] = 0.0     # would leave the grid
+                    spread += stays
+            d = ab.diffusion_rate
+            new_grid = (1.0 - d) * g + d * spread
+            new_grid *= (1.0 - ab.decay_rate)
+            self.antibiotic_grids[key] = np.clip(new_grid, 0.0, 5.0).astype(np.float32)
 
     # ── HGT recording ─────────────────────────────────────────────────────────
     def record_hgt_event(self, donor_id, recipient_id, gene, step, position):

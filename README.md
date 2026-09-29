@@ -191,8 +191,12 @@ default for `AMRSimulationModel` and the whole training/evaluation pipeline.
 `lab_v2` is the corrected biology used by the UI: MRSA carries *mecA* (CARD
 ARO:3000617) rather than *tetM*, and cannot acquire the Gram-negative
 AcrAB-TolC pump. mecA does not transfer (SCCmec mobilisation is not modelled),
-and its fitness cost is configurable in `data/lab_v2_config.json` (currently
-unset; the UI shows a warning). Details and sources: `data/biology.py`.
+and its fitness cost is configurable in `data/lab_v2_config.json` (0.275: one
+measured point from Ender et al. 2004 for a high-resistance lineage, not a
+general constant). In `lab_v2`, antibiotic diffusion conserves total drug (in
+`paper_v1` it removes 10-70% per step); the per-drug `decay_rate` values are
+unchanged and **not validated against real PK/PD** (no cited source, no
+defined step duration). Details and sources: `data/biology.py`.
 
 ### Live stream: `WS /ws`
 Commands stay on REST; the WebSocket only streams state. On connect the

@@ -196,3 +196,54 @@ def test_card_ids_verified():
         "vanA": "ARO:3000010",         # vanA
     }
     assert LAB_V2.genes["mecA"].card_id == "ARO:3000617"
+
+
+class TestLabV2Diffusion:
+    def _model(self, bio=None):
+        return AMRSimulationModel(scenario="validation", initial_bacteria=5, seed=1,
+                                  enable_logging=False, biology=bio or LAB_V2)
+
+    @pytest.mark.parametrize("ab", sorted(card_loader.ANTIBIOTIC_PROFILES))
+    def test_mass_conserved_except_decay(self, ab):
+        m = self._model()
+        m.apply_antibiotic(ab, 2.0, "spot", center=(1, 1), radius=8)   # against a corner
+        decay = LAB_V2.antibiotics[ab].decay_rate
+        for _ in range(15):
+            before = float(m.antibiotic_grids[ab].astype("float64").sum())
+            m._diffuse_antibiotics()
+            after = float(m.antibiotic_grids[ab].astype("float64").sum())
+            assert after == pytest.approx(before * (1 - decay), rel=1e-5)
+
+    def test_spot_actually_spreads(self):
+        m = self._model()
+        m.apply_antibiotic("ciprofloxacin", 2.0, "spot", center=(40, 30), radius=3)
+        g0 = m.antibiotic_grids["ciprofloxacin"].copy()
+        for _ in range(10):
+            m._diffuse_antibiotics()
+        g = m.antibiotic_grids["ciprofloxacin"]
+        assert (g > 1e-6).sum() > (g0 > 1e-6).sum() and g.max() < g0.max()
+
+    def test_uniform_field_stays_uniform(self):
+        m = self._model()
+        m.apply_antibiotic("tetracycline", 1.0, "uniform")
+        m._diffuse_antibiotics()
+        g = m.antibiotic_grids["tetracycline"]
+        assert g.max() - g.min() < 1e-6
+
+    def test_higher_diffusion_rate_spreads_faster(self):
+        """In lab_v2 diffusion_rate means spreading speed (in paper_v1 a lower
+        rate removed drug faster)."""
+        def spread_cells(ab):
+            m = self._model()
+            m.apply_antibiotic(ab, 2.0, "spot", center=(40, 30), radius=2)
+            for _ in range(8):
+                m._diffuse_antibiotics()
+            return int((m.antibiotic_grids[ab] > 1e-4).sum())
+        # ampicillin diffusion_rate 0.9 vs vancomycin 0.3
+        assert spread_cells("ampicillin") > spread_cells("vancomycin")
+
+    def test_paper_v1_still_uses_original_diffusion(self):
+        m = self._model(PAPER_V1)
+        m.apply_antibiotic("vancomycin", 1.0, "uniform")
+        m._diffuse_antibiotics()
+        assert float(m.antibiotic_grids["vancomycin"].sum()) < 0.35 * 4800
