@@ -180,8 +180,10 @@ Goal: modern, smooth, informative, still fast at 4800 grid cells with hundreds o
   because `/gnn/status` failed to JSON-encode it (the API now reports it as null; the
   files are untouched). Before the paper phase, determine how macro AUROC handles this
   gene and whether any reported figure depends on it.
-- **8 of 10 CARD ARO IDs in `data/card_loader.py` point at the wrong CARD entry** (audited
-  2026-09-29 against card.mcmaster.ca; not fixed). Correct: blaNDM-1 ARO:3000589, tetM
+- **8 of 10 CARD ARO IDs were wrong** — FIXED IN CODE 2026-09-29 (`data/card_loader.py`,
+  pinned by `tests/test_biology.py::test_card_ids_verified`); **manuscript Table 1
+  (`amr_gnn.tex`) still carries the old IDs and needs the same correction.** Original audit
+  (audited 2026-09-29 against card.mcmaster.ca). Correct: blaNDM-1 ARO:3000589, tetM
   ARO:3000186. Wrong (what the ID actually is): blaTEM-1 and blaCTX-M-15 both ARO:3000237
   (TolC); blaKPC-2 ARO:3000159 (generic efflux term); mexAB-oprM ARO:3000157 (rifamycin drug
   class); acrAB-tolC ARO:3000055 (SME beta-lactamase); gyrA_S83L ARO:3000181 (tet(V));

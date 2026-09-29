@@ -72,12 +72,14 @@ class GermProfile:
 
 # ─────────────────────────────────────────────────────────────────────────────
 # REAL CARD RESISTANCE GENES (curated subset)
+# card_id values verified against card.mcmaster.ca on 2026-09-29 (8 of 10 were
+# previously wrong). card_id is metadata only: no simulation or feature code reads it.
 # ─────────────────────────────────────────────────────────────────────────────
 
 RESISTANCE_GENES: Dict[str, ResistanceGene] = {
     # ── Beta-lactamases ──────────────────────────────────────────────────────
     "blaTEM-1": ResistanceGene(
-        card_id="ARO:3000237",
+        card_id="ARO:3000873",
         name="blaTEM-1",
         mechanism="antibiotic inactivation",
         drug_classes=["penicillin", "ampicillin", "amoxicillin"],
@@ -87,7 +89,7 @@ RESISTANCE_GENES: Dict[str, ResistanceGene] = {
                     "Hydrolyzes penicillins and early cephalosporins."
     ),
     "blaCTX-M-15": ResistanceGene(
-        card_id="ARO:3000237",
+        card_id="ARO:3001878",
         name="blaCTX-M-15",
         mechanism="antibiotic inactivation",
         drug_classes=["cephalosporin", "penicillin", "beta-lactam"],
@@ -97,7 +99,7 @@ RESISTANCE_GENES: Dict[str, ResistanceGene] = {
                     "including Pakistan. Hydrolyzes 3rd-gen cephalosporins. High clinical burden."
     ),
     "blaKPC-2": ResistanceGene(
-        card_id="ARO:3000159",
+        card_id="ARO:3002312",
         name="blaKPC-2",
         mechanism="antibiotic inactivation",
         drug_classes=["carbapenem", "penicillin", "cephalosporin"],
@@ -118,7 +120,7 @@ RESISTANCE_GENES: Dict[str, ResistanceGene] = {
     ),
     # ── Efflux Pumps ────────────────────────────────────────────────────────
     "mexAB-oprM": ResistanceGene(
-        card_id="ARO:3000157",
+        card_id="ARO:3000386",  # CARD: MexAB-OprM efflux complex
         name="mexAB-oprM",
         mechanism="antibiotic efflux",
         drug_classes=["fluoroquinolone", "beta-lactam", "chloramphenicol"],
@@ -128,7 +130,7 @@ RESISTANCE_GENES: Dict[str, ResistanceGene] = {
                     "out of the cell. Multi-drug resistance mechanism."
     ),
     "acrAB-tolC": ResistanceGene(
-        card_id="ARO:3000055",
+        card_id="ARO:3000384",  # CARD: AcrAB-TolC efflux complex
         name="acrAB-tolC",
         mechanism="antibiotic efflux",
         drug_classes=["fluoroquinolone", "tetracycline", "chloramphenicol", "ampicillin"],
@@ -139,7 +141,7 @@ RESISTANCE_GENES: Dict[str, ResistanceGene] = {
     ),
     # ── Target Modification ─────────────────────────────────────────────────
     "gyrA_S83L": ResistanceGene(
-        card_id="ARO:3000181",
+        card_id="ARO:3003294",  # CARD: 'Escherichia coli gyrA conferring resistance to fluoroquinolones' (S83L is one covered variant)
         name="gyrA_S83L",
         mechanism="antibiotic target alteration",
         drug_classes=["fluoroquinolone", "ciprofloxacin"],
@@ -149,7 +151,7 @@ RESISTANCE_GENES: Dict[str, ResistanceGene] = {
                     "resistance mechanism. Very common in ciprofloxacin-resistant E. coli/Klebsiella."
     ),
     "mcr-1": ResistanceGene(
-        card_id="ARO:3000745",
+        card_id="ARO:3003689",  # CARD entry name: MCR-1.1
         name="mcr-1",
         mechanism="antibiotic target alteration",
         drug_classes=["colistin", "polymyxin"],
@@ -170,7 +172,7 @@ RESISTANCE_GENES: Dict[str, ResistanceGene] = {
                     "resistance gene globally. Carried on Tn916-type transposons."
     ),
     "vanA": ResistanceGene(
-        card_id="ARO:3000089",
+        card_id="ARO:3000010",
         name="vanA",
         mechanism="antibiotic target alteration",
         drug_classes=["vancomycin", "glycopeptide"],

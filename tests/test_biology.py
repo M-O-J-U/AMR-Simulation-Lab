@@ -179,3 +179,20 @@ class TestServerBiology:
             c.post("/spawn_bacteria", json={"germ_key": "mrsa", "count": 5})
             mrsa = [b for b in c.get("/state").json()["bacteria"] if b["species_key"] == "mrsa"]
             assert len(mrsa) == 5 and all(b["resistance_genes"] == ["mecA"] for b in mrsa)
+
+
+def test_card_ids_verified():
+    """Pinned to CARD entries verified on card.mcmaster.ca (2026-09-29)."""
+    assert {k: g.card_id for k, g in card_loader.RESISTANCE_GENES.items()} == {
+        "blaTEM-1": "ARO:3000873",     # TEM-1
+        "blaCTX-M-15": "ARO:3001878",  # CTX-M-15
+        "blaKPC-2": "ARO:3002312",     # KPC-2
+        "blaNDM-1": "ARO:3000589",     # NDM-1
+        "mexAB-oprM": "ARO:3000386",   # MexAB-OprM (efflux complex)
+        "acrAB-tolC": "ARO:3000384",   # AcrAB-TolC (efflux complex)
+        "gyrA_S83L": "ARO:3003294",    # E. coli gyrA conferring resistance to fluoroquinolones
+        "mcr-1": "ARO:3003689",        # MCR-1.1
+        "tetM": "ARO:3000186",         # tet(M)
+        "vanA": "ARO:3000010",         # vanA
+    }
+    assert LAB_V2.genes["mecA"].card_id == "ARO:3000617"
