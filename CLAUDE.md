@@ -31,9 +31,16 @@ lab only. Scope: bacteria only, no viral pathogens.
    cited source), label it as such in code comments and any UI copy — don't imply it's
    empirically grounded when it isn't.
 
-## STOP-AND-REPORT
-Same as prior projects: report findings/options/recommendation, wait for approval, at
-every Decision Point below or any judgment call.
+## STOP-AND-REPORT (standing rule, updated 2026-09-29 — replaces the Decision Points list)
+Proceed on own judgment for architecture, file structure, and how much to rebuild vs.
+patch — report after, don't ask before. Still STOP (report findings/options/
+recommendation and wait for approval) before:
+- (a) any biological, pharmacological, or clinical-advice claim, new or changed. Verify
+  against a real primary source first (as done for data/expected_resistance.py) and flag
+  anything a source doesn't clearly settle rather than presenting it as fact.
+- (b) deleting or overwriting anything that isn't recoverable from git history.
+- (c) anything that touches the GNN paper's numbers, or logic in `simulation/` / `core/`.
+Rule 6 (nothing public, no push) still applies.
 
 ## Current state (found during read, verify before relying on this)
 - Frontend: one 59KB `frontend/index.html`, inline CSS/JS, `<canvas>` 2D rendering,
@@ -131,7 +138,7 @@ Goal: modern, smooth, informative, still fast at 4800 grid cells with hundreds o
   to before the frontend/backend changes, to protect the paper's numbers.
 - Report a summary of what changed, what didn't, and any open issues.
 
-## Decision points (STOP at each)
+## Decision points (SUPERSEDED 2026-09-29 by the STOP-AND-REPORT standing rule above; kept for history)
 1. Whether `core/antibiotic_agent.py` is dead code to remove or an unfinished module.
 2. WebSocket message design (Phase 1).
 3. Frontend architecture choice (Phase 2).
