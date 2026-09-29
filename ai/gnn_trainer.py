@@ -227,6 +227,26 @@ def run_epoch(
 # DATA COLLECTION
 # ─────────────────────────────────────────────────────────────────────────────
 
+# Treatment protocol used when collecting training data, per biology.
+#  paper_v1: the original protocol (1.5 ug/mL, never cleared) - frozen.
+#  lab_v2:   approved 2026-09-30: 0.25 ug/mL, cleared after 5 steps. These are
+#            INVENTED protocol parameters (chosen so no training scenario goes
+#            extinct under lab_v2's mass-conserving diffusion while treatment
+#            still bottlenecks the population), not sourced pharmacology; a real
+#            step duration + sourced half-lives is follow-up work (CLAUDE.md).
+# config["dose"] / config["dose_duration_steps"] override when present.
+TRAINING_PROTOCOLS = {
+    "paper_v1": {"dose": 1.5,  "dose_duration_steps": None},
+    "lab_v2":   {"dose": 0.25, "dose_duration_steps": 5},
+}
+
+
+def dosing_for(config: dict) -> dict:
+    base = TRAINING_PROTOCOLS[config.get("biology", "paper_v1")]
+    return {"dose": config.get("dose", base["dose"]),
+            "dose_duration": config.get("dose_duration_steps", base["dose_duration_steps"])}
+
+
 def collect_all_data(config: dict, logger: Optional[SimLogger] = None) -> list:
     """
     Run simulations across all configured scenarios and seeds.
@@ -252,7 +272,7 @@ def collect_all_data(config: dict, logger: Optional[SimLogger] = None) -> list:
                 seed=seed + 100,   # offset to avoid overlap with validation seeds
                 snapshot_interval=config["snapshot_interval"],
                 biology=config.get("biology", "paper_v1"),
-                dose_duration=config.get("dose_duration_steps"),
+                **dosing_for(config),
             )
             all_pairs.extend(pairs)
             elapsed = time.time() - t_start

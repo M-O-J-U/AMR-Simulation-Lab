@@ -32,7 +32,7 @@ from ai.feature_engineering import (
     AMRGraphDataset, collect_training_snapshots,
     GENE_INDEX, N_GENES
 )
-from ai.gnn_trainer import split_dataset, run_epoch, DEFAULT_CONFIG
+from ai.gnn_trainer import split_dataset, run_epoch, DEFAULT_CONFIG, dosing_for
 
 try:
     from sklearn.metrics import (
@@ -77,7 +77,7 @@ def collect_test_probs(
                 seed=seed + 100,
                 snapshot_interval=config["snapshot_interval"],
                 biology=config.get("biology", "paper_v1"),
-                dose_duration=config.get("dose_duration_steps"),
+                **dosing_for(config),
             )
             all_pairs.extend(pairs)
 

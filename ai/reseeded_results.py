@@ -39,7 +39,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from ai.feature_engineering import GENE_INDEX, N_GENES, NODE_FEATURE_DIM, EDGE_FEATURE_DIM
 from ai.gnn_trainer import (DEFAULT_CONFIG, collect_all_data, split_dataset, _train_core,
-                            run_epoch, compute_metrics)
+                            run_epoch, compute_metrics, dosing_for)
 from ai.baselines import run_baselines, calibrated_macro_f1
 from ai.threshold_calibration import compute_calibration
 from ai.gnn_ablation import mask_dataset, NODE_GROUPS, EDGE_GROUP_SLICE
@@ -181,6 +181,7 @@ def run(config: dict, model_seeds, ablation_seeds, out_dir: Path = None) -> dict
         "feature_dims": {"node": NODE_FEATURE_DIM, "edge": EDGE_FEATURE_DIM},
         "config": {k: v for k, v in config.items()},
         "biology": config.get("biology", "paper_v1"),
+        "dosing": dosing_for(config),
         "model_seeds": list(model_seeds), "ablation_seeds": list(ablation_seeds),
         "dataset": fp,
         "summary": summary, "per_gene_auroc": per_gene, "paired_gnn_vs_rf": paired,

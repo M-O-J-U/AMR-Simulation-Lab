@@ -29,7 +29,7 @@ from ai.feature_engineering import (
     GENE_INDEX, N_GENES, NODE_FEATURE_DIM, EDGE_FEATURE_DIM
 )
 from ai.gnn_trainer import split_dataset
-from ai.gnn_trainer import DEFAULT_CONFIG, compute_metrics
+from ai.gnn_trainer import DEFAULT_CONFIG, compute_metrics, dosing_for
 from data.card_loader import RESISTANCE_GENES
 
 try:
@@ -537,7 +537,7 @@ def run_all_comparisons(config: dict = None) -> dict:
                 seed=seed + 100,
                 snapshot_interval=config["snapshot_interval"],
                 biology=config.get("biology", "paper_v1"),
-                dose_duration=config.get("dose_duration_steps"),
+                **dosing_for(config),
             )
             all_pairs.extend(pairs)
 

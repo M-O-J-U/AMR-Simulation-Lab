@@ -318,3 +318,12 @@ def test_pipeline_default_biology_is_lab_v2_and_is_used():
     v1, v2 = kleb_genes("paper_v1"), kleb_genes("lab_v2")
     assert v1 and all("acrAB-tolC" in g for g in v1)
     assert v2 and not any("acrAB-tolC" in g for g in v2)
+
+
+def test_training_protocol_follows_biology():
+    """lab_v2: 0.25 ug/mL cleared after 5 steps (approved 2026-09-30);
+    paper_v1 keeps the original 1.5 ug/mL, never cleared."""
+    from ai.gnn_trainer import DEFAULT_CONFIG, dosing_for
+    assert dosing_for(DEFAULT_CONFIG) == {"dose": 0.25, "dose_duration": 5}
+    assert dosing_for({**DEFAULT_CONFIG, "biology": "paper_v1"}) == {"dose": 1.5, "dose_duration": None}
+    assert dosing_for({**DEFAULT_CONFIG, "dose": 0.5})["dose"] == 0.5    # explicit override wins
