@@ -77,6 +77,7 @@ def collect_test_probs(
                 seed=seed + 100,
                 snapshot_interval=config["snapshot_interval"],
                 biology=config.get("biology", "paper_v1"),
+                dose_duration=config.get("dose_duration_steps"),
             )
             all_pairs.extend(pairs)
 

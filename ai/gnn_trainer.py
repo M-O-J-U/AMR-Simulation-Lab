@@ -252,6 +252,7 @@ def collect_all_data(config: dict, logger: Optional[SimLogger] = None) -> list:
                 seed=seed + 100,   # offset to avoid overlap with validation seeds
                 snapshot_interval=config["snapshot_interval"],
                 biology=config.get("biology", "paper_v1"),
+                dose_duration=config.get("dose_duration_steps"),
             )
             all_pairs.extend(pairs)
             elapsed = time.time() - t_start

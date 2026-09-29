@@ -580,6 +580,8 @@ def collect_training_snapshots(
     seed:       int  = 42,
     snapshot_interval: int = 3,
     biology:    str  = "paper_v1",
+    dose_duration: Optional[int] = None,
+    dose: float = 1.5,
 ) -> List[Tuple[dict, dict]]:
     """
     Run a simulation headlessly and collect (graph_t0, graph_t1) pairs
@@ -613,7 +615,7 @@ def collect_training_snapshots(
         model.step()
     if scenario != "validation":
         for ab_key in model.active_antibiotic_keys:
-            model.apply_antibiotic(ab_key, concentration=1.5, mode="uniform")
+            model.apply_antibiotic(ab_key, concentration=dose, mode="uniform")
 
     pairs      = []
     prev_state = None
@@ -630,6 +632,14 @@ def collect_training_snapshots(
     prev_event_count_seen = 0  # number of events already attributed to past windows
 
     for step in range(n_steps):
+        # Time-limited course (lab_v2 protocol, approved 2026-09-29): clear the
+        # drugs after `dose_duration` steps of exposure. None = never cleared
+        # (the original protocol; paper_v1 golden fingerprints use None).
+        # SIMPLIFICATION: a step count, not a real duration - no step length or
+        # sourced half-life is defined yet (follow-up work, see CLAUDE.md).
+        if dose_duration is not None and step == dose_duration:
+            for ab_key in list(model.antibiotic_grids):
+                model.remove_antibiotic(ab_key)
         model.step()
         if not model.running:
             break
