@@ -60,7 +60,7 @@ def pairs_fingerprint(scenario, seed):
     import numpy as np
     from ai.feature_engineering import collect_training_snapshots
     pairs = collect_training_snapshots(n_steps=STEPS, scenario=scenario, seed=seed,
-                                       snapshot_interval=INTERVAL)
+                                       snapshot_interval=INTERVAL, biology="paper_v1")
     h = hashlib.sha256()
     for g0, g1 in pairs:
         for g in (g0, g1):

@@ -536,6 +536,7 @@ def run_all_comparisons(config: dict = None) -> dict:
                 scenario=scenario,
                 seed=seed + 100,
                 snapshot_interval=config["snapshot_interval"],
+                biology=config.get("biology", "paper_v1"),
             )
             all_pairs.extend(pairs)
 

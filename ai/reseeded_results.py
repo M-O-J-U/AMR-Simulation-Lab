@@ -18,7 +18,7 @@ What is fixed vs varied
     seed with the same torch_seed as the main run, and the difference is
     reported as a measured reproducibility check.
 
-Outputs: ai/checkpoints/reseeded/results.json, summary.md, models/gnn_seed*.pt
+Outputs: ai/checkpoints/reseeded/<biology>/{results.json, summary.md, models/gnn_seed*.pt}
 The older single-run files in ai/checkpoints/*.json are NOT modified.
 """
 import argparse
@@ -44,7 +44,8 @@ from ai.baselines import run_baselines, calibrated_macro_f1
 from ai.threshold_calibration import compute_calibration
 from ai.gnn_ablation import mask_dataset, NODE_GROUPS, EDGE_GROUP_SLICE
 
-OUT_DIR = Path("ai/checkpoints/reseeded")
+def out_dir_for(config) -> Path:
+    return Path("ai/checkpoints/reseeded") / config.get("biology", "paper_v1")
 
 QUICK_CONFIG = {**DEFAULT_CONFIG, "scenarios": ["pakistan_crisis"], "seeds_per_scenario": 1,
                 "steps_per_run": 30, "epochs": 2, "patience": 2}
@@ -106,7 +107,8 @@ def evaluate_gnn(model, te_ds, config, device) -> dict:
 # main
 # ─────────────────────────────────────────────────────────────────────────────
 
-def run(config: dict, model_seeds, ablation_seeds, out_dir: Path = OUT_DIR) -> dict:
+def run(config: dict, model_seeds, ablation_seeds, out_dir: Path = None) -> dict:
+    out_dir = out_dir or out_dir_for(config)
     t0 = time.time()
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "models").mkdir(exist_ok=True)
@@ -178,6 +180,7 @@ def run(config: dict, model_seeds, ablation_seeds, out_dir: Path = OUT_DIR) -> d
         "device": str(device), "torch": torch.__version__,
         "feature_dims": {"node": NODE_FEATURE_DIM, "edge": EDGE_FEATURE_DIM},
         "config": {k: v for k, v in config.items()},
+        "biology": config.get("biology", "paper_v1"),
         "model_seeds": list(model_seeds), "ablation_seeds": list(ablation_seeds),
         "dataset": fp,
         "summary": summary, "per_gene_auroc": per_gene, "paired_gnn_vs_rf": paired,
@@ -232,8 +235,12 @@ if __name__ == "__main__":
     ap.add_argument("--seeds", type=int, default=5)
     ap.add_argument("--ablation-seeds", type=int, default=3)
     ap.add_argument("--quick", action="store_true")
+    ap.add_argument("--biology", default=None, help="override DEFAULT_CONFIG['biology']")
     a = ap.parse_args()
     if a.quick:
         run(QUICK_CONFIG, range(2), range(1), out_dir=Path("ai/checkpoints/_reseeded_quick"))
     else:
-        run(DEFAULT_CONFIG, range(a.seeds), range(a.ablation_seeds))
+        cfg = dict(DEFAULT_CONFIG)
+        if a.biology:
+            cfg["biology"] = a.biology
+        run(cfg, range(a.seeds), range(a.ablation_seeds))

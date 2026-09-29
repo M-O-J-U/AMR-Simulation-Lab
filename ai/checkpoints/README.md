@@ -1,9 +1,11 @@
 # ai/checkpoints — which results are current
 
-**Current (for the new paper):** `reseeded/` — produced by `python -m ai.reseeded_results`
-after the 2026-09-29 seeding fixes. Every headline number is mean ± SD over model seeds on a
-fixed, fingerprinted dataset (`reseeded/results.json` → `dataset.sha256`), with a
-human-readable `reseeded/summary.md`.
+**Current (for the new paper):** `reseeded/<biology>/` — produced by
+`python -m ai.reseeded_results [--biology paper_v1|lab_v2]` after the 2026-09-29 seeding
+fixes. Every headline number is mean ± SD over model seeds on a fixed, fingerprinted dataset
+(`results.json` → `dataset.sha256`), with a human-readable `summary.md`.
+`reseeded/paper_v1/` was generated before the pipeline default switched to lab_v2.
+Hyperparameter sweeps: `sweep/<biology>/` (`python -m ai.hparam_sweep`).
 
 **Superseded (kept for history; do not cite):** the single-run files in this directory —
 `training_results.json`, `baseline_results.json`, `calibration_results.json`,

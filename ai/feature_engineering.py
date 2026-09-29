@@ -579,6 +579,7 @@ def collect_training_snapshots(
     scenario:   str  = "ecoli_cipro",
     seed:       int  = 42,
     snapshot_interval: int = 3,
+    biology:    str  = "paper_v1",
 ) -> List[Tuple[dict, dict]]:
     """
     Run a simulation headlessly and collect (graph_t0, graph_t1) pairs
@@ -596,9 +597,11 @@ def collect_training_snapshots(
 
     from simulation.amr_model import AMRSimulationModel
 
+    from data.biology import BIOLOGIES
     model = AMRSimulationModel(
         scenario=scenario, initial_bacteria=120,
-        seed=seed, enable_logging=False
+        seed=seed, enable_logging=False,
+        biology=BIOLOGIES[biology],   # pipeline passes config["biology"]
     )
     # Per-run node-subsample RNG, independent of the model's RNG (so graph
     # building can never perturb the simulation) and fixed by the run's seed.

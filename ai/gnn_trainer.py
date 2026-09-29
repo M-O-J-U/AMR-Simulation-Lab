@@ -70,6 +70,10 @@ DEFAULT_CONFIG = {
     # set despite using the "same" config. See split_dataset() docstring
     # for the full explanation (fixed post JBHI-03955-2026 remediation).
     "split_seed":         42,
+    # Simulation biology for training data (data/biology.py). Switched to
+    # lab_v2 on 2026-09-29 (approved); paper_v1 remains selectable and is
+    # guarded byte-identical by tests/test_paper_v1_frozen.py.
+    "biology":            "lab_v2",
     "snapshot_interval":  3,
 
     # Model
@@ -247,6 +251,7 @@ def collect_all_data(config: dict, logger: Optional[SimLogger] = None) -> list:
                 scenario=scenario,
                 seed=seed + 100,   # offset to avoid overlap with validation seeds
                 snapshot_interval=config["snapshot_interval"],
+                biology=config.get("biology", "paper_v1"),
             )
             all_pairs.extend(pairs)
             elapsed = time.time() - t_start

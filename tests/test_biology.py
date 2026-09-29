@@ -304,3 +304,17 @@ class TestLabV2Klebsiella:
             return m.count_living_bacteria()
         for seed in (1, 2):
             assert survivors(LAB_V2, seed) < survivors(PAPER_V1, seed)
+
+
+def test_pipeline_default_biology_is_lab_v2_and_is_used():
+    from ai.gnn_trainer import DEFAULT_CONFIG
+    from ai.feature_engineering import collect_training_snapshots
+    assert DEFAULT_CONFIG["biology"] == "lab_v2"
+    def kleb_genes(bio):
+        pairs = collect_training_snapshots(n_steps=6, scenario="klebsiella_carbapenem",
+                                           seed=100, snapshot_interval=3, biology=bio)
+        return [set(b["resistance_genes"]) for g0, _ in pairs for b in g0["bacteria"]
+                if b["species"] == "Klebsiella pneumoniae"]
+    v1, v2 = kleb_genes("paper_v1"), kleb_genes("lab_v2")
+    assert v1 and all("acrAB-tolC" in g for g in v1)
+    assert v2 and not any("acrAB-tolC" in g for g in v2)

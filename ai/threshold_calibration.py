@@ -76,6 +76,7 @@ def collect_test_probs(
                 scenario=scenario,
                 seed=seed + 100,
                 snapshot_interval=config["snapshot_interval"],
+                biology=config.get("biology", "paper_v1"),
             )
             all_pairs.extend(pairs)
 
