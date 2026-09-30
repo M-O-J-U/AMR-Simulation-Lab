@@ -44,8 +44,10 @@ strength of the citation's existence.
   - It was never peer reviewed.
 - The GBD papers are peer reviewed, give uncertainty intervals, and are more recent.
 - The Introduction quotes no burden number, so it needs no O'Neill citation.
-- If you want the historical projection mentioned anywhere, cite it together with de Kraker
-  2016 and the GBD 2021 forecast, not on its own. **Owner decision.**
+- **DECIDED 2026-09-30 (owner): excluded entirely.** This version of the paper does not cite
+  O'Neill 2016 or mention the 10-million projection anywhere. The AMR burden is cited from the
+  GBD papers only. de Kraker 2016 is retained in this audit as the reason for the exclusion,
+  not as a citation in the paper.
 
 ### [CITE: review of HGT in AMR spread] → `vonwintersdorff2016`, `partridge2018`
 

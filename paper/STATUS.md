@@ -33,11 +33,12 @@ Read first: `paper/claims_to_numbers.md` (claim → number → source), then
 
 ## Open — needs an owner decision
 
-1. **O'Neill 2016.** Recommended and applied: replaced by GBD 2019 + GBD 2021. If you want the
-   10-million projection mentioned anywhere, it must appear with de Kraker 2016 and the GBD
-   forecast, not alone. (`paper/citations.md`, "Open items".)
-2. **Nothing else is blocking a draft read.** Every other open item below is work, not a
-   decision.
+**None.** The last one (whether to mention the retired 2016 review's 10-million projection) was
+decided on 2026-09-30: excluded entirely; the AMR burden is cited from the GBD papers only.
+
+**This version will not be submitted to any venue** (owner, 2026-09-30). It is being completed
+as a standalone document, so "submission prep" items below are scoped to that, not to a venue's
+requirements.
 
 ## Open — work not started
 
