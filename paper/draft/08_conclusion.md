@@ -1,11 +1,11 @@
 <!--
-DRAFT — Section 7: Conclusion. Status: awaiting owner review.
+DRAFT — Section 8: Conclusion. Status: awaiting owner review.
 
 claims_to_numbers.md entries used: S2, S2b, S4, S5, S8, U7, U11, U13. No new numbers.
 Deliberately short, and deliberately does not upgrade any claim made earlier.
 -->
 
-# 7 Conclusion
+# 8 Conclusion
 
 We posed horizontal gene transfer prediction as a supervised problem at the level of individual
 cells: given a snapshot of a simulated bacterial population, predict for each directed
@@ -43,6 +43,6 @@ labelled, per-contact, per-gene transfer task is a usable testbed, and training 
 all genes reaches rare targets that per-gene models cannot. The pipeline that produces these
 results is seeded and deterministic across processes, with a frozen configuration guarded
 byte-for-byte by a regression test, so the numbers can be reproduced and, more importantly,
-can be moved by the changes we have identified: splitting by run, adding interspecies transfer,
-modelling per-gene mobility, and validating against real gene calls. We expect several of those
+can be moved by the changes set out in Section 7: splitting by run, adding interspecies
+transfer, modelling per-gene mobility, and validating against real gene calls. We expect several of those
 changes to lower the figures reported here, and regard that as the point of making them.

@@ -10,6 +10,9 @@ liu2016mcr, dolejska2012, kim2022.
 Thesis: the results support a claim about the task formulation and about joint multi-gene
 training, and do NOT support a claim about graph structure. Written to avoid restating
 Section 4.
+
+What was §6.5 ("What we would change first") was expanded into its own Section 7 (Future
+Work) on 2026-09-30 at the owner's request; the old §6.6 is now §6.5.
 -->
 
 # 6 Discussion
@@ -119,32 +122,10 @@ interest, and our metrics cannot detect that it has not. Adding interspecies tra
 deciding, per gene, which species boundaries it can cross and at what rate — which is a
 modelling problem requiring sourced host-range information rather than a parameter to tune. We
 regard it as the most valuable extension, and the one most likely to reduce the headline
-numbers, which we would treat as the experiment working rather than failing.
+numbers, which we would treat as the experiment working rather than failing. Section 7.3
+sets out what it would take.
 
-## 6.5 What we would change first
-
-Four changes, in the order we would make them:
-
-1. **Split by run, not by snapshot pair.** The current split cannot measure generalisation to
-   unseen simulations. This is the cheapest change and the one that most directly affects how
-   the existing numbers should be read.
-2. **External validation with gene-level calls.** Our attempt failed for a data reason rather
-   than a method reason: the collections we obtained carry resistance phenotypes, not
-   per-isolate gene calls. Re-annotating assemblies with a resistance-gene caller would supply
-   the gene-level ground truth the model predicts over.
-3. **Per-gene mobility.** The simulator applies one transfer mechanism to every gene. Modelling
-   the distinction between a conjugative plasmid, a conjugative transposon, a chromosomal point
-   mutation and a mobile genomic island would remove three of the simplifications in §5.2 and
-   change what the per-gene results mean.
-4. **A defined step duration.** Without one, no rate in the simulator can be compared with a
-   measured rate, which currently blocks any pharmacokinetic validation and makes the dosing
-   protocol arbitrary.
-
-Only the first is a change to the analysis; the rest change the simulator and would require
-regenerating every number. We would rather state that plainly than present the current figures
-as a stable baseline they are not.
-
-## 6.6 On calibration and precision–recall
+## 6.5 On calibration and precision–recall
 
 Two secondary results deserve a brief, honest reading. Predicted probabilities are well
 calibrated (expected calibration error 0.0012 ± 0.0003), which is useful if such a model were

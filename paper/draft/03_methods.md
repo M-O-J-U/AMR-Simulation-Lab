@@ -205,7 +205,7 @@ population, its seed and largely the same cells — can be distributed across tr
 validation and test. The held-out set therefore measures generalisation to new time windows
 of runs the model has seen, not to unseen runs, scenarios or species. This inflates the
 reported figures relative to a grouped split, and we state it here rather than leaving it to
-be inferred (see also Section 5).
+be inferred (see also Section 5, and Section 7.1 for what fixing it would involve).
 
 ## 3.4 Development history that affects the numbers
 

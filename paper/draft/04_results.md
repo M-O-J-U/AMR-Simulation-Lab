@@ -6,9 +6,9 @@ U4 (with its caveat), U5 (why the 8-gene gap is not quoted), U6 (vanA separate),
 (blaTEM-1 not evaluable), U10 (simplified mechanisms), U12 (per-gene counts are a seeding
 artefact), U13 (what the held-out split measures).
 
-Every figure is copied from claims_to_numbers.md. No new numbers are computed here, with one
-exception flagged inline: per-gene positive counts for blaCTX-M-15, blaKPC-2, blaNDM-1 and
-mcr-1 are NOT in claims_to_numbers.md, so they are not stated (open item, §4.6).
+Every figure is copied from claims_to_numbers.md. No new numbers are computed here. (Per-gene
+positive counts for all ten genes were added to claims_to_numbers.md on 2026-09-30, read from
+the committed results file; an earlier draft of §4.5 left four of them blank.)
 -->
 
 # 4 Results

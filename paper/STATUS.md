@@ -17,9 +17,10 @@ Read first: `paper/claims_to_numbers.md` (claim → number → source), then
 | `paper/draft/04_results.md` | 4 Results | All 10 per-gene counts present |
 | `paper/draft/05_limitations.md` | 5 Limitations | Full caveat queue assembled |
 | `paper/draft/06_discussion.md` | 6 Discussion | Thesis: joint training, not graph structure |
-| `paper/draft/07_conclusion.md` | 7 Conclusion | Short; upgrades no earlier claim |
+| `paper/draft/07_future_work.md` | 7 Future Work | 6 prioritised items, each with effort + claims affected |
+| `paper/draft/08_conclusion.md` | 8 Conclusion | Short; upgrades no earlier claim |
 
-**Not written: the abstract.** Deferred by instruction until the rest is approved.
+| `paper/draft/00_abstract.md` | Abstract | Written last; scope weighted as in Discussion |
 
 ## Supporting files complete
 
