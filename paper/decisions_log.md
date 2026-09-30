@@ -69,3 +69,27 @@ See also `CLAUDE.md` (rules, paper-phase notes, RESUME HERE) and `paper/claims_t
   - Previously OPEN (options offered: compare on common genes, or let RF train on rare
     genes); decided by the owner 2026-09-30.
 - **Next steps: OPEN.** Lab Phases 3–4 aren't started. No paper text.
+
+## 2026-09-30 (later, found during the Related Work citation audit)
+- **OPEN — gyrA_S83L and acrAB-tolC are transferred by the simulated HGT path.** Found in
+  code, not yet discussed.
+  - `core/bacterium_agent.py` `_attempt_hgt` transfers every carried gene that's in the
+    recipient's `acquired_resistance_pool` and not in `_no_transfer`.
+  - `gyrA_S83L` is a chromosomal point mutation. The code arises it by mutation
+    (`_attempt_mutation`); `data/card_loader.py` comments it "point mutation, not HGT". It is
+    *also* conjugated between same-species neighbours.
+  - `acrAB-tolC` is a chromosomal efflux system. It is gained via SOS upregulation *and*
+    conjugated.
+  - These are exactly the two genes in claim S2b (GNN-only coverage, 34 and 19 positives).
+    Their "transfer events" are a simplified mechanism, like vanA (U6), not documented
+    conjugative transfer.
+  - Options (not chosen):
+    1. Label them as simplified mechanisms in the paper, like vanA, and reword S2b and
+       Introduction contribution 3.
+    2. Add them to `_no_transfer` in lab_v2. This changes the lab_v2 data and all
+       reference numbers, so it needs a rerun.
+    3. Both.
+  - Touches simulation biology and paper numbers: **owner decision**. No code changed.
+- **Also noted: invented per-step transfer probabilities.** `acquisition_prob` values in
+  `data/card_loader.py` (0.01–0.05) have no cited source. They must be labelled as invented
+  parameters in Methods (CLAUDE.md rule 7).
