@@ -327,3 +327,17 @@ def test_training_protocol_follows_biology():
     assert dosing_for(DEFAULT_CONFIG) == {"dose": 0.25, "dose_duration": 5}
     assert dosing_for({**DEFAULT_CONFIG, "biology": "paper_v1"}) == {"dose": 1.5, "dose_duration": None}
     assert dosing_for({**DEFAULT_CONFIG, "dose": 0.5})["dose"] == 0.5    # explicit override wins
+
+
+def test_lab_v2_trains_on_mrsa_and_gene_policy():
+    """Approved 2026-09-30: lab_v2 adds mrsa_hospital; mexAB-oprM excluded from
+    evaluation; vanA reported separately; warm-up of 20 epochs."""
+    from ai.gnn_trainer import DEFAULT_CONFIG, scenarios_for
+    from ai.eval_genes import HEADLINE_GENES, EXCLUDED, SEPARATE, headline_macro
+    assert scenarios_for(DEFAULT_CONFIG)[-1] == "mrsa_hospital"
+    assert "mrsa_hospital" not in scenarios_for({**DEFAULT_CONFIG, "biology": "paper_v1"})
+    assert set(EXCLUDED) == {"mexAB-oprM"} and set(SEPARATE) == {"vanA"}
+    assert "mexAB-oprM" not in HEADLINE_GENES and "vanA" not in HEADLINE_GENES and "tetM" in HEADLINE_GENES
+    m, n = headline_macro({"blaTEM-1": 0.9, "vanA": 0.1, "mexAB-oprM": 0.0, "tetM": float("nan")})
+    assert (m, n) == (0.9, 1)
+    assert DEFAULT_CONFIG["min_epochs"] == 20

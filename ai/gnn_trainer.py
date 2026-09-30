@@ -91,6 +91,10 @@ DEFAULT_CONFIG = {
     "pos_weight":     15.0,    # HGT events are rare → upweight positive class
     "grad_clip":      1.0,
     "patience":       12,      # early stopping patience (epochs)
+    # Warm-up: never early-stop before this epoch (added 2026-09-30). Without it,
+    # a lucky epoch-1 validation peak can end training at epoch 13 with an
+    # untrained model (lab_v2 seed 0: test AUROC 0.739 -> 0.969 with warm-up).
+    "min_epochs":     20,
     "min_delta":      0.001,   # minimum improvement to reset patience counter
 
     # Splits
@@ -235,10 +239,18 @@ def run_epoch(
 #            still bottlenecks the population), not sourced pharmacology; a real
 #            step duration + sourced half-lives is follow-up work (CLAUDE.md).
 # config["dose"] / config["dose_duration_steps"] override when present.
+# lab_v2 also trains on mrsa_hospital (approved 2026-09-30) so that tetM (and
+# vanA, reported separately - see ai/eval_genes.py) have transfer events;
+# before this, tetM/vanA/mexAB-oprM had zero positives.
 TRAINING_PROTOCOLS = {
-    "paper_v1": {"dose": 1.5,  "dose_duration_steps": None},
-    "lab_v2":   {"dose": 0.25, "dose_duration_steps": 5},
+    "paper_v1": {"dose": 1.5,  "dose_duration_steps": None, "extra_scenarios": []},
+    "lab_v2":   {"dose": 0.25, "dose_duration_steps": 5,    "extra_scenarios": ["mrsa_hospital"]},
 }
+
+
+def scenarios_for(config: dict) -> list:
+    extra = TRAINING_PROTOCOLS[config.get("biology", "paper_v1")]["extra_scenarios"]
+    return list(config["scenarios"]) + [s for s in extra if s not in config["scenarios"]]
 
 
 def dosing_for(config: dict) -> dict:
@@ -256,7 +268,7 @@ def collect_all_data(config: dict, logger: Optional[SimLogger] = None) -> list:
     total_runs = len(config["scenarios"]) * config["seeds_per_scenario"]
     run_num = 0
 
-    for scenario in config["scenarios"]:
+    for scenario in scenarios_for(config):
         for seed in range(config["seeds_per_scenario"]):
             run_num += 1
             t_start = time.time()
@@ -553,7 +565,10 @@ def _train_core(
                     f"epoch={epoch} → {checkpoint_path}", step=epoch)
         else:
             patience_count += 1
-            if patience_count >= config["patience"]:
+            # Optional warm-up: never stop before config["min_epochs"] (default 0 =
+            # previous behaviour). Added 2026-09-30 after lab_v2 seed 0 stopped at
+            # epoch 13 keeping a lucky epoch-1 validation peak (untrained model).
+            if patience_count >= config["patience"] and epoch >= config.get("min_epochs", 0):
                 if verbose:
                     print(f"\n  Early stopping at epoch {epoch} "
                           f"(no improvement for {config['patience']} epochs)")

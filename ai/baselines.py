@@ -29,7 +29,7 @@ from ai.feature_engineering import (
     GENE_INDEX, N_GENES, NODE_FEATURE_DIM, EDGE_FEATURE_DIM
 )
 from ai.gnn_trainer import split_dataset
-from ai.gnn_trainer import DEFAULT_CONFIG, compute_metrics, dosing_for
+from ai.gnn_trainer import DEFAULT_CONFIG, compute_metrics, dosing_for, scenarios_for
 from data.card_loader import RESISTANCE_GENES
 
 try:
@@ -235,6 +235,8 @@ def run_baselines(
             "recall_macro":    freq_calib["recall_macro"],
             "per_gene_auroc": {g: freq_metrics.get(f"auroc_{g}", float("nan"))
                                for g in GENE_INDEX},
+            "per_gene_auprc": {g: freq_metrics.get(f"auprc_{g}", float("nan"))
+                               for g in GENE_INDEX},
         }
         print(f"  AUROC={freq_metrics['auroc_macro']:.4f} | "
               f"AUPRC={freq_metrics['auprc_macro']:.4f} | "
@@ -270,6 +272,8 @@ def run_baselines(
             "recall_macro":    lr_calib["recall_macro"],
             "per_gene_auroc": {g: lr_metrics.get(f"auroc_{g}", float("nan"))
                                for g in GENE_INDEX},
+            "per_gene_auprc": {g: lr_metrics.get(f"auprc_{g}", float("nan"))
+                               for g in GENE_INDEX},
         }
         print(f"  AUROC={lr_metrics['auroc_macro']:.4f} | "
               f"AUPRC={lr_metrics['auprc_macro']:.4f} | "
@@ -303,6 +307,8 @@ def run_baselines(
             "precision_macro": rf_calib["precision_macro"],
             "recall_macro":    rf_calib["recall_macro"],
             "per_gene_auroc": {g: rf_metrics.get(f"auroc_{g}", float("nan"))
+                               for g in GENE_INDEX},
+            "per_gene_auprc": {g: rf_metrics.get(f"auprc_{g}", float("nan"))
                                for g in GENE_INDEX},
         }
         print(f"  AUROC={rf_metrics['auroc_macro']:.4f} | "
@@ -529,7 +535,7 @@ def run_all_comparisons(config: dict = None) -> dict:
     print("Collecting data for baseline comparison...")
     all_pairs = []
     from ai.feature_engineering import collect_training_snapshots
-    for scenario in config["scenarios"]:
+    for scenario in scenarios_for(config):
         for seed in range(config["seeds_per_scenario"]):
             pairs = collect_training_snapshots(
                 n_steps=config["steps_per_run"],

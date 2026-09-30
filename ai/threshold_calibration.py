@@ -32,7 +32,7 @@ from ai.feature_engineering import (
     AMRGraphDataset, collect_training_snapshots,
     GENE_INDEX, N_GENES
 )
-from ai.gnn_trainer import split_dataset, run_epoch, DEFAULT_CONFIG, dosing_for
+from ai.gnn_trainer import split_dataset, run_epoch, DEFAULT_CONFIG, dosing_for, scenarios_for
 
 try:
     from sklearn.metrics import (
@@ -69,7 +69,7 @@ def collect_test_probs(
     # Collect data
     print("Collecting test data...")
     all_pairs = []
-    for scenario in config["scenarios"]:
+    for scenario in scenarios_for(config):
         for seed in range(config["seeds_per_scenario"]):
             pairs = collect_training_snapshots(
                 n_steps=config["steps_per_run"],
