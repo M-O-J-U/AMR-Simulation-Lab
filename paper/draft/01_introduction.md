@@ -54,7 +54,10 @@ Our contributions are:
    implemented, need at least five positive examples in their training subsample, and so cannot
    be trained for two of the genes. The GNN, trained jointly on all genes, still gives evaluable
    predictions for them (acrAB-tolC and gyrA_S83L, with 19 and 34 positive transfer events in
-   the whole dataset respectively; Section 4).
+   the whole dataset respectively; Section 4). Both of these genes are chromosomal in real
+   bacteria, and our simulator moves them between neighbouring cells as a deliberate
+   simplification; their transfer events are therefore not models of documented conjugative
+   transfer, and we label them as such throughout (Sections 3 and 5).
 
 4. **An honest account of where the signal comes from.** Message passing over the contact graph
    adds a small but consistent gain (+0.0031 ± 0.0014 AUROC, better on 5 of 5 seeds). The genes a

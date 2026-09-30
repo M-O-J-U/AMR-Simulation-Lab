@@ -71,8 +71,16 @@ See also `CLAUDE.md` (rules, paper-phase notes, RESUME HERE) and `paper/claims_t
 - **Next steps: OPEN.** Lab Phases 3–4 aren't started. No paper text.
 
 ## 2026-09-30 (later, found during the Related Work citation audit)
-- **OPEN — gyrA_S83L and acrAB-tolC are transferred by the simulated HGT path.** Found in
-  code, not yet discussed.
+- **DECIDED 2026-09-30 (owner): label as simplified mechanisms, do NOT rerun.**
+  gyrA_S83L and acrAB-tolC are handled like vanA (U6): the coverage advantage in S2b stays,
+  stated with the label. Recorded as `U10` in `paper/claims_to_numbers.md`; Introduction
+  contribution 3 discloses it. Methods and Limitations must repeat the label.
+  **Future work** (alongside the mecA/SCCmec note in the lab-phase section of CLAUDE.md):
+  the simulator has exactly one transfer mechanism, conjugation-style transfer between
+  same-species neighbours, and it is applied to every gene regardless of that gene's real
+  mobility. A version that models per-gene mobility (conjugative plasmid vs transposon vs
+  chromosomal point mutation vs SCCmec) would need new biology and a full rerun.
+- The finding, as originally logged:
   - `core/bacterium_agent.py` `_attempt_hgt` transfers every carried gene that's in the
     recipient's `acquired_resistance_pool` and not in `_no_transfer`.
   - `gyrA_S83L` is a chromosomal point mutation. The code arises it by mutation
@@ -83,13 +91,33 @@ See also `CLAUDE.md` (rules, paper-phase notes, RESUME HERE) and `paper/claims_t
   - These are exactly the two genes in claim S2b (GNN-only coverage, 34 and 19 positives).
     Their "transfer events" are a simplified mechanism, like vanA (U6), not documented
     conjugative transfer.
-  - Options (not chosen):
-    1. Label them as simplified mechanisms in the paper, like vanA, and reword S2b and
-       Introduction contribution 3.
-    2. Add them to `_no_transfer` in lab_v2. This changes the lab_v2 data and all
-       reference numbers, so it needs a rerun.
-    3. Both.
-  - Touches simulation biology and paper numbers: **owner decision**. No code changed.
+  - Options offered: (1) label, (2) add to `_no_transfer` in lab_v2 and rerun, (3) both.
+    Option 1 was chosen. No code changed; no rerun.
 - **Also noted: invented per-step transfer probabilities.** `acquisition_prob` values in
   `data/card_loader.py` (0.01–0.05) have no cited source. They must be labelled as invented
   parameters in Methods (CLAUDE.md rule 7).
+
+- **Full transfer-mechanism audit of all 11 genes** (owner-requested before Methods;
+  `paper/gene_mechanism_audit.md`, 11 sources verified against their own text). No code
+  changed, no number changed. Outcome:
+  - 6 genes are mobile in the right kind of way: blaTEM-1, blaCTX-M-15, blaKPC-2,
+    blaNDM-1, mcr-1 (plasmids) and tetM (Tn916 conjugative transposon).
+  - 3 are simplified: gyrA_S83L and acrAB-tolC (U10, now sourced) and vanA (U6).
+  - 2 are correctly never transferred: mexAB-oprM (in no acquirable pool → 0 events) and
+    mecA (`non_transferable`).
+  - **New, U11:** transfer is same-species only, so every cross-species contact is a
+    negative by construction, while real transfer of these genes crosses species and
+    genera. Must be disclosed in Methods and Limitations.
+  - **New, U12:** no acquired gene exists at t=0; each is seeded by a donor-free branch of
+    `_attempt_mutation` that draws uniformly from the species' acquirable pool. The per-gene
+    positive counts therefore track pool size and `acquisition_prob`, i.e. the seeding code,
+    not gene epidemiology. This is the mechanical explanation of U8 (blaTEM-1, 5 positives)
+    and it constrains how S9 and S2b may be worded.
+  - **OPEN (§3.4):** `gyrA_S83L` is CARD's *E. coli* gyrA entry but sits in Klebsiella's and
+    P. aeruginosa's pools; no source found establishing S83L as the dominant variant in all
+    three. Recommendation: describe it generically in Methods ("a gyrA target-site
+    mutation") or restrict the claim to E. coli. **Owner decision on wording.**
+  - Disclosures with no identified effect on the numbers: §3.3 invented probabilities,
+    §3.5 blaTEM-1 confined to E. coli though common in Klebsiella (Cuzon 2010), §3.6
+    A. baumannii carries mexAB-oprM and acrAB-tolC although its RND systems are
+    AdeABC/AdeIJK/AdeFGH (Coyne 2011).
