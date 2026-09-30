@@ -210,7 +210,7 @@ pipeline; nothing below is to be reconciled with the retired draft.
   mcr-1 ARO:3000745 (dihydrofolate reductase); vanA ARO:3000089 (AER beta-lactamase).
   `card_id` is metadata only (no code reads it), so no simulated number depends on it — but
   check whether the paper cites these IDs.
-- **Klebsiella / MRSA profile biology** (see lab-phase proposal, 2026-09-29): every Klebsiella
+- **Klebsiella / MRSA profile biology** [STATUS 2026-09-30: fixed in lab_v2 (mecA; EUCAST rule 1.7 for Klebsiella); paper_v1 unchanged] (see lab-phase proposal, 2026-09-29): every Klebsiella
   starts with `acrAB-tolC`, which the sim treats as 0.90 protection vs ciprofloxacin,
   tetracycline and ampicillin; EUCAST ERP v1.2 rule 1.7 lists K. pneumoniae as expected
   resistant only to ampicillin/amoxicillin and ticarcillin. Klebsiella is in 2 of the 4
@@ -224,7 +224,7 @@ pipeline; nothing below is to be reconciled with the retired draft.
   Verified: identical fingerprints under PYTHONHASHSEED 11/22/33 with no global seeding;
   `tests/test_paper_v1_frozen.py` checks two different hash seeds. This intentionally
   changed paper_v1 trajectories; golden regenerated (previous baseline: commit 89cb849).
-- **Antibiotic "diffusion" removes drug instead of spreading it** (found 2026-09-29, not
+- **Antibiotic "diffusion" removes drug instead of spreading it** [STATUS 2026-09-30: fixed in lab_v2 (mass-conserving); paper_v1 unchanged] (found 2026-09-29, not
   fixed): `_diffuse_antibiotics` convolves with a kernel summing to 1.0 and then multiplies
   by `diffusion_rate`, so total drug is scaled by diffusion_rate*(1-decay_rate) every step
   (half-lives 0.57-6 steps vs 69-231 from decay_rate alone; lower "diffusion_rate" = faster
@@ -253,6 +253,8 @@ pipeline; nothing below is to be reconciled with the retired draft.
   of BV-BRC assemblies (scoped, not started).
 
 ## RESUME HERE (updated 2026-09-30; results commit ca7effb; nothing pushed)
+See also: `paper/claims_to_numbers.md` (claim -> number -> source file) and
+`paper/decisions_log.md` (dated decisions, incl. OPEN ones).
 Current reference result set for the new paper: `ai/checkpoints/reseeded/lab_v2_tuned_noedge_mrsa/`
 (+ sweep `sweep/lab_v2_mrsa_noedge/`): lab_v2 biology, 5 scenarios incl. mrsa_hospital,
 dosing 0.25 ug/mL cleared after 5 steps, GNN hidden 128 / lr 1e-3 / 2 layers, edge features
