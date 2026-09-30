@@ -64,9 +64,10 @@ worse.
 ## 6.2 What the results do support: joint training across genes
 
 The result we consider most robust is also the one least dependent on the graph. Our per-gene
-baselines cannot be fitted for genes with fewer than five positive examples in their training
-subsample, and two genes fall below that line. A single model trained jointly on all ten gene
-outputs produces evaluable predictions for them. That advantage follows from parameter sharing
+baselines cannot be fitted for genes with fewer than five positive examples in the training
+subsample they draw, and because that subsample is drawn per seed, two genes fall below the
+line in every seed and a third falls below it in three seeds of five. A single model trained
+jointly on all ten gene outputs produces stable predictions for all of them. That advantage follows from parameter sharing
 across a multi-label output, not from message passing — the graph-free variant would inherit
 it too.
 
@@ -78,11 +79,14 @@ reach. The mechanism is mundane — shared representations let common genes subs
 but for a problem where the interesting determinants are often the rare ones, it is the part of
 our design we would keep.
 
-Two caveats travel with it, and neither is optional. The two genes concerned have 19 and 34
-positive events in the whole dataset, so their AUROCs are imprecise in a way that
-seed-to-seed standard deviations do not capture. And both are chromosomal in real bacteria and
-are moved by our simulator as a deliberate simplification, so the result demonstrates a
-property of the learning setup and not a fact about those genes.
+Two caveats travel with it, and neither is optional. The genes concerned have 19, 34 and 94
+positive events in the whole dataset, so their AUROCs are imprecise in a way that seed-to-seed
+standard deviations do not capture. And two of the three are chromosomal in real bacteria and
+are moved by our simulator as a deliberate simplification, so for those the result demonstrates
+a property of the learning setup and not a fact about the genes. The third, blaKPC-2, carries
+no mechanism caveat, which makes it the cleanest case: a genuine plasmid-borne gene that the
+per-gene baseline fits in two seeds out of five, returning 0.9611 and 0.8179 where it does fit,
+against a jointly trained model that returns 0.9564 +/- 0.0021 every time.
 
 ## 6.3 Relation to prior approaches
 

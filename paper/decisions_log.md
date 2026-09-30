@@ -117,8 +117,18 @@ See also `CLAUDE.md` (rules, paper-phase notes, RESUME HERE) and `paper/claims_t
     P. aeruginosa's pools; no source found establishing S83L as the dominant variant in all
     three. Recommendation: describe it generically in Methods ("a gyrA target-site
     mutation") or restrict the claim to E. coli. **Owner decision on wording.**
-  - **OPEN, IMPORTANT — "S2 contamination" (found 2026-09-30 while preparing figures).
-    The headline comparison is contaminated by the very artefact U5 warns about.**
+  - **DECIDED 2026-09-30 (owner): option 1 applied. "S2 contamination", found while
+    preparing figures — the headline comparison had been contaminated by the very
+    artefact U5 warns about.**
+    - **Resolution: S2 is now GNN 0.9777 ± 0.0023 vs RF 0.9548 ± 0.0124 on the four
+      genes RF fits in EVERY seed (blaCTX-M-15, blaNDM-1, mcr-1, tetM), 5/5 seeds.**
+      blaKPC-2 moved into the S2b coverage claim, stated as trainable in 2/5 seeds
+      rather than lumped with the never-trainable genes. Propagated to the Abstract,
+      Introduction (contributions 2 and 3), Methods §3.6, Results §4.1/§4.2/§4.8,
+      Discussion §6.2, Limitations §5.1, Future Work §7.2 and the Conclusion.
+      `paper/make_figures.py` now fails if any gene in the headline set is ever
+      scored 0.5 by the baseline in any seed, so this cannot silently recur.
+    - The original finding, for the record:
     - S2 states: GNN 0.9735 ± 0.0017 vs RF 0.8950 ± 0.0386 on
       {blaCTX-M-15, **blaKPC-2**, blaNDM-1, mcr-1, tetM}, "the genes RF can train on".
       Those two numbers reproduce exactly from `per_seed`, so the arithmetic is right.

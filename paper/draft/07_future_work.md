@@ -63,8 +63,9 @@ resolve U10 and the vanA half of U6, and would let per-gene results be read as s
 than an artefact.
 
 **It would also remove the demonstration behind our coverage claim, which is why we rank it
-second.** The two genes in S2b, acrAB-tolC and gyrA_S83L, are exactly the two whose transfer is
-a simplification. If gyrA_S83L becomes mutation-only and acrAB-tolC becomes
+second.** Two of the three genes in S2b, acrAB-tolC and gyrA_S83L, are exactly the ones whose
+transfer is a simplification. (The third, blaKPC-2, is unaffected and would survive the change,
+which softens this consequence but does not remove it.) If gyrA_S83L becomes mutation-only and acrAB-tolC becomes
 regulation-only — which is what the sources in §5.2 imply — then both drop out of the transfer
 label set, and the finding that joint training reaches genes the per-gene baselines cannot fit
 needs a new demonstration. blaTEM-1 is the natural candidate (5 positives, currently not

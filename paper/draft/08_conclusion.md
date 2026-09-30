@@ -15,10 +15,10 @@ exact — which is the property that motivated the formulation and is not availa
 observational genomic data.
 
 On this task a graph attention network trained jointly on all gene outputs reaches a test AUROC
-of 0.9735 ± 0.0017 on the five genes our per-gene random forest baseline can be fitted to,
-against 0.8950 ± 0.0386 for that baseline, and is ahead on every seed. It also yields evaluable
-predictions for two genes that fall below the baselines' training threshold — an advantage that
-comes from sharing parameters across a multi-label output rather than from the graph.
+of 0.9777 ± 0.0023 on the four genes our per-gene random forest baseline fits in every seed,
+against 0.9548 ± 0.0124 for that baseline, and is ahead on every seed. It also gives stable
+predictions for three further genes the baselines fit unreliably or not at all — an advantage
+that comes from sharing parameters across a multi-label output rather than from the graph.
 
 That last distinction is the paper's main methodological conclusion. Message passing contributes
 a small but consistent 0.0031 ± 0.0014, and the genes a cell already carries dominate every

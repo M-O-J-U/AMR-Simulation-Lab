@@ -60,21 +60,23 @@ Our contributions are:
    reported on the corrected version (Section 3).
 
 2. **A GNN that outperforms a per-gene Random Forest baseline, under the evaluation described
-   above.** On the five resistance genes for which our per-gene Random Forest baseline can be
-   trained, the GNN reaches a test AUROC of 0.9735 ± 0.0017, against 0.8950 ± 0.0386 for the
-   Random Forest, and is better on all 5 of 5 seeds (Section 4). Both models are evaluated on
+   above.** On the four resistance genes our per-gene Random Forest baseline can be trained on
+   in every seed, the GNN reaches a test AUROC of 0.9777 ± 0.0023, against 0.9548 ± 0.0124 for
+   the Random Forest, and is better on all 5 of 5 seeds (Section 4). Both models are evaluated on
    the same held-out snapshot pairs, so this is a like-for-like comparison between the two
    approaches on this task; it is not evidence about either model's behaviour on unseen runs
    or on interspecies transfer, neither of which we test.
 
 3. **Coverage of rare genes.** Our per-gene Random Forest and logistic-regression baselines, as
-   implemented, need at least five positive examples in their training subsample, and so cannot
-   be trained for two of the genes. The GNN, trained jointly on all genes, still gives evaluable
-   predictions for them (acrAB-tolC and gyrA_S83L, with 19 and 34 positive transfer events in
-   the whole dataset respectively; Section 4). Both of these genes are chromosomal in real
-   bacteria, and our simulator moves them between neighbouring cells as a deliberate
-   simplification; their transfer events are therefore not models of documented conjugative
-   transfer, and we label them as such throughout (Sections 3 and 5).
+   implemented, need at least five positive examples in the training subsample they draw, and
+   that subsample is drawn per seed. Two genes fall below the threshold in every seed
+   (acrAB-tolC and gyrA_S83L, with 19 and 34 positive transfer events in the whole dataset),
+   and a third falls below it in three seeds of five (blaKPC-2, with 94). The GNN, trained
+   jointly on all genes, gives stable predictions for all three (Section 4). We note which is
+   which rather than treating them alike, and we flag that acrAB-tolC and gyrA_S83L are
+   chromosomal in real bacteria and are moved between neighbouring cells by our simulator as a
+   deliberate simplification, so their transfer events are not models of documented conjugative
+   transfer (Sections 3 and 5); blaKPC-2 carries no such caveat.
 
 4. **An honest account of where the signal comes from.** Message passing over the contact graph
    adds a small but consistent gain (+0.0031 ± 0.0014 AUROC, better on 5 of 5 seeds). The genes a

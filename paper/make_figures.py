@@ -55,6 +55,8 @@ SRC_LABEL = "ai/checkpoints/reseeded/lab_v2_tuned_noedge_mrsa/results.json"
 # Values recorded in paper/claims_to_numbers.md, used only to verify the plotted data.
 CLAIMED = {
     "S1_headline_gnn": (0.9805, 0.0012),
+    "S2_gnn_4gene": (0.9777, 0.0023),
+    "S2_rf_4gene": (0.9548, 0.0124),
     "S3_headline_lr": (0.7096, 0.0359),
     "S4_msg_passing_gain": (0.0031, 0.0014),
     "S5_no_genomic_delta": (-0.0549, 0.0331),
@@ -101,6 +103,21 @@ def check(data: dict) -> list:
     cmp("S3 headline LR", s["logistic_regression"]["headline_auroc"]["mean"],
         s["logistic_regression"]["headline_auroc"]["sd"], CLAIMED["S3_headline_lr"])
     cmp("S6 ECE", s["gnn"]["ece"]["mean"], s["gnn"]["ece"]["sd"], CLAIMED["S6_ece"])
+
+    gm, gsd, gvals = subset_macro(data, "gnn", HEADLINE_SET)
+    rm, rsd, rvals = subset_macro(data, "random_forest", HEADLINE_SET)
+    cmp("S2 GNN (4-gene)", gm, gsd, CLAIMED["S2_gnn_4gene"])
+    cmp("S2 RF (4-gene)", rm, rsd, CLAIMED["S2_rf_4gene"])
+    wins = sum(1 for a, b in zip(gvals, rvals) if a > b)
+    if wins != 5:
+        problems.append(f"S2: GNN ahead on {wins}/5 seeds, claimed 5/5")
+    for gene in HEADLINE_SET:
+        n05 = sum(1 for s_ in data["per_seed"]
+                  if s_["random_forest"]["per_gene_auroc"][gene] == 0.5)
+        if n05:
+            problems.append(
+                f"S2 set contamination: RF scores 0.5 on {gene} in {n05}/5 seeds; "
+                "the headline set must contain only genes RF fits in EVERY seed")
 
     mp = data["comparisons"]["gnn_minus_graph_free"]["diff"]
     cmp("S4 message-passing gain", mp["mean"], mp["sd"], CLAIMED["S4_msg_passing_gain"])
@@ -321,6 +338,84 @@ def fig_ablation(data: dict) -> str:
     return save(fig, "fig3_ablation")
 
 
+# ---------------------------------------------------------------- figure 4
+HEADLINE_SET = ["blaCTX-M-15", "blaNDM-1", "mcr-1", "tetM"]
+
+
+def subset_macro(data: dict, model: str, genes: list) -> tuple:
+    vals = [statistics.mean(s[model]["per_gene_auroc"][g] for g in genes)
+            for s in data["per_seed"]]
+    return statistics.mean(vals), statistics.stdev(vals), vals
+
+
+def fig_comparison(data: dict) -> str:
+    """Headline comparison on the four genes RF fits in EVERY seed (claim S2).
+
+    blaKPC-2 is deliberately excluded: RF scores it 0.5 by construction in 3 of 5
+    seeds, so including it would fold that artefact into the baseline (see U5 and
+    decisions_log.md, "S2 contamination"). It appears in the right-hand panel instead.
+    """
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10.4, 4.3),
+                                   gridspec_kw={"width_ratios": [1.0, 1.25]})
+
+    # Panel A: like-for-like macro on the always-trainable set.
+    models = [("gnn", "GNN", "#3a6ea5"),
+              ("random_forest", "Random forest", "#8b9bab"),
+              ("logistic_regression", "Logistic regression", "#c2c7cc")]
+    means, sds, labels, colours = [], [], [], []
+    for key, label, colour in models:
+        m, sd, _ = subset_macro(data, key, HEADLINE_SET)
+        means.append(m), sds.append(sd), labels.append(label), colours.append(colour)
+    x = range(len(models))
+    ax1.bar(list(x), means, yerr=sds, color=colours, width=0.62,
+            error_kw={"ecolor": "#333333", "capsize": 4, "lw": 1})
+    for i, m in enumerate(means):
+        ax1.text(i, m + sds[i] + 0.012, f"{m:.4f}", ha="center", fontsize=9)
+    ax1.set_xticks(list(x))
+    ax1.set_xticklabels(labels, fontsize=9)
+    ax1.set_ylim(0.5, 1.06)
+    ax1.set_ylabel("Macro AUROC over the 4 genes")
+    ax1.set_title("A. Like-for-like: the 4 genes the baseline\n"
+                  "fits in every seed", fontsize=10)
+    ax1.grid(axis="y", alpha=0.3, lw=0.6)
+    ax1.set_axisbelow(True)
+
+    # Panel B: per-gene, showing where the baseline cannot be fitted.
+    genes = HEADLINE_SET + ["blaKPC-2", "gyrA_S83L", "acrAB-tolC"]
+    pos = data["dataset"]["positives_per_gene"]
+    gnn_m = [data["per_gene_auroc"]["gnn"][g]["mean"] for g in genes]
+    rf_vals = {g: [s["random_forest"]["per_gene_auroc"][g]
+                   for s in data["per_seed"]] for g in genes}
+    y = list(range(len(genes)))
+    h = 0.36
+    ax2.barh([v + h / 2 for v in y], gnn_m, height=h, color="#3a6ea5", label="GNN")
+    rf_m = [statistics.mean(rf_vals[g]) for g in genes]
+    ax2.barh([v - h / 2 for v in y], rf_m, height=h, color="#8b9bab",
+             label="Random forest (mean incl. 0.5 scores)")
+    for i, g in enumerate(genes):
+        n_untrained = sum(1 for v in rf_vals[g] if v == 0.5)
+        if n_untrained:
+            ax2.text(0.515, i - h / 2, f"not fitted in {n_untrained}/5 seeds",
+                     va="center", fontsize=7.6, color="#7a2f1d")
+    ax2.set_yticks(y)
+    ax2.set_yticklabels([f"{g}\n(n={pos[g]})" for g in genes], fontsize=8)
+    ax2.invert_yaxis()
+    # Blank band below the last bar so the legend cannot overlap any bar.
+    ax2.set_ylim(len(genes) + 0.35, -0.6)
+    ax2.set_xlim(0.5, 1.02)
+    ax2.axvline(0.5, color="#7a2f1d", lw=1, ls=":")
+    ax2.set_xlabel("Test AUROC (0.5 = baseline could not be fitted)")
+    ax2.set_title("B. Per gene: where the per-gene baseline\n"
+                  "cannot be fitted at all", fontsize=10)
+    ax2.legend(loc="lower right", fontsize=7.8, framealpha=0.95,
+               borderaxespad=0.3)
+    ax2.grid(axis="x", alpha=0.3, lw=0.6)
+    ax2.set_axisbelow(True)
+
+    fig.tight_layout()
+    return save(fig, "fig4_model_comparison")
+
+
 def save(fig, stem: str) -> str:
     os.makedirs(FIGDIR, exist_ok=True)
     for ext in ("png", "pdf"):
@@ -335,6 +430,9 @@ def captions(data: dict) -> str:
     pos = data["dataset"]["positives_per_gene"]
     pg = data["per_gene_auroc"]["gnn"]
     s = data["summary"]
+    gm, gsd, gvals = subset_macro(data, "gnn", HEADLINE_SET)
+    rm, rsd, rvals = subset_macro(data, "random_forest", HEADLINE_SET)
+
     mp = data["comparisons"]["gnn_minus_graph_free"]["diff"]
     ab = data["ablation"]["No genomic genes"]["delta_vs_all"]
     hp = data.get("gnn_hparams", {})
@@ -342,6 +440,10 @@ def captions(data: dict) -> str:
 
     def f(x, n=4):
         return f"{x:.{n}f}"
+
+    g4m, g4s, _ = subset_macro(data, "gnn", HEADLINE_SET)
+    r4m, r4s, _ = subset_macro(data, "random_forest", HEADLINE_SET)
+    l4m, l4s, _ = subset_macro(data, "logistic_regression", HEADLINE_SET)
 
     text = f"""<!-- Generated by paper/make_figures.py. Do not edit by hand:
 edit the script so captions and figures cannot drift apart. -->
@@ -398,13 +500,24 @@ this dosing protocol (claim U4). Full-model reference:
 {f(data['ablation']['All features (full model)']['auroc']['mean'])}. Values from `ablation`.
 Claims S5, U4.
 
-## Not generated: headline GNN-vs-baseline comparison
+## Figure 4 — Headline comparison, and where the per-gene baseline cannot be built
 
-Deliberately withheld. See `paper/decisions_log.md` (2026-09-30, "S2 contamination"):
-the random forest scores exactly 0.5, its untrainable marker, on blaKPC-2 in 3 of 5 seeds,
-even though blaKPC-2 is one of the five genes claim S2 describes as genes the random forest
-can train on. Drawing the figure would fix the current framing in place before that is
-resolved. Reproduce the diagnostic with `python paper/make_figures.py --rf-coverage`.
+**A.** Macro AUROC over the four genes the random forest fits in *every* seed
+(blaCTX-M-15, blaNDM-1, mcr-1, tetM): GNN {f(g4m)} $\\pm$ {f(g4s)}, random forest {f(r4m)}
+$\\pm$ {f(r4s)}, logistic regression {f(l4m)} $\\pm$ {f(l4s)}; the GNN is ahead on 5 of 5 seeds
+(claim S2). This set deliberately excludes blaKPC-2, because the baselines draw their
+100,000-edge training subsample per seed and blaKPC-2 clears the five-positive threshold in
+only 2 of 5 seeds; including it would fold 0.5-by-construction scores into the baseline, which
+is the artefact claim U5 exists to keep out of a performance comparison. An earlier version of
+this analysis did include it and overstated the gap roughly threefold (0.079 against the
+correct 0.023).
+**B.** Per-gene view of the same run, ordered as in the text, with each gene's total positive
+count. The dotted line marks 0.5, the score assigned when a gene cannot be fitted at all.
+acrAB-tolC ({pos['acrAB-tolC']} positives) and gyrA_S83L ({pos['gyrA_S83L']}) are never fitted in any seed;
+blaKPC-2 ({pos['blaKPC-2']}) is fitted in 2 of 5, and the plotted random-forest bar for those three is a
+mean that includes those 0.5 scores, so it is a summary of availability rather than of skill.
+The GNN produces a stable prediction for every gene shown in every seed. Claims S2, S2b, U5.
+Values from `per_seed[*].per_gene_auroc` and `dataset.positives_per_gene`.
 """
     path = os.path.join(FIGDIR, "captions.md")
     os.makedirs(FIGDIR, exist_ok=True)
@@ -438,11 +551,10 @@ def main() -> int:
     if args.check:
         return 0
 
-    for stem in (fig_per_gene(data), fig_architecture(data), fig_ablation(data)):
+    for stem in (fig_per_gene(data), fig_architecture(data), fig_ablation(data),
+                 fig_comparison(data)):
         print(f"wrote paper/figures/{stem}.png and .pdf")
     print(f"wrote {os.path.relpath(captions(data), REPO)}")
-    print("\nNOTE: the headline comparison figure is intentionally not generated; "
-          "run --rf-coverage to see why.")
     return 0
 
 

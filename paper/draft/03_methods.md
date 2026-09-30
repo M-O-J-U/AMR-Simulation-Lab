@@ -273,9 +273,13 @@ the edge vector, using a seeded 100,000-edge subsample of the training edges. Th
 forest uses 300 trees, maximum depth 8 and balanced subsampling. A gene with fewer than five
 positives in that subsample cannot be trained and is scored 0.5 by construction. We keep this
 cutoff as it is: lowering it for the comparison would change the baseline rather than test it.
-Two genes fall below it, so the comparison figure we treat as the headline is computed on the
-five genes the random forest can train on, and the coverage difference is reported separately
-as a property of the approaches rather than folded into the same number.
+
+Because the subsample is drawn independently for each seed, **trainability is a per-seed
+property**: two genes fall below the threshold in every seed, and a third falls below it in
+three seeds of five. The headline comparison is therefore computed on the four genes the
+random forest fits in *every* seed, so that no 0.5-by-construction score enters it. The genes
+it fits unreliably or never are reported separately under coverage, as a property of the
+approaches rather than folded into the same number.
 
 **Message-passing ablation.** The same architecture with the attention blocks removed, so that
 node and edge encodings feed the prediction head directly, isolates the contribution of

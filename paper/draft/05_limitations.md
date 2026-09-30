@@ -46,7 +46,9 @@ future version.
 
 **The comparison is between our implementations, not between model families.** Our per-gene
 random forest and logistic-regression baselines are one-versus-rest with a five-positive
-training requirement. Two genes fall below it and are scored 0.5 by construction. This is a
+training requirement, applied to a subsample drawn independently per seed. Two genes fall below
+it in every seed and a third in three seeds of five; in those cases the baseline is scored 0.5
+by construction. This is a
 property of how we implemented those baselines, not a limitation of random forests, and we do
 not claim otherwise. We kept the threshold rather than lowering it, because lowering it would
 have produced a different baseline rather than a fairer test of this one — but the consequence

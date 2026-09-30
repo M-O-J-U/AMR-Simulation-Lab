@@ -53,10 +53,21 @@ this dosing protocol (claim U4). Full-model reference:
 0.9807. Values from `ablation`.
 Claims S5, U4.
 
-## Not generated: headline GNN-vs-baseline comparison
+## Figure 4 — Headline comparison, and where the per-gene baseline cannot be built
 
-Deliberately withheld. See `paper/decisions_log.md` (2026-09-30, "S2 contamination"):
-the random forest scores exactly 0.5, its untrainable marker, on blaKPC-2 in 3 of 5 seeds,
-even though blaKPC-2 is one of the five genes claim S2 describes as genes the random forest
-can train on. Drawing the figure would fix the current framing in place before that is
-resolved. Reproduce the diagnostic with `python paper/make_figures.py --rf-coverage`.
+**A.** Macro AUROC over the four genes the random forest fits in *every* seed
+(blaCTX-M-15, blaNDM-1, mcr-1, tetM): GNN 0.9777 $\pm$ 0.0023, random forest 0.9548
+$\pm$ 0.0124, logistic regression 0.8359 $\pm$ 0.0658; the GNN is ahead on 5 of 5 seeds
+(claim S2). This set deliberately excludes blaKPC-2, because the baselines draw their
+100,000-edge training subsample per seed and blaKPC-2 clears the five-positive threshold in
+only 2 of 5 seeds; including it would fold 0.5-by-construction scores into the baseline, which
+is the artefact claim U5 exists to keep out of a performance comparison. An earlier version of
+this analysis did include it and overstated the gap roughly threefold (0.079 against the
+correct 0.023).
+**B.** Per-gene view of the same run, ordered as in the text, with each gene's total positive
+count. The dotted line marks 0.5, the score assigned when a gene cannot be fitted at all.
+acrAB-tolC (19 positives) and gyrA_S83L (34) are never fitted in any seed;
+blaKPC-2 (94) is fitted in 2 of 5, and the plotted random-forest bar for those three is a
+mean that includes those 0.5 scores, so it is a summary of availability rather than of skill.
+The GNN produces a stable prediction for every gene shown in every seed. Claims S2, S2b, U5.
+Values from `per_seed[*].per_gene_auroc` and `dataset.positives_per_gene`.

@@ -23,49 +23,77 @@ macro is in practice over seven.
 
 ## 4.1 The GNN outperforms per-gene classical baselines
 
-On the five genes for which the per-gene random forest can be trained — blaCTX-M-15,
-blaKPC-2, blaNDM-1, mcr-1 and tetM — the GNN reaches a test AUROC of
-**0.9735 ± 0.0017** against **0.8950 ± 0.0386** for the random forest. The GNN is ahead on
+On the four genes the per-gene random forest can be trained on **in every seed** —
+blaCTX-M-15, blaNDM-1, mcr-1 and tetM — the GNN reaches a test AUROC of
+**0.9777 ± 0.0023** against **0.9548 ± 0.0124** for the random forest. The GNN is ahead on
 **all five of five seeds**. We treat this as the primary comparison, because it is the only
-one in which both models are actually fitted to the same genes.
+one in which both models are actually fitted to the same genes in every run.
+
+The qualifier "in every seed" is doing real work here, and an earlier version of this analysis
+got it wrong. The baselines draw their 100,000-edge training subsample independently per seed,
+so a gene's trainability is a per-seed property rather than a fixed one. blaKPC-2, with 94
+positive events dataset-wide, clears the five-positive threshold in only two of the five
+seeds; in the other three the random forest scores it 0.5 by construction. Including it in
+this comparison — as we initially did — folds that construction artefact into the baseline's
+score, which is precisely what §4.1's closing paragraph says must not be done. It inflated the
+gap roughly threefold, from 0.023 to 0.079, and the tell was the baseline's implausibly large
+standard deviation, which turned out to be bimodal across seeds. blaKPC-2 is reported under
+coverage in §4.2 instead.
 
 The GNN's own headline macro, over the eight genes of the evaluation policy, is
 **0.9805 ± 0.0012**. Logistic regression reaches **0.7096 ± 0.0359** on the same headline
 macro.
 
 We deliberately do not quote a headline-macro *difference* between the GNN and the random
-forest. The random forest's headline macro is depressed by the two genes it cannot train at
-all, which are scored 0.5 by construction rather than by any prediction; a difference computed
+forest. The random forest's headline macro is depressed by the genes it cannot reliably train,
+which are scored 0.5 by construction rather than by any prediction; a difference computed
 across all eight genes would therefore combine a genuine performance gap with a coverage gap
 and overstate the former. The two are reported separately: performance in this subsection, on
-the five shared genes, and coverage in §4.2.
+the four genes both models always fit, and coverage in §4.2.
 
-## 4.2 Coverage of genes the baselines cannot train on
+## 4.2 Coverage of genes the baselines cannot reliably train on
 
 Our per-gene random forest and logistic-regression baselines require at least five positive
-examples for a gene within their 100,000-edge training subsample. Two genes fall below that
-threshold, so neither baseline can be fitted for them and both are scored 0.5 by construction.
-The GNN, which is trained jointly on all ten gene outputs, still produces evaluable
-predictions for them:
+examples for a gene within their 100,000-edge training subsample, and that subsample is drawn
+independently for each seed. Trainability is therefore a per-seed property, and it comes in
+degrees. The GNN, trained jointly on all ten gene outputs, produces stable predictions across
+all five seeds for every gene below:
 
-| Gene | GNN test AUROC | Positive events in the whole dataset | Baselines |
-|---|---|---|---|
-| acrAB-tolC | 0.9986 ± 0.0018 | 19 | not trainable |
-| gyrA_S83L | 0.9977 ± 0.0006 | 34 | not trainable |
+| Gene | Positives | Baselines trainable | GNN test AUROC | Random forest |
+|---|---|---|---|---|
+| acrAB-tolC* | 19 | 0 of 5 seeds | 0.9986 ± 0.0018 | 0.5 by construction, always |
+| gyrA_S83L* | 34 | 0 of 5 seeds | 0.9977 ± 0.0006 | 0.5 by construction, always |
+| blaKPC-2 | 94 | 2 of 5 seeds | 0.9564 ± 0.0021 | 0.9611 and 0.8179 where it trains |
 
-Two qualifications belong with these figures, and neither is incidental.
+\* transfer modelled by a simplified mechanism (Section 3.1.2).
 
-First, the counts. Nineteen and thirty-four positive events across the whole dataset are very
-few, and the standard deviations above are over model seeds on a fixed split, so they do not
-reflect the sampling uncertainty that such counts imply. These AUROCs should not be read as
-precise.
+We state the tiers separately because they are not the same claim. For acrAB-tolC and
+gyrA_S83L the baseline is simply unavailable. For blaKPC-2 it is *unreliable*: it fits in two
+seeds out of five, and where it does fit it returns 0.9611 and 0.8179 — a spread of 0.14 on
+the same gene and the same data, against the GNN's 0.9564 ± 0.0021. The practical difference
+between a model that sometimes cannot be built and one that is built but varies this much is
+smaller than it looks, and blaKPC-2 is the cleaner illustration of the point, because unlike
+the other two it carries no mechanism caveat: it is a genuine plasmid-borne gene, mobilised by
+Tn4401 in reality as well as in our simulator.
 
-Second, the mechanism. Both of these genes are chromosomal in real bacteria and are moved
-between neighbouring cells by the simulator as a deliberate simplification (Section 3.1.2).
-Their transfer events are therefore not models of documented conjugative transfer. What this
-result demonstrates is a property of the learning setup — that joint training across genes
-yields usable predictions for targets too rare to fit individually — and not a biological
-finding about these two genes.
+Three qualifications belong with these figures, and none is incidental.
+
+First, the counts. Nineteen, thirty-four and ninety-four positive events across the whole
+dataset are few, and the standard deviations above are over model seeds on a fixed split, so
+they do not reflect the sampling uncertainty that such counts imply. These AUROCs should not
+be read as precise.
+
+Second, the mechanism, for two of the three. acrAB-tolC and gyrA_S83L are chromosomal in real
+bacteria and are moved between neighbouring cells by the simulator as a deliberate
+simplification (Section 3.1.2), so their transfer events are not models of documented
+conjugative transfer. What their result demonstrates is a property of the learning setup — that
+joint training across genes yields usable predictions for targets too rare to fit
+individually — and not a biological finding about those genes. blaKPC-2 carries no such caveat.
+
+Third, this is a claim about our baselines as implemented, not about random forests. A
+different baseline design — a single multi-label forest, or a lower positive threshold — would
+face this differently, and we did not lower the threshold precisely because doing so would
+change the baseline rather than test it.
 
 With that scope stated, the coverage difference is a real advantage of the approach rather
 than an artefact of the comparison: it follows from training one model on all genes instead of
@@ -176,10 +204,10 @@ generation.
 ## 4.8 Summary
 
 The GNN discriminates simulated per-edge, per-gene transfer events well (headline AUROC
-0.9805 ± 0.0012) and beats a per-gene random forest on the genes that baseline can be fitted
-to (0.9735 ± 0.0017 against 0.8950 ± 0.0386, on five of five seeds). Its advantage in coverage
-— usable predictions for genes too rare for the per-gene baselines — follows from joint
-training. Most of the signal is carried by the genes a cell already holds; message passing adds
+0.9805 ± 0.0012) and beats a per-gene random forest on the four genes that baseline fits in
+every seed (0.9777 ± 0.0023 against 0.9548 ± 0.0124, on five of five seeds). Its advantage in
+coverage — stable predictions for genes the per-gene baselines fit unreliably or not at
+all — follows from joint training. Most of the signal is carried by the genes a cell already holds; message passing adds
 a small, consistent increment; edge features and local drug exposure add nothing measurable in
 this setting. What none of these figures establish is stated in Section 5: no external
 validation, a held-out split that does not test unseen runs, and an intraspecies-only

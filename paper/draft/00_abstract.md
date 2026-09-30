@@ -18,12 +18,13 @@ population, predict for each directed cell-to-cell contact and each resistance g
 that gene is transferred in the next time window. We train a graph attention network on this
 task and evaluate it against per-gene random forest and logistic regression baselines.
 
-The network reaches a test AUROC of 0.9735 ± 0.0017 on the five genes for which our per-gene
-random forest can be fitted, against 0.8950 ± 0.0386 for that baseline, and is ahead on all
+The network reaches a test AUROC of 0.9777 ± 0.0023 on the four genes our per-gene random
+forest can fit in every seed, against 0.9548 ± 0.0124 for that baseline, and is ahead on all
 five model seeds; its macro average over the eight genes in our evaluation policy is
-0.9805 ± 0.0012. Because it is trained jointly on all gene outputs, it also yields evaluable
-predictions for two genes that fall below the baselines' five-positive training threshold and
-that those baselines therefore cannot fit at all. We attribute this coverage advantage to
+0.9805 ± 0.0012. Because it is trained jointly on all gene outputs, it also gives stable
+predictions for genes the baselines cannot reliably fit at all: two that fall below their
+five-positive training threshold in every seed, and a third that falls below it in three seeds
+of five. We attribute this coverage advantage to
 parameter sharing across a multi-label output rather than to the graph: removing message
 passing costs only 0.0031 ± 0.0014, and the genes a cell already carries dominate every other
 feature group by an order of magnitude.
