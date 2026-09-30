@@ -1,32 +1,37 @@
 <!--
 DRAFT — Section 1: Introduction. Status: awaiting owner review.
 Sources: paper/claims_to_numbers.md entries S2, S2b, S4, S5, S8, U3, U4, U7.
-All [CITE: ...] markers are placeholders; no reference has been chosen or verified yet.
+Citations: [key] = BibTeX key in paper/refs.bib; each is audited in paper/citations.md
+(2026-09-30). Two sentences in paragraph 1 were reworded during the audit (see citations.md
+"Open items").
 No numbers appear here that are not in claims_to_numbers.md.
 -->
 
 # 1 Introduction
 
 Antimicrobial resistance (AMR) is a major and growing threat to the treatment of bacterial
-infections [CITE: WHO/GRAM-type AMR burden source]. A central route by which resistance spreads
+infections [gbd2019amr; gbd2021amr]. A central route by which resistance spreads
 between bacteria is horizontal gene transfer (HGT), in which resistance genes move from one cell
 to another — for example by plasmid conjugation — rather than arising independently in each
-lineage [CITE: review of HGT in AMR spread]. Where and when such transfers happen is determined
-by local, cell-level conditions: which cells are in contact, which genes a potential donor
-carries, and the physiological state of donor and recipient. These individual transfer events
-are difficult to observe directly in real bacterial populations [CITE: source on difficulty of
-observing conjugation events in situ].
+lineage [vonwintersdorff2016; partridge2018]. Whether a transfer happens depends on local,
+cell-level conditions such as contact between cells and the physiological state of the donor
+[seoane2011; merkey2011]. In natural bacterial communities, however, there is a gap between
+what is known about HGT from laboratory experiments and what is known from natural
+environments [brito2021], and even reliably assigning mobile genetic elements to their host
+cells in such communities has been difficult [yaffe2020].
 
 Agent-based simulation offers a setting in which every transfer event is recorded. In an
-agent-based model (ABM), each bacterium is an explicit agent whose growth, death, stress
-responses and gene exchange follow stated rules [CITE: ABM of bacterial populations / AMR],
-so the ground truth of *which cell passed which gene to which neighbour* is known exactly. This
+agent-based (individual-based) model, each bacterium is an explicit agent that follows stated
+rules [hellweger2016], and such models have been used to study plasmid transfer in spatially
+structured populations [krone2007; merkey2011]. In our model these rules cover growth, death,
+stress responses and gene exchange, so the ground truth of *which cell passed which gene to
+which neighbour* is known exactly. This
 makes it possible to pose a supervised learning problem that is not available from observational
 data: given a snapshot of a bacterial population, predict which resistance genes will be
 transferred along which cell–cell contacts in the next time window. Graph neural networks (GNNs)
 are a natural fit for this problem, because the population can be represented as a graph of
 cells (nodes) connected by spatial proximity (edges), and the prediction target is defined per
-edge [CITE: GNN foundations, e.g. graph attention networks].
+edge; we use graph attention networks [velickovic2018].
 
 In this paper we build such a system and evaluate it with the aim of reporting only what the
 numbers support. We develop an agent-based AMR simulation with explicit conjugation-style HGT,
