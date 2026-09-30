@@ -252,25 +252,17 @@ pipeline; nothing below is to be reconciled with the retired draft.
   encoding error (`external_validation_rerun.txt`). Real validation needs gene re-annotation
   of BV-BRC assemblies (scoped, not started).
 
-## RESUME HERE (updated 2026-09-30; last results commit 081a30f; nothing pushed)
-Done: lab_v2 dosing approved and set (0.25 ug/mL, cleared after 5 steps; `TRAINING_PROTOCOLS`
-in ai/gnn_trainer.py, paper_v1 keeps 1.5/never). lab_v2 reseeded comparison + ablation +
-per-gene (`ai/checkpoints/reseeded/lab_v2/`) and sweep (`sweep/lab_v2/`) are committed; the
-three-column summary was reported to the user.
-Decided by user: ResFinder/ARIBA validation and the software-paper track are FUTURE WORK
-(name them in the new paper's Limitations/Future Work), not blockers. No paper text yet.
-
-**Waiting on the user:**
-1. Rare-gene proposal: (a) add existing `mrsa_hospital` to lab_v2 training (tetM 23 -> ~420
-   positives over 3 seeds at 80 steps; longer runs barely help); (b) vanA: report separately
-   as a simplified mechanism or exclude (documented route is interspecies Tn1546 transfer from
-   E. faecalis, Weigel 2003 doi:10.1126/science.1090956; VRSA isolates are independent events,
-   Clark 2005 doi:10.1128/AAC.49.1.470-472.2005; sim has no Enterococcus); (c) drop
-   mexAB-oprM from evaluable genes (intrinsic, never acquirable -> zero positives by design).
-   Also flagged: mexAB-oprM is intrinsic in A. baumannii in both biologies, but CARD describes
-   it as a P. aeruginosa system (candidate lab_v2 correction, needs sourcing).
-   Adding mrsa_hospital changes the lab_v2 dataset -> rerun reseeded + sweep (~1.5-2 h).
-2. Suggested (not approved): rerun the ablation with the TUNED hyperparameters (the current
-   ablations use defaults, which on lab_v2 are near-chance-level unstable, ±0.13).
-
-Headline numbers are in the reseeded/sweep summary.md files for each biology.
+## RESUME HERE (updated 2026-09-30; results commit ca7effb; nothing pushed)
+Current reference result set for the new paper: `ai/checkpoints/reseeded/lab_v2_tuned_noedge_mrsa/`
+(+ sweep `sweep/lab_v2_mrsa_noedge/`): lab_v2 biology, 5 scenarios incl. mrsa_hospital,
+dosing 0.25 ug/mL cleared after 5 steps, GNN hidden 128 / lr 1e-3 / 2 layers, edge features
+zeroed, min_epochs 20 warm-up, RF 300 trees depth 8; gene policy in ai/eval_genes.py
+(mexAB-oprM excluded; vanA reported separately as a simplified mechanism).
+Headline AUROC: GNN 0.9805 ± 0.0012; no message passing 0.9774 ± 0.0006; RF 0.7822 ± 0.0276;
+LR 0.7096 ± 0.0359. Caveat: RF/LR do not train genes with <5 positives in their 100k-edge
+subsample (acrAB-tolC, gyrA_S83L score 0.5 by construction); on the 5 genes RF trained on:
+GNN 0.9735 ± 0.0017 vs RF 0.8950 ± 0.0386. blaTEM-1 has no test positives (5 total).
+Bimodal seed (earlier lab_v2 run, 0.739): reproducible early-stopping artifact (lucky epoch-1
+validation peak), fixed by the warm-up; not a model failure mode.
+Decided: ResFinder/ARIBA validation and the software paper are FUTURE WORK. No paper text yet.
+Waiting on the user for next steps.
