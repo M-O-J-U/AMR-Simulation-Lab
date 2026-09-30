@@ -11,6 +11,8 @@ A scientifically grounded, interactive agent-based simulation of antimicrobial r
 
 Built as part of a research pipeline targeting **AMR AI for South Asian clinical contexts**, with particular relevance to Pakistan's documented AMR burden (WHO GLASS 2022).
 
+📄 **A paper written on top of this simulator is in [`paper/`](paper/)** — a draft, not submitted, with no external validation. See [Paper](#paper) below.
+
 ---
 
 ## Demo
@@ -269,6 +271,56 @@ This codebase is the foundation for:
 
 ---
 
+## Paper
+
+A write-up of the GNN work built on this simulator lives in [`paper/`](paper/).
+
+> **Status: draft, not submitted. No venue.** Nothing in it is peer reviewed, and it has no
+> external validation against real genomic data. Read
+> [`paper/claims_to_numbers.md`](paper/claims_to_numbers.md) before quoting any figure from it.
+
+**The document**
+
+| File | What |
+|---|---|
+| [`paper/amr_hgt_gnn.pdf`](paper/amr_hgt_gnn.pdf) | The assembled paper, 31 pages, 4 figures, 29 references |
+| [`paper/amr_hgt_gnn.md`](paper/amr_hgt_gnn.md) / `.html` | Same document, other formats |
+| [`paper/draft/`](paper/draft/) | The sections it is built from, `00_abstract.md` … `08_conclusion.md` |
+| [`paper/figures/`](paper/figures/) | Figures (PNG + PDF) and their generated captions |
+
+**Provenance — the part that matters**
+
+Every number in the paper traces to a committed result file through a script that re-checks it:
+
+| File | What it is for |
+|---|---|
+| [`paper/claims_to_numbers.md`](paper/claims_to_numbers.md) | Claim → number → source. **S1–S10** are supported; **U1–U14** are claims the numbers do *not* support, each with the reason |
+| [`paper/decisions_log.md`](paper/decisions_log.md) | Dated decisions, with the options considered |
+| [`paper/citations.md`](paper/citations.md) | Per-reference audit: authors, venue, year, DOI, the text that supports the claim, and how far each source was verified |
+| [`paper/gene_mechanism_audit.md`](paper/gene_mechanism_audit.md) | Every modelled gene's real mobility against what the simulator does with it |
+| [`paper/STATUS.md`](paper/STATUS.md), [`paper/RESUME.md`](paper/RESUME.md) | What is complete, what is open, and where to pick up |
+
+**Rebuilding it**
+
+```bash
+python paper/make_figures.py              # figures + captions, from committed results
+python paper/assemble.py                  # -> paper/amr_hgt_gnn.{md,html,pdf}
+python paper/make_portfolio.py            # -> portfolio/paper4_portfolio.md
+python paper/measure_cross_species_edges.py   # reproduces claim S10
+python paper/make_table1.py               # -> paper/table1_genes.tex
+```
+
+Each script verifies its numbers against `claims_to_numbers.md` and exits non-zero if they
+have drifted. `paper/assemble.py --check` validates citations and figure anchors without
+writing. Rendering needs the `markdown` package and Chrome or Edge; neither is in
+`requirements.txt`, which pins the environment the *results* were produced on.
+
+A plain-English summary for non-specialists is in
+[`portfolio/paper4_portfolio.md`](portfolio/paper4_portfolio.md), including a binding
+"do not claim" list.
+
+---
+
 ## Citation
 
 If you use this simulation in academic work, please cite:
@@ -278,7 +330,7 @@ If you use this simulation in academic work, please cite:
   author    = {Abdul Moiz Muhammad},
   title     = {AMR Simulation Lab: Agent-Based Simulation of Antimicrobial Resistance Dynamics},
   year      = {2026},
-  url       = {https://github.com/M-O-J-U/amr-simulation},
+  url       = {https://github.com/M-O-J-U/AMR-Simulation-Lab},
   note      = {ORCID: 0009-0006-2795-5271}
 }
 ```
