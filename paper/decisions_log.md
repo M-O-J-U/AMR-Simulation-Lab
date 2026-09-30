@@ -117,6 +117,38 @@ See also `CLAUDE.md` (rules, paper-phase notes, RESUME HERE) and `paper/claims_t
     P. aeruginosa's pools; no source found establishing S83L as the dominant variant in all
     three. Recommendation: describe it generically in Methods ("a gyrA target-site
     mutation") or restrict the claim to E. coli. **Owner decision on wording.**
+  - **OPEN, IMPORTANT — "S2 contamination" (found 2026-09-30 while preparing figures).
+    The headline comparison is contaminated by the very artefact U5 warns about.**
+    - S2 states: GNN 0.9735 ± 0.0017 vs RF 0.8950 ± 0.0386 on
+      {blaCTX-M-15, **blaKPC-2**, blaNDM-1, mcr-1, tetM}, "the genes RF can train on".
+      Those two numbers reproduce exactly from `per_seed`, so the arithmetic is right.
+    - **But RF scores exactly 0.5 — its untrainable marker — on blaKPC-2 in 3 of 5 seeds**
+      (seeds 0, 2, 4); LR likewise. blaKPC-2 has 94 positives dataset-wide, but the
+      100k-edge subsample is drawn per seed, so in 3 seeds it fell below the 5-positive
+      cutoff. blaKPC-2 therefore is NOT a gene "RF can train on"; it is trainable in 2 of
+      5 seeds.
+    - Consequence: RF's 0.8950 is depressed by 0.5-by-construction entries, which is
+      exactly what U5 says must not be folded into a performance comparison. RF's large SD
+      (0.0386) is the tell — it is bimodal between seeds where blaKPC-2 trained (0.9399,
+      0.9342) and seeds where it did not (0.8654, 0.8627, 0.8730).
+    - On the **4 genes RF fits in all 5 seeds** {blaCTX-M-15, blaNDM-1, mcr-1, tetM}:
+      **GNN 0.9777 ± 0.0023 vs RF 0.9548 ± 0.0124, GNN ahead on 5/5 seeds.**
+      The gap falls from 0.0785 to 0.0229 — roughly a third of the size.
+    - So the direction of S2 holds (GNN ahead, every seed, on either subset) but **the
+      current headline overstates the margin by about 3×.**
+    - Options (not chosen):
+      1. Restate the headline on the 4-gene all-seeds-trainable set (0.9777 vs 0.9548) and
+         report blaKPC-2 with the other partially-trainable genes under the coverage claim.
+      2. Keep 5 genes but define trainability per seed and average only over seeds where a
+         gene trained — changes what the mean means, and needs care.
+      3. Keep S2 as-is and disclose the blaKPC-2 3/5 issue in the text.
+      Recommendation: **option 1.** It is the only one that makes the headline mean what it
+      says, and it strengthens rather than weakens the paper's credibility; the coverage
+      claim absorbs blaKPC-2 naturally, since partial trainability is the same phenomenon
+      as no trainability.
+    - Touches the headline number: **owner decision.** No claim changed, no figure drawn.
+      Reproduce with `python paper/make_figures.py --rf-coverage`.
+    - The headline comparison FIGURE is deliberately not generated until this is settled.
   - **OPEN — code-comment claims found while reading for Methods (2026-09-30). No code
     changed.** These are claims in docstrings, i.e. CLAUDE.md rules 2 and 7 territory:
     1. **`ai/gnn_model.py` cites "Orenstein et al. 2021 — GNNs for microbial ecology".
