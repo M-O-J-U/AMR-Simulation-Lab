@@ -39,6 +39,17 @@ and a graph attention network that predicts per-gene transfer on each directed c
 All reported results are within-simulation: the labels are the simulator's own recorded transfer
 events, and we have not yet validated the predictions against real genomic data (Section 5).
 
+**Scope.** Our simulator models *intraspecies* transfer only: a gene moves between two cells
+of the same species, so a contact between cells of different species is a negative example by
+construction. This is a substantial restriction rather than an incidental one, because
+interspecies and intergenus transfer of several of the exact genes we model is documented —
+the mcr-1 colistin-resistance plasmid was conjugated into *Escherichia coli* and maintained in
+*Klebsiella pneumoniae* and *Pseudomonas aeruginosa* [liu2016mcr], and an NDM-1
+carbapenemase plasmid was conjugated from *Citrobacter freundii* into an *E. coli* recipient
+[dolejska2012]. The prediction task we report on is therefore easier than the corresponding
+task in a community of mixed species, and our results should be read with that in mind
+(Sections 3, 5 and 6).
+
 Our contributions are:
 
 1. **A per-edge, per-gene HGT prediction task grounded in recorded simulation events**, with a

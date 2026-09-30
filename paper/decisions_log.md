@@ -117,6 +117,27 @@ See also `CLAUDE.md` (rules, paper-phase notes, RESUME HERE) and `paper/claims_t
     P. aeruginosa's pools; no source found establishing S83L as the dominant variant in all
     three. Recommendation: describe it generically in Methods ("a gyrA target-site
     mutation") or restrict the claim to E. coli. **Owner decision on wording.**
+  - **OPEN — code-comment claims found while reading for Methods (2026-09-30). No code
+    changed.** These are claims in docstrings, i.e. CLAUDE.md rules 2 and 7 territory:
+    1. **`ai/gnn_model.py` cites "Orenstein et al. 2021 — GNNs for microbial ecology".
+       I could not find this paper** on PubMed (no Orenstein hit for graph neural networks
+       or microbial ecology) or on the web. It looks like a fabricated citation of exactly
+       the kind the SLURP audits found. **Recommendation: delete the line.** Not done
+       unilaterally because it is a claim change.
+    2. Same file claims the model is "validated against CARD transfer rates". No such
+       validation exists anywhere in the repo. **Recommendation: delete.**
+    3. Same file claims "First GNN applied directly to agent-based AMR simulation state" —
+       an unqualified novelty claim. The Related Work draft states the weaker, defensible
+       version ("we did not find prior work that…"). **Recommendation: delete or soften.**
+    4. Stale docstrings that contradict the code: `gnn_model.py` says 3 GAT layers and
+       8-dim edges (reference config is 2 layers, 5-dim); `gnn_trainer.py` says
+       "patience=10" (12) and "stratified by scenario" (a plain shuffle);
+       `feature_engineering.py`'s return comment says edge features are `(E, 8)` (5).
+       `gnn_trainer.py` also asserts "blaTEM-1 transfers very frequently", which the
+       dataset contradicts (5 positives — see U12).
+    5. `collect_all_data` computes its progress total from 4 scenarios while iterating 5,
+       so run counts in logs read "n/12" for 15 runs. Cosmetic.
+    Methods was written from the code, not from these docstrings.
   - Disclosures with no identified effect on the numbers: §3.3 invented probabilities,
     §3.5 blaTEM-1 confined to E. coli though common in Klebsiella (Cuzon 2010), §3.6
     A. baumannii carries mexAB-oprM and acrAB-tolC although its RND systems are
