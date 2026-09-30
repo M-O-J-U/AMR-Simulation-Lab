@@ -86,10 +86,19 @@ conjugated into *Escherichia coli* and maintained in *Klebsiella pneumoniae* and
 aeruginosa* [liu2016mcr]; an NDM-1 carbapenemase plasmid was conjugated from *Citrobacter
 freundii* into an *E. coli* recipient [dolejska2012]; Tn916-borne tet(M) transferred from
 *Lactococcus lactis* to *Enterococcus faecalis* both in vitro and in a rat gut
-[boguslawska2009]. Two consequences follow. The prediction task is easier than its
-mixed-species counterpart, because species identity is available to the model and cleanly
-separates a large set of guaranteed negatives. And the model has not been shown to do anything
-at all on the interspecies case, which is the case of greatest practical interest.
+[boguslawska2009].
+
+The consequence is one of absence rather than of class balance, and it is worth stating
+precisely because the intuitive version is wrong. One might expect this restriction to flood the
+negative class with cross-species pairs that are rejectable from species identity alone. It does
+not: only 0.275% of contacts in our dataset are cross-species (4,696 of 1,707,498), they occur in
+only one of the five scenarios, and none of them carries a transfer. Four scenarios contain a
+single species, and in the mixed scenario the two populations are seeded as separate spatial
+clusters that seldom come within contact range. What follows instead is that the interspecies
+case is effectively absent from the data: the model is evaluated almost entirely on
+within-species pairs, it has not been shown to do anything at all on interspecies transfer, and
+our metrics cannot register that omission. That is the case of greatest practical interest, and
+we have no evidence about it either way.
 
 **Three of the eleven genes move by a mechanism that is not their real one.** We label these
 simplified mechanisms rather than leave them implicit.

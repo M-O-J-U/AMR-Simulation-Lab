@@ -28,16 +28,28 @@ shows a single group that matters: the genes a cell already carries, at 0.0549 �
 every other group inside ±0.003. And edge features are zeroed in the reported configuration
 without measurable cost.
 
-Two properties of the task explain why that is unsurprising. First, transfer in our simulator
-requires the donor to carry the gene and the recipient to be able to acquire it — both
-readable from the two endpoint gene vectors, which is presumably why the genomic group
-dominates. Second, and more consequential, transfer is intraspecies only, so every
-cross-species contact is a negative example, and species identity is a node feature. A large
-share of the negatives is therefore separable without reference to any biological mechanism at
-all. Combined with a held-out split taken over snapshot pairs rather than over runs — so that
-test windows come from runs the model trained on — the natural reading of 0.98 is that **the
-task as we posed it is substantially easier than the phrase "predicting horizontal gene
-transfer" suggests**, not that the model has acquired a deep representation of conjugation.
+The likeliest explanation is that transfer in our simulator requires the donor to carry the gene
+and the recipient to be able to acquire it, and both conditions are readable from the two
+endpoint gene vectors. That would account for the genomic group dominating and for the contact
+graph adding little.
+
+It is worth ruling out a tempting but incorrect second explanation, since we entertained it
+ourselves. Because transfer is intraspecies only, one might expect the negative class to be
+padded with cross-species contacts that any model can reject from the species one-hot alone.
+We measured this and it is not so: only 0.275% of contacts in our dataset are cross-species
+(4,696 of 1,707,498), they arise in only one of the five scenarios, and none of them carries a
+transfer. Four of the five scenarios contain a single species, and in the one mixed scenario the
+two populations are seeded as separate spatial clusters that rarely come within contact range.
+The intraspecies restriction therefore does *not* make the task easier by supplying easy
+negatives; what it does instead is make the interspecies case effectively absent from the
+evaluation, so the model is assessed almost entirely on within-species discrimination (§6.4).
+
+Combined with a held-out split taken over snapshot pairs rather than over runs — so that test
+windows come from runs the model trained on — the natural reading of 0.98 is that **the task as
+we posed it is substantially easier than the phrase "predicting horizontal gene transfer"
+suggests**, not that the model has acquired a deep representation of conjugation. Note that the
+"easier" here rests on the label structure and the split, not on the class-balance argument we
+just rejected.
 
 We think this matters beyond our own paper. High discrimination on a simulator-derived task is
 easy to report and hard to interpret, because the task's difficulty is set by modelling

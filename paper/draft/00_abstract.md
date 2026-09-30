@@ -30,8 +30,9 @@ feature group by an order of magnitude.
 
 We are explicit about what these figures do not establish. The simulator transfers genes only
 between cells of the same species, so the interspecies transfers that dominate the literature
-on these genes are absent from the task, the labels and the evaluation alike, and a large share
-of negative examples is separable from species identity alone. The held-out split is taken over
+on these genes are absent from the task, the labels and the evaluation alike; in our dataset
+only 0.275% of contacts are cross-species, and none of them carries a transfer, so the model is
+evaluated almost entirely on within-species pairs. The held-out split is taken over
 snapshot pairs rather than over simulation runs, so it measures generalisation to unseen time
 windows of runs seen in training, not to unseen simulations. Three of the eleven modelled genes
 are moved by a mechanism that is not their real one, and several parameters that resemble
