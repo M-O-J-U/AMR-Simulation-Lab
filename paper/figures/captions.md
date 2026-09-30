@@ -34,12 +34,12 @@ species' acquirable set) are not evaluable and are absent from the figure. Count
 ## Model architecture, reference configuration
 
 Schematic of AMRResistanceGNN as configured for every reported result: node features
-(None-dim) through a per-group NodeEncoder to width
-128, edge features (None-dim) through an
-EdgeEncoder to width None, then 2 graph-attention
-blocks (None heads, each with a residual connection, layer normalisation and a
+(35-dim) through a per-group NodeEncoder to width
+128, edge features (5-dim) through an
+EdgeEncoder to width 64, then 2 graph-attention
+blocks (4 heads, each with a residual connection, layer normalisation and a
 feed-forward sublayer), then a head that concatenates the two endpoint representations with
-the encoded edge vector and emits None per-gene logits for each directed
+the encoded edge vector and emits 10 per-gene logits for each directed
 edge. Edge features are zeroed in all reported runs, so that pathway is present but carries no
 information. The graph-free ablation removes the attention stack, leaving the encoders feeding
 the head directly, and costs 0.0031 ± 0.0014 headline AUROC (claim S4).

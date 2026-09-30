@@ -76,6 +76,25 @@ CLAIMED = {
 # Genes whose simulated transfer is a labelled simplification (U6, U10).
 SIMPLIFIED = {"acrAB-tolC", "gyrA_S83L", "vanA"}
 
+# results.json records only what the sweep varied; the rest are the model's own
+# constructor defaults (ai/gnn_model.py). Resolved in one place so the architecture
+# figure and its caption can never disagree about a dimension.
+ARCH_DEFAULTS = {"hidden_dim": 128, "edge_enc_dim": 64, "n_layers": 2, "heads": 4,
+                 "node": 35, "edge": 5, "n_genes": 10}
+
+
+def arch(data: dict) -> dict:
+    hp = data.get("gnn_hparams", {})
+    dims = data.get("feature_dims", {})
+    out = dict(ARCH_DEFAULTS)
+    for key in ("hidden_dim", "edge_enc_dim", "n_layers", "heads"):
+        if hp.get(key) is not None:
+            out[key] = hp[key]
+    for key in ("node", "edge"):
+        if dims.get(key) is not None:
+            out[key] = dims[key]
+    return out
+
 
 def load() -> dict:
     with open(RESULTS, encoding="utf-8") as fh:
@@ -229,15 +248,10 @@ def fig_per_gene(data: dict) -> str:
 # ---------------------------------------------------------------- figure 2
 def fig_architecture(data: dict) -> str:
     """Schematic of the reference configuration, read from the results file."""
-    hp = data.get("gnn_hparams", {})
-    hidden = hp.get("hidden_dim", 128)
-    edge_enc = hp.get("edge_enc_dim", 64)
-    layers = hp.get("n_layers", 2)
-    heads = hp.get("heads", 4)
-    dims = data.get("feature_dims", {})
-    node_dim = dims.get("node_feature_dim", 35)
-    edge_dim = dims.get("edge_feature_dim", 5)
-    n_genes = dims.get("n_genes", 10)
+    a = arch(data)
+    hidden, edge_enc = a["hidden_dim"], a["edge_enc_dim"]
+    layers, heads = a["n_layers"], a["heads"]
+    node_dim, edge_dim, n_genes = a["node"], a["edge"], a["n_genes"]
 
     fig, ax = plt.subplots(figsize=(9.4, 4.9))
     ax.set_xlim(0, 10)
@@ -435,8 +449,7 @@ def captions(data: dict) -> str:
 
     mp = data["comparisons"]["gnn_minus_graph_free"]["diff"]
     ab = data["ablation"]["No genomic genes"]["delta_vs_all"]
-    hp = data.get("gnn_hparams", {})
-    dims = data.get("feature_dims", {})
+    a = arch(data)
 
     def f(x, n=4):
         return f"{x:.{n}f}"
@@ -481,12 +494,12 @@ species' acquirable set) are not evaluable and are absent from the figure. Count
 ## Model architecture, reference configuration
 
 Schematic of AMRResistanceGNN as configured for every reported result: node features
-({dims.get('node_feature_dim')}-dim) through a per-group NodeEncoder to width
-{hp.get('hidden_dim')}, edge features ({dims.get('edge_feature_dim')}-dim) through an
-EdgeEncoder to width {hp.get('edge_enc_dim')}, then {hp.get('n_layers')} graph-attention
-blocks ({hp.get('heads')} heads, each with a residual connection, layer normalisation and a
+({a['node']}-dim) through a per-group NodeEncoder to width
+{a['hidden_dim']}, edge features ({a['edge']}-dim) through an
+EdgeEncoder to width {a['edge_enc_dim']}, then {a['n_layers']} graph-attention
+blocks ({a['heads']} heads, each with a residual connection, layer normalisation and a
 feed-forward sublayer), then a head that concatenates the two endpoint representations with
-the encoded edge vector and emits {dims.get('n_genes')} per-gene logits for each directed
+the encoded edge vector and emits {a['n_genes']} per-gene logits for each directed
 edge. Edge features are zeroed in all reported runs, so that pathway is present but carries no
 information. The graph-free ablation removes the attention stack, leaving the encoders feeding
 the head directly, and costs {f(mp['mean'])} ± {f(mp['sd'])} headline AUROC (claim S4).
