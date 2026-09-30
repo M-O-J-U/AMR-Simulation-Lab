@@ -84,26 +84,51 @@ carrier of every acquired gene arises through R4 — a gene appearing in a cell 
 Real acquired genes must come from somewhere, so R4 has no biological counterpart; it is a
 seeding device.
 
-Its side effect is that **the distribution of positives across genes is a property of the
-seeding code, not of anything resembling real epidemiology.** R4's generic branch picks
-uniformly from the species' acquirable pool, so a gene's seeding rate scales with
-1/(pool size) of the species that can carry it, and its subsequent spread scales with
-`acquisition_prob`. This predicts the observed counts in the reference dataset:
+Its side effect is that **the distribution of positives across genes is an outcome of the
+seeding code and of chance, not of anything resembling real epidemiology.**
 
-| Gene | Pool(s) it is in | Extra seeding route | `acquisition_prob` | Positives |
-|---|---|---|---|---|
-| tetM | MRSA (lab_v2 pool of 2), E. coli (of 5) | — | 0.05 (highest) | 420 |
-| vanA | MRSA (of 2) | — | 0.01 | 35 |
-| gyrA_S83L | E. coli (of 5), Klebsiella (of 5), P. aeruginosa (of 4) | dedicated point-mutation branch | 0.01 | 34 |
-| acrAB-tolC | E. coli (of 5) | SOS route, p=0.15 | 0.03 | 19 |
-| blaTEM-1 | E. coli (of 5) only | — | 0.04 | **5** |
-| mexAB-oprM | no pool | — | 0.025 | 0 |
+**Revised 2026-09-30** after reading the complete per-gene counts from `results.json` (an
+earlier version of this section asserted that positives scale with 1/(pool size) and with
+`acquisition_prob`; the full counts only partly support that, so the claim is narrowed here).
 
-This explains U8 (blaTEM-1 not evaluable) mechanically: it is confined to one species'
-five-gene pool with no extra seeding route, so it rarely seeds, and rarely seeded means
-rarely transferred. It also means **S9's per-gene ordering must not be read as biological
-insight** — a gene's number of positives, and hence how well it can be learned, is set by
-the seeding code.
+| Gene | Species that may acquire it (pool size) | Training scenarios containing such a species | Extra seeding route | `acquisition_prob` | Positives |
+|---|---|---|---|---|---|
+| blaCTX-M-15 | E. coli (5), Klebsiella (5), A. baumannii (4) | 4 of 5 | — | 0.03 | 480 |
+| tetM | MRSA (2 in lab_v2), E. coli (5) | 3 of 5 | — | 0.05 | 420 |
+| mcr-1 | Klebsiella (5), A. baumannii (4), P. aeruginosa (4) | 3 of 5 | — | 0.02 | 179 |
+| blaNDM-1 | Klebsiella (5), A. baumannii (4), P. aeruginosa (4) | 3 of 5 | — | 0.015 | 177 |
+| blaKPC-2 | Klebsiella (5), A. baumannii (4), P. aeruginosa (4) | 3 of 5 | — | 0.02 | 94 |
+| vanA | MRSA (2) | 1 of 5 | — | 0.01 | 35 |
+| gyrA_S83L | E. coli (5), Klebsiella (5), P. aeruginosa (4) | 3 of 5 | point-mutation branch | 0.01 | 34 |
+| acrAB-tolC | E. coli (5) | 2 of 5 | SOS route, p=0.15 | 0.03 | 19 |
+| blaTEM-1 | E. coli (5) | 2 of 5 | — | 0.04 | **5** |
+| mexAB-oprM | none | — | — | 0.025 | 0 |
+
+What the counts **do** support:
+- **How easily a gene seeds matters.** vanA (35) is available to one species in one scenario,
+  but MRSA's lab_v2 pool holds only two genes, so a seeding draw picks it half the time.
+  blaTEM-1 (5) is available to one species across two scenarios but competes with four other
+  genes in E. coli's pool.
+- **An extra seeding route matters.** acrAB-tolC (19) and blaTEM-1 (5) are both confined to
+  E. coli's five-gene pool; acrAB-tolC has a second route (SOS upregulation) and blaTEM-1 has
+  none. gyrA_S83L (34) likewise has its own dedicated branch.
+- **Breadth of availability matters.** blaCTX-M-15 (480) is the only gene available to three
+  species across four of the five training scenarios.
+
+What the counts **do not** support, and must therefore not be claimed:
+- **The counts are not monotonic in `acquisition_prob`.** blaKPC-2, blaNDM-1 and mcr-1 have
+  identical species availability and pool sizes, and probabilities of 0.02, 0.015 and 0.02, yet
+  score 94, 177 and 179. A roughly two-fold spread is left unexplained by any parameter.
+- The most likely reason is that a count depends heavily on **when** a gene first happens to
+  seed: an early seeding event has many more steps in which to spread, so the outcome is
+  high-variance. We have not run an experiment to confirm this, so it is stated as the probable
+  explanation, not a demonstrated one.
+
+The mechanical explanation of U8 survives: blaTEM-1 is confined to one species' five-gene pool
+with no extra seeding route, so it seldom seeds, and seldom seeded means seldom transferred.
+And the conclusion that matters for the paper is unchanged and, if anything, stronger —
+**S9's per-gene ordering must not be read as biological insight.** A gene's number of
+positives, and hence how well it can be learned, is set by the seeding code and by chance.
 
 ### 3.3 Per-step transfer probabilities are invented
 

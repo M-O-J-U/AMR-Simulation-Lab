@@ -116,30 +116,39 @@ how few positives the rarer genes contribute.
 
 | Gene | GNN test AUROC | Positive events in dataset |
 |---|---|---|
-| mcr-1 | 0.9908 ± 0.0011 | not recorded in our claims table (see below) |
-| tetM | 0.9805 ± 0.0033 | 420 |
-| blaNDM-1 | 0.9755 ± 0.0039 | not recorded |
-| blaCTX-M-15 | 0.9642 ± 0.0030 | not recorded |
-| blaKPC-2 | 0.9564 ± 0.0021 | not recorded |
 | acrAB-tolC | 0.9986 ± 0.0018 | 19 — simplified mechanism |
 | gyrA_S83L | 0.9977 ± 0.0006 | 34 — simplified mechanism |
+| mcr-1 | 0.9908 ± 0.0011 | 179 |
+| tetM | 0.9805 ± 0.0033 | 420 |
+| blaNDM-1 | 0.9755 ± 0.0039 | 177 |
+| blaCTX-M-15 | 0.9642 ± 0.0030 | 480 |
+| blaKPC-2 | 0.9564 ± 0.0021 | 94 |
 | blaTEM-1 | not evaluable | 5, none in the test split |
 
 **We offer no biological interpretation of the ordering in this table, because the variation
-in it is confounded.** Two confounds are enough to account for it without appeal to gene
-biology. The first is sample size: the number of positives per gene spans at least two orders
-of magnitude, and the genes with the fewest positives are the ones with the most extreme
-AUROCs. The second is the seeding artefact of Section 3.1.2: no acquired gene exists at
-initialisation, so every gene's count is set by how often the donor-free mutation branch
-happens to seed it — which scales inversely with the size of its species' acquirable set — and
-then by its invented per-step transfer probability. A gene's position in this table therefore
-reflects the simulator's seeding code and its sample size, not the mobility of the
+in it is confounded.** Two confounds account for it without any appeal to gene biology.
+
+The first is **sample size, and it runs opposite to the direction that would make the table
+interpretable**. The positive counts span from 19 to 480, and the two highest AUROCs in the
+table belong to the two genes with the fewest positives (acrAB-tolC, 19; gyrA_S83L, 34), while
+the gene with by far the most positives (blaCTX-M-15, 480) sits near the bottom. A per-gene
+AUROC estimated from 19 positives is not comparable to one estimated from 480, and reading the
+ordering as a difficulty ranking would inverse-rank the genes by how much evidence supports
+each estimate.
+
+The second is the **seeding artefact** of Section 3.1.2. No acquired gene exists at
+initialisation, so each gene's count is set by how readily the donor-free mutation branch seeds
+it and by how early that happens, after which spread amplifies the result. These counts are not
+a monotonic function of the per-step transfer probabilities: blaKPC-2, blaNDM-1 and mcr-1 are
+available to the same species with probabilities of 0.02, 0.015 and 0.02, yet record 94, 177
+and 179 events. A roughly two-fold spread among otherwise matched genes is left unexplained by
+any parameter of the model, which is the clearest available indication that these counts are
+high-variance outcomes of the seeding process rather than stable properties of each gene.
+
+A gene's position in this table therefore reflects the simulator's seeding code, the timing of
+a chance event, and the amount of evidence behind its estimate — not the mobility of the
 corresponding real gene. We report the values for completeness and for comparison against
 future versions of the pipeline, and draw no per-gene conclusions from them.
-
-*Open item:* per-gene positive counts for blaCTX-M-15, blaKPC-2, blaNDM-1 and mcr-1 are not
-recorded in `paper/claims_to_numbers.md`. They should be read out of the results file and
-added there before submission, so that every AUROC in this table can be quoted with its count.
 
 ## 4.6 vanA, reported separately
 

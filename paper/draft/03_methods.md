@@ -104,10 +104,15 @@ a **uniformly random gene from the species' acquirable set with no donor at all*
 route has no biological counterpart — an acquired gene must come from somewhere — and exists
 only to seed genes into the population. It matters for interpreting the results, because no
 acquired gene is present at initialisation, so every gene's first carrier arises this way.
-A gene's seeding rate therefore scales inversely with the size of its species' acquirable set,
-and its subsequent spread with its `acquisition_prob`. **The number of transfer events per
-gene is consequently a property of the seeding code rather than of gene epidemiology**, and we
-do not interpret per-gene differences biologically anywhere in this paper.
+How readily a gene seeds therefore depends on the size of its species' acquirable set, on
+whether it has an additional seeding route, and on how many scenarios contain a species that
+can carry it; and however it seeds, the resulting count is then amplified by spread, so that
+the earlier a gene happens to seed, the more events it accumulates. **The number of transfer
+events per gene is consequently an outcome of the seeding code and of chance rather than of
+gene epidemiology.** Consistent with that, three of the genes in our dataset share the same
+species availability and near-identical transfer probabilities yet differ roughly two-fold in
+their event counts. We therefore do not interpret per-gene differences biologically anywhere
+in this paper.
 
 Only recorded transfer events produce the supervised labels; genes gained by the other three
 routes produce no label.
@@ -182,9 +187,10 @@ with three data seeds.
 
 The resulting dataset (SHA-256 `ee83ff385ca15ec9…`) contains 390 graph pairs,
 1,707,498 edges and 1,443 positive transfer events. Positives are distributed very unevenly
-across genes — tetM 420, vanA 35, gyrA_S83L 34, acrAB-tolC 19, blaTEM-1 5, mexAB-oprM 0 — for
-the structural reason given in §3.1.2, not for any biological reason. Against ten gene
-outputs the positive rate is approximately 8.5 × 10⁻⁵ per edge-gene pair.
+across genes — blaCTX-M-15 480, tetM 420, mcr-1 179, blaNDM-1 177, blaKPC-2 94, vanA 35,
+gyrA_S83L 34, acrAB-tolC 19, blaTEM-1 5 and mexAB-oprM 0 — for the structural reason given in
+§3.1.2, not for any biological reason. Against ten gene outputs the positive rate is
+approximately 8.5 × 10⁻⁵ per edge-gene pair.
 
 ### 3.3.3 Splitting, and a caveat about it
 
