@@ -266,6 +266,20 @@ subsample (acrAB-tolC, gyrA_S83L score 0.5 by construction); on the 5 genes RF t
 GNN 0.9735 ± 0.0017 vs RF 0.8950 ± 0.0386. blaTEM-1 has no test positives (5 total).
 Bimodal seed (earlier lab_v2 run, 0.739): reproducible early-stopping artifact (lucky epoch-1
 validation peak), fixed by the warm-up; not a model failure mode.
-Decided: ResFinder/ARIBA validation and the software paper are FUTURE WORK. No paper text yet.
+Decided: ResFinder/ARIBA validation and the software paper are FUTURE WORK.
 RF comparison policy DECIDED 2026-09-30 (report both; headline = 5 common genes, RF cutoff not
-lowered) -- see paper/decisions_log.md. Waiting on the user for next steps.
+lowered) -- see paper/decisions_log.md.
+
+**Paper drafting (2026-09-30): Sections 1-7 are DRAFTED, awaiting owner review. Abstract not
+written (deferred). Read `paper/STATUS.md` first** -- it lists what is complete, what needs an
+owner decision, and what is deliberately not started. No venue chosen, so submission prep
+(figures, LaTeX, abstract, full-text re-verification of abstract-only citations) is NOT started
+by instruction.
+New not-supported claims recorded while drafting: U10 (gyrA_S83L / acrAB-tolC transfer is a
+simplified mechanism), U11 (transfer is intraspecies only), U12 (per-gene positive counts are a
+seeding artefact, NOT monotonic in acquisition_prob), U13 (the train/test split is over snapshot
+pairs, not runs, so it does not measure generalisation to unseen simulations). Also:
+`paper/gene_mechanism_audit.md` checks all 11 genes' real mobility against sources, and
+`ai/gnn_model.py` docstrings were cleaned of a fabricated citation ("Orenstein et al. 2021"),
+an unsupported "validated against CARD transfer rates" claim, and an unqualified novelty claim
+(comments only; 276 tests pass).

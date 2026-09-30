@@ -1,0 +1,80 @@
+# Paper status — as of 2026-09-30
+
+Local only; nothing pushed. No venue chosen. **No submission target**, so submission prep
+(figures, LaTeX build, remaining citation checks, repo/portfolio work) is deliberately NOT
+started.
+
+Read first: `paper/claims_to_numbers.md` (claim → number → source), then
+`paper/decisions_log.md` (dated decisions; OPEN items marked), then this file.
+
+## Drafted (all awaiting owner review; none approved yet)
+
+| File | Section | Notes |
+|---|---|---|
+| `paper/draft/01_introduction.md` | 1 Introduction | Citations verified; Scope paragraph covers U11 + U13; contribution 2 qualified |
+| `paper/draft/02_related_work.md` | 2 Related Work | Audited citations only |
+| `paper/draft/03_methods.md` | 3 Methods | Parameters read from code, not docstrings |
+| `paper/draft/04_results.md` | 4 Results | All 10 per-gene counts present |
+| `paper/draft/05_limitations.md` | 5 Limitations | Full caveat queue assembled |
+| `paper/draft/06_discussion.md` | 6 Discussion | Thesis: joint training, not graph structure |
+| `paper/draft/07_conclusion.md` | 7 Conclusion | Short; upgrades no earlier claim |
+
+**Not written: the abstract.** Deferred by instruction until the rest is approved.
+
+## Supporting files complete
+
+- `paper/citations.md` — per-reference audit: existence, venue, year, authors, DOI, the text
+  that supports the claim, and a verification level per source.
+- `paper/refs.bib` — 32 entries, all with a matching audit entry.
+- `paper/gene_mechanism_audit.md` — all 11 genes' real mobility vs what the simulator does,
+  11 sources verified against their own text.
+- `paper/claims_to_numbers.md` — S1–S9 supported, U1–U13 not-supported, earlier-results table.
+- `paper/make_table1.py` → `paper/table1_genes.tex` — Table 1 generated from code.
+
+## Open — needs an owner decision
+
+1. **O'Neill 2016.** Recommended and applied: replaced by GBD 2019 + GBD 2021. If you want the
+   10-million projection mentioned anywhere, it must appear with de Kraker 2016 and the GBD
+   forecast, not alone. (`paper/citations.md`, "Open items".)
+2. **Nothing else is blocking a draft read.** Every other open item below is work, not a
+   decision.
+
+## Open — work not started
+
+**Submission prep (blocked by design: no venue).**
+- Figures/tables beyond Table 1. Nothing generated.
+- LaTeX assembly and compile. The drafts are Markdown with `[bibkey]` placeholders, not
+  `\cite{}`; converting is part of assembly.
+- Abstract.
+- Full-text re-verification of the ~20 abstract-only citations listed in `paper/citations.md`
+  and `paper/gene_mechanism_audit.md` §4. Each is currently cited only for what its abstract
+  states, which is defensible but should be upgraded before submission.
+
+**Methodological work that would change the numbers** (from Discussion §6.5, in priority order):
+1. Split by run instead of by snapshot pair (U13). Cheapest; changes how every number reads.
+2. External validation with gene-level calls — needs ResFinder/ARIBA re-annotation of BV-BRC
+   assemblies (U7). Scoped earlier at ~1–2 weeks.
+3. Per-gene transfer mobility, so one mechanism is not applied to every gene (U10, U11).
+4. A defined step duration plus sourced half-lives, without which no rate can be validated.
+
+**Repo hygiene, unresolved:**
+- `ai/checkpoints/feature_leakage_remediation.md` is referenced in source comments as the full
+  leakage audit but does not exist. Methods §3.4 is currently the record. Either write the file
+  or drop the reference.
+- Stale docstrings outside `ai/gnn_model.py` (already cleaned): `ai/gnn_trainer.py` says
+  patience 10 (is 12) and "stratified by scenario" (is a plain shuffle), and asserts
+  "blaTEM-1 transfers very frequently" (5 positives); `ai/feature_engineering.py` has a stale
+  `(E, 8)` comment. Logged 2026-09-30 in `decisions_log.md`, not fixed.
+- `collect_all_data` computes its progress total from 4 scenarios while iterating 5. Cosmetic.
+
+**Lab phases 3–4 (separate track, not started):** UX/control upgrades and the
+validation/byte-identity re-check.
+
+## Things that must not regress
+
+- 276 tests pass, including `tests/test_paper_v1_frozen.py`, which guards `paper_v1`
+  byte-for-byte. Run `python -m pytest -q` before and after any change.
+- The reference result set is `ai/checkpoints/reseeded/lab_v2_tuned_noedge_mrsa/`
+  (+ `sweep/lab_v2_mrsa_noedge/`). Dataset SHA-256 `ee83ff385ca15ec9…`.
+- Do not quote the 8-gene GNN-vs-RF gap (U5), the retired 0.9934 (U1), or any per-gene
+  ordering as biology (U12).
