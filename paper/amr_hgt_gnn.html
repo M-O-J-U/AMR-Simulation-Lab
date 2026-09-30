@@ -1,0 +1,1410 @@
+<!doctype html><html><head><meta charset='utf-8'><title>Predicting per-contact, per-gene horizontal transfer of antimicrobial resistance genes in an agent-based simulation</title><style>
+@page { size: A4; margin: 20mm 18mm 18mm 18mm; }
+body { font-family: "Charter","Georgia","Times New Roman",serif; font-size: 10.5pt;
+       line-height: 1.5; color: #111; max-width: 46em; margin: 0 auto; }
+h1 { font-size: 17pt; line-height: 1.25; margin: 1.6em 0 0.5em; page-break-after: avoid; }
+h1:first-of-type { margin-top: 0; font-size: 19pt; }
+h2 { font-size: 12.5pt; margin: 1.4em 0 0.4em; page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 1.1em 0 0.3em; page-break-after: avoid; }
+p { margin: 0 0 0.62em; text-align: justify; hyphens: auto; }
+table { border-collapse: collapse; width: 100%; margin: 0.9em 0; font-size: 8.8pt;
+        page-break-inside: avoid; }
+th, td { border: 1px solid #bbb; padding: 4px 6px; text-align: left;
+         vertical-align: top; }
+th { background: #f2f2f2; }
+code { font-family: "Consolas","DejaVu Sans Mono",monospace; font-size: 0.87em;
+       background: #f4f4f4; padding: 0 2px; }
+img { max-width: 100%; display: block; margin: 0.8em auto 0.2em; }
+blockquote { margin: 0.8em 0 0.8em 1.2em; padding-left: 0.8em;
+             border-left: 3px solid #ccc; color: #333; }
+ol, ul { margin: 0 0 0.62em; padding-left: 1.4em; }
+li { margin-bottom: 0.22em; }
+hr { border: none; border-top: 1px solid #ccc; margin: 1.2em 0; }
+em { color: #222; }
+</style></head><body><h1>Predicting per-contact, per-gene horizontal transfer of antimicrobial resistance genes in an agent-based simulation</h1>
+<p><strong>Draft, not submitted. No venue.</strong><br />
+Assembled 2026-09-30 by <code>paper/assemble.py</code> from <code>paper/draft/</code>.<br />
+Every number is traceable to <code>paper/claims_to_numbers.md</code>; figures are regenerated from committed result files by <code>paper/make_figures.py</code>.</p>
+<hr />
+<h1>Abstract</h1>
+<p>Horizontal gene transfer moves antimicrobial resistance genes between bacteria, but individual
+transfer events are hard to observe directly in natural communities, which makes supervised
+learning on them difficult to set up. We use an agent-based simulation, in which every transfer
+is recorded as it happens, to pose a task with exact labels: given a snapshot of a bacterial
+population, predict for each directed cell-to-cell contact and each resistance gene whether
+that gene is transferred in the next time window. We train a graph attention network on this
+task and evaluate it against per-gene random forest and logistic regression baselines.</p>
+<p>The network reaches a test AUROC of 0.9777 ± 0.0023 on the four genes our per-gene random
+forest can fit in every seed, against 0.9548 ± 0.0124 for that baseline, and is ahead on all
+five model seeds; its macro average over the eight genes in our evaluation policy is
+0.9805 ± 0.0012. Because it is trained jointly on all gene outputs, it also gives stable
+predictions for genes the baselines cannot reliably fit at all: two that fall below their
+five-positive training threshold in every seed, and a third that falls below it in three seeds
+of five. We attribute this coverage advantage to
+parameter sharing across a multi-label output rather than to the graph: removing message
+passing costs only 0.0031 ± 0.0014, and the genes a cell already carries dominate every other
+feature group by an order of magnitude.</p>
+<p>We are explicit about what these figures do not establish. The simulator transfers genes only
+between cells of the same species, so the interspecies transfers that dominate the literature
+on these genes are absent from the task, the labels and the evaluation alike; in our dataset
+only 0.275% of contacts are cross-species, and none of them carries a transfer, so the model is
+evaluated almost entirely on within-species pairs. The held-out split is taken over
+snapshot pairs rather than over simulation runs, so it measures generalisation to unseen time
+windows of runs seen in training, not to unseen simulations. Three of the eleven modelled genes
+are moved by a mechanism that is not their real one, and several parameters that resemble
+measurements are invented; all are labelled as such. No external validation against real
+genomic data exists: our attempt failed because the isolate data we could obtain carries
+resistance phenotypes rather than per-isolate gene calls. Under these conditions we read a high
+AUROC as a statement about the difficulty of the task as posed rather than as evidence that the
+model has learned conjugation. What we take to be transferable is the formulation — an exactly
+labelled, per-contact, per-gene transfer task — and the finding that training one model across
+all genes reaches rare targets that per-gene models cannot.</p>
+<h1>1 Introduction</h1>
+<p>Antimicrobial resistance (AMR) is a major and growing threat to the treatment of bacterial
+infections [1, 2]. A central route by which resistance spreads
+between bacteria is horizontal gene transfer (HGT), in which resistance genes move from one cell
+to another — for example by plasmid conjugation — rather than arising independently in each
+lineage [3, 4]. Whether a transfer happens depends on local,
+cell-level conditions such as contact between cells and the physiological state of the donor
+[5, 6]. In natural bacterial communities, however, there is a gap between
+what is known about HGT from laboratory experiments and what is known from natural
+environments [7], and even reliably assigning mobile genetic elements to their host
+cells in such communities has been difficult [8].</p>
+<p>Agent-based simulation offers a setting in which every transfer event is recorded. In an
+agent-based (individual-based) model, each bacterium is an explicit agent that follows stated
+rules [9], and such models have been used to study plasmid transfer in spatially
+structured populations [10, 6]. In our model these rules cover growth, death,
+stress responses and gene exchange, so the ground truth of <em>which cell passed which gene to
+which neighbour</em> is known exactly. This
+makes it possible to pose a supervised learning problem that is not available from observational
+data: given a snapshot of a bacterial population, predict which resistance genes will be
+transferred along which cell–cell contacts in the next time window. Graph neural networks (GNNs)
+are a natural fit for this problem, because the population can be represented as a graph of
+cells (nodes) connected by spatial proximity (edges), and the prediction target is defined per
+edge; we use graph attention networks [11].</p>
+<p>In this paper we build such a system and evaluate it with the aim of reporting only what the
+numbers support. We develop an agent-based AMR simulation with explicit conjugation-style HGT,
+and a graph attention network that predicts per-gene transfer on each directed cell–cell edge.
+All reported results are within-simulation: the labels are the simulator's own recorded transfer
+events, and we have not yet validated the predictions against real genomic data (Section 5).</p>
+<p><strong>Scope.</strong> Our simulator models <em>intraspecies</em> transfer only: a gene moves between two cells
+of the same species, so a contact between cells of different species is a negative example by
+construction. This is a substantial restriction rather than an incidental one, because
+interspecies and intergenus transfer of several of the exact genes we model is documented —
+the mcr-1 colistin-resistance plasmid was conjugated into <em>Escherichia coli</em> and maintained in
+<em>Klebsiella pneumoniae</em> and <em>Pseudomonas aeruginosa</em> [12], and an NDM-1
+carbapenemase plasmid was conjugated from <em>Citrobacter freundii</em> into an <em>E. coli</em> recipient
+[13]. The prediction task we report on is therefore easier than the corresponding
+task in a community of mixed species. A second qualification applies to the evaluation
+itself: our held-out split is taken over snapshot pairs rather than over simulation runs, so
+it measures generalisation to new time windows within runs seen during training, and not to
+unseen runs, scenarios or species. Both restrictions should be kept in mind when reading the
+figures below (Sections 3, 5 and 6).</p>
+<p>Our contributions are:</p>
+<ol>
+<li>
+<p><strong>A per-edge, per-gene HGT prediction task grounded in recorded simulation events</strong>, with a
+   documented simulation whose biology exists in two explicitly versioned forms. Results are
+   reported on the corrected version (Section 3).</p>
+</li>
+<li>
+<p><strong>A GNN that outperforms a per-gene Random Forest baseline, under the evaluation described
+   above.</strong> On the four resistance genes our per-gene Random Forest baseline can be trained on
+   in every seed, the GNN reaches a test AUROC of 0.9777 ± 0.0023, against 0.9548 ± 0.0124 for
+   the Random Forest, and is better on all 5 of 5 seeds (Section 4). Both models are evaluated on
+   the same held-out snapshot pairs, so this is a like-for-like comparison between the two
+   approaches on this task; it is not evidence about either model's behaviour on unseen runs
+   or on interspecies transfer, neither of which we test.</p>
+</li>
+<li>
+<p><strong>Coverage of rare genes.</strong> Our per-gene Random Forest and logistic-regression baselines, as
+   implemented, need at least five positive examples in the training subsample they draw, and
+   that subsample is drawn per seed. Two genes fall below the threshold in every seed
+   (acrAB-tolC and gyrA_S83L, with 19 and 34 positive transfer events in the whole dataset),
+   and a third falls below it in three seeds of five (blaKPC-2, with 94). The GNN, trained
+   jointly on all genes, gives stable predictions for all three (Section 4). We note which is
+   which rather than treating them alike, and we flag that acrAB-tolC and gyrA_S83L are
+   chromosomal in real bacteria and are moved between neighbouring cells by our simulator as a
+   deliberate simplification, so their transfer events are not models of documented conjugative
+   transfer (Sections 3 and 5); blaKPC-2 carries no such caveat.</p>
+</li>
+<li>
+<p><strong>An honest account of where the signal comes from.</strong> Message passing over the contact graph
+   adds a small but consistent gain (+0.0031 ± 0.0014 AUROC, better on 5 of 5 seeds). The genes a
+   cell already carries are by far the most important input, while edge features and local
+   antibiotic exposure add no measurable signal in our setting. For antibiotic exposure this is
+   under our dosing protocol, in which drug is present for only 5 of the 80 simulated steps
+   (Section 4).</p>
+</li>
+<li>
+<p><strong>A reproducible pipeline</strong>: the simulation and training-data generation are seeded and
+   deterministic across processes (verified byte-for-byte for the frozen <code>paper_v1</code>
+   configuration), GPU training with the same seed reproduces test AUROC to within
+   2.1 × 10⁻⁴, and every reported number is a mean ± standard deviation over independent model
+   seeds (Section 3).</p>
+</li>
+</ol>
+<h1>2 Related Work</h1>
+<h2>2.1 Individual-based models of bacteria and plasmid transfer</h2>
+<p>Individual-based (agent-based) models represent each microbial cell explicitly. They have been
+used to study how the behaviour of individual cells gives rise to population-level patterns, from
+biofilms to phage–CRISPR dynamics [9]. General-purpose frameworks include iDynoMiCS,
+for individual-based modelling of biofilms [14], and BSim, an agent-based tool for
+bacterial populations in systems and synthetic biology [15].</p>
+<p>Several studies model plasmid transfer specifically.
+- Krone et al. present an individual-based lattice model of plasmid transfer and persistence
+  in spatially structured populations, and compare its predictions with agar-surface
+  experiments [10].
+- Merkey et al. extend an individual-based biofilm model with plasmid carriage and transfer
+  by individual cells. They use it to show, in silico, that growth-dependent conjugation
+  limits plasmid invasion of biofilms [6].
+- Seoane et al. use an individual-based experimental framework to estimate the main
+  parameters governing conjugation at the single-cell scale [5].
+- At a much coarser scale, the VERA model simulates the spread of resistance between people,
+  including transfer of resistance determinants from commensal gut bacteria to a pathogen
+  [16].</p>
+<p>These models use simulation to test mechanistic hypotheses about how plasmids and resistance
+spread. We use simulation for a different purpose: as a source of exactly labelled transfer
+events for training and evaluating a predictive model. This purpose carries a limitation that
+the work above does not share to the same degree. Krone et al., for example, compared their
+model against experiments. Our simulator's per-step transfer probabilities are not fitted to
+experimental conjugation data, and all of our results are within-simulation (Section 5).</p>
+<h2>2.2 Machine learning for resistance and gene-transfer prediction</h2>
+<p>Machine learning is increasingly used to predict antimicrobial resistance phenotypes from
+bacterial gene content and genome composition. A recent review notes that such models
+typically treat genes as independent predictors [17].</p>
+<p>Closer to our task, two lines of work predict the transfer of resistance genes rather than
+the resistance phenotype.
+- Ellabaan et al. identify putative horizontally transferred resistance genes and the
+  gene-exchange networks that disseminate them across bacterial genomes. They then use the
+  associated mobilisation elements to forecast where known resistance genes may spread
+  [18]. The confirmatory analysis in that paper was later revised in an Author
+  Correction.
+- Zhou et al. predict a network of recent HGT events between genomes from their functional
+  gene content [19]. An event is defined by near-identical DNA shared by distantly
+  related organisms. A random forest on functional profiles gave the best performance. A
+  baseline graph convolutional network performed similarly to it, and improved as
+  network-topology information was added.</p>
+<p>Both operate on real genomes. Transfers are therefore inferred from sequence similarity, at
+the level of genomes and over evolutionary time. Our task is defined at the level of
+individual cells and their contacts, over the next simulated time window, with labels taken
+from recorded events. The two settings trade off in opposite directions. Genome-level work
+has real data but indirect labels; ours has exact labels but simulated data.</p>
+<h2>2.3 Graph neural networks for antimicrobial resistance</h2>
+<p>Graph neural networks have recently been applied to resistance problems in which graph nodes
+are isolates or patients.
+- AMR-GNN treats each bacterial isolate as a node, connects isolates by genomic distance, and
+  predicts resistance phenotypes by node classification [20].
+- Donabauer et al. apply graph neural networks to time-dependent graphs of patient movements
+  within a hospital to identify carriers of vancomycin-resistant enterococci [21].
+- The graph convolutional network of Zhou et al. (Section 2.2) operates on a network of
+  genomes [19].</p>
+<p>Our graph is at a finer scale. Nodes are individual simulated bacterial cells, edges are
+spatial contacts between them, and the prediction target is defined per edge and per gene:
+whether a given resistance gene is transferred along a given contact. We use graph attention
+[11] for this.</p>
+<p>In the literature we reviewed, we did not find prior work that poses per-contact, per-gene HGT
+prediction among individual cells as a supervised learning problem. We position our
+contribution as bringing together the individual-based modelling of plasmid transfer
+(Section 2.1) and graph-based learning for resistance (Sections 2.2–2.3). We do not claim to
+identify a previously unstudied problem.</p>
+<h1>3 Methods</h1>
+<h2>3.1 Agent-based simulation</h2>
+<p>The simulator is an agent-based model built on Mesa 3.5.1. Bacteria occupy an 80 × 60
+multi-agent grid on which several cells may share a position. Each simulated step, every
+living cell updates its energy, its stress response and its persister state, takes antibiotic
+damage, attempts mutation, attempts gene transfer, updates its biofilm status, moves and
+attempts division, in that order.</p>
+<p>Five bacterial species are modelled (<em>Escherichia coli</em>, <em>Klebsiella pneumoniae</em>,
+<em>Acinetobacter baumannii</em>, <em>Pseudomonas aeruginosa</em> and methicillin-resistant
+<em>Staphylococcus aureus</em>), each with its own doubling time, baseline fitness, baseline mutation
+rate, biofilm propensity, motility, intrinsic resistance genes and a set of genes it may
+acquire. Ten resistance genes are modelled, drawn from CARD, spanning β-lactamases
+(blaTEM-1, blaCTX-M-15, blaKPC-2, blaNDM-1), efflux systems (mexAB-oprM, acrAB-tolC),
+target alteration (gyrA_S83L, mcr-1), ribosomal protection (tetM) and glycopeptide resistance
+(vanA); the corrected biology adds mecA as an eleventh. Six antibiotics are modelled
+(ciprofloxacin, meropenem, colistin, vancomycin, ampicillin, tetracycline), each as a
+concentration field over the grid that diffuses and decays.</p>
+<h3>3.1.1 Antibiotic action</h3>
+<p>A cell's protection against a drug is combined multiplicatively over its genes, as
+independent probabilities, and is then raised by biofilm membership and by the persister
+state. For a bactericidal drug, damage accrues each step as a sigmoid (Hill-type) function of
+the locally effective concentration,</p>
+<p>damage = E_max · C^n / (EC50^n + C^n),</p>
+<p>with EC50 set to the drug's minimum bactericidal concentration and, in the code,
+E_max = 0.3 and n = 2. Damage accumulates; a cell begins dying at 0.7 and dies at 1.0.
+Bacteriostatic drugs delay division instead of causing damage. <strong>E_max and the Hill
+coefficient are invented parameters:</strong> neither is taken from a cited source, and because no
+real duration is assigned to a simulated step, neither the damage rate nor the per-drug decay
+rates can be compared against measured pharmacokinetics. We report them as simulator
+settings, not as pharmacological estimates.</p>
+<h3>3.1.2 Horizontal gene transfer, and the four ways a cell gains a gene</h3>
+<p>Transfer is modelled as conjugation between neighbouring cells. A cell attempts transfer on a
+randomly chosen 30% of its steps. When it does, it considers every cell in its immediate
+(Moore radius 1) neighbourhood and, for each gene it carries, transfers that gene with
+probability</p>
+<p>p = acquisition_prob(gene) × (2 if the donor's SOS response is active) × m_biofilm,</p>
+<p>where m_biofilm is 4 when both cells are in a biofilm, 1.5 when one is, and 1 otherwise, and
+p is capped at 0.95. The recipient must not already carry the gene, and the gene must be in
+the recipient species' acquirable set. The biofilm multipliers follow the observation that
+biofilm matrices raise conjugation frequency; <strong>the per-gene <code>acquisition_prob</code> values
+(0.01–0.05 per step) and the 30% attempt rate are invented parameters with no cited source.</strong></p>
+<p>Three restrictions define the task, and all three must be read alongside the results:</p>
+<ol>
+<li><strong>Transfer is intraspecies only.</strong> A donor skips any neighbour of a different species, so
+   every cross-species contact is a negative example by construction. Real transfer of several
+   of these exact genes is documented across species and genera: the mcr-1 plasmid was
+   conjugated into <em>E. coli</em> and maintained in <em>K. pneumoniae</em> and <em>P. aeruginosa</em>
+   [12]; an NDM-1 plasmid was conjugated from <em>Citrobacter freundii</em> into an <em>E. coli</em>
+   recipient [13]; Tn916-borne tet(M) transferred from <em>Lactococcus lactis</em> to
+   <em>Enterococcus faecalis</em> in vitro and in a rat gut [22]. The task we evaluate
+   is therefore easier than transfer prediction in a mixed-species community.</li>
+<li><strong>Two genes are moved by a mechanism that is not their real one.</strong> gyrA_S83L is a
+   chromosomal target-site mutation, and quinolone resistance that <em>is</em> plasmid-borne is
+   carried by a different set of genes (qnr proteins, a modifying enzyme, mobile efflux pumps)
+   rather than by mobilised gyrA [23, 24]. acrAB-tolC is a chromosomal
+   RND efflux system, ubiquitous in the Gram-negative species that carry it, and resistance
+   arises by overexpression rather than by gaining the genes [25]. The simulator
+   nonetheless transfers both between neighbours. We label their transfer events a
+   <strong>simplified mechanism</strong> and do not present them as models of conjugative transfer.
+   (Plasmid-borne RND pump genes do exist [25]; what the model does that reality
+   does not is move a species' own resident AcrAB-TolC between cells of that species.)
+   vanA is simplified in a different way: it arises and spreads within MRSA, whereas the
+   documented route is interspecies transfer of Tn1546 from <em>E. faecalis</em> [26, 27], and <em>Enterococcus</em> is not modelled. vanA is reported separately throughout.
+   For gyrA_S83L we use the generic description "a gyrA target-site mutation": the gene object
+   carries CARD's <em>E. coli</em> gyrA entry but is available to three species in the model, and we
+   did not establish that the S83L substitution specifically is the dominant variant in all
+   three, so the particular variant modelled should be treated as unverified.</li>
+<li><strong>Two genes are never transferred, correctly.</strong> mexAB-oprM appears only as an intrinsic
+   gene and is in no species' acquirable set, so it has no transfer events by construction and
+   is excluded from evaluation. mecA is marked non-transferable because its real mobilisation
+   is by SCCmec, a mechanism the model does not implement; reusing conjugation for it would be
+   the wrong mechanism.</li>
+</ol>
+<p>Besides transfer, a cell can gain a gene by inheriting it at division, by starting with its
+species' intrinsic genes, or through a mutation step. The mutation step has a branch that adds
+a <strong>uniformly random gene from the species' acquirable set with no donor at all</strong>. This last
+route has no biological counterpart — an acquired gene must come from somewhere — and exists
+only to seed genes into the population. It matters for interpreting the results, because no
+acquired gene is present at initialisation, so every gene's first carrier arises this way.
+How readily a gene seeds therefore depends on the size of its species' acquirable set, on
+whether it has an additional seeding route, and on how many scenarios contain a species that
+can carry it; and however it seeds, the resulting count is then amplified by spread, so that
+the earlier a gene happens to seed, the more events it accumulates. <strong>The number of transfer
+events per gene is consequently an outcome of the seeding code and of chance rather than of
+gene epidemiology.</strong> Consistent with that, three of the genes in our dataset share the same
+species availability and near-identical transfer probabilities yet differ roughly two-fold in
+their event counts. We therefore do not interpret per-gene differences biologically anywhere
+in this paper.</p>
+<p>Only recorded transfer events produce the supervised labels; genes gained by the other three
+routes produce no label.</p>
+<h2>3.2 Two versioned biologies</h2>
+<p>The simulation's biology exists in two explicitly versioned forms, and we report on the
+corrected one.</p>
+<p><strong><code>paper_v1</code></strong> is the original configuration, frozen. A regression test checks that its
+simulated states and its generated training pairs are byte-identical to the pre-versioning
+code under more than one Python hash seed.</p>
+<p><strong><code>lab_v2</code></strong> is the corrected configuration and the one all reported results use. Its
+differences from <code>paper_v1</code>, each with the source that motivated it, are:</p>
+<table>
+<thead>
+<tr>
+<th>Change</th>
+<th>Basis</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MRSA's intrinsic gene is mecA rather than tetM</td>
+<td>CARD ARO:3000617 describes mecA (PBP2a) as commonly associated with MRSA; CARD ARO:3000186 describes tet(M) as found on transposable elements, and EUCAST Expected Resistant Phenotypes v1.2 does not list <em>S. aureus</em> as expected-resistant to tetracyclines</td>
+</tr>
+<tr>
+<td>acrAB-tolC removed from MRSA's acquirable set</td>
+<td>AcrAB-TolC is a Gram-negative tripartite system (CARD ARO:3000384)</td>
+</tr>
+<tr>
+<td>mecA is non-transferable</td>
+<td>SCCmec mobilisation is not modelled (§3.1.2)</td>
+</tr>
+<tr>
+<td><em>K. pneumoniae</em>'s blanket intrinsic acrAB-tolC replaced by species-level intrinsic resistance to ampicillin only</td>
+<td>EUCAST Expected Resistant Phenotypes v1.2 rule 1.7 lists the <em>K. pneumoniae</em> complex as expected resistant to ampicillin/amoxicillin and ticarcillin, not to ciprofloxacin or tetracycline; ticarcillin is not simulated</td>
+</tr>
+<tr>
+<td>Antibiotic diffusion conserves total drug</td>
+<td>Bug fix: the original applied a kernel that already summed to one and then rescaled the field, removing drug every step, which contradicts a diffusion process</td>
+</tr>
+<tr>
+<td>mecA fitness cost 0.275</td>
+<td>Ender et al. 2004, comparing the strains RA120 and BB255</td>
+</tr>
+</tbody>
+</table>
+<p>A known limitation carried by both versions is that decay rates are unvalidated against real
+pharmacokinetics, for the reason given in §3.1.1.</p>
+<p>We also note two residual issues we did not change, because changing them would alter the
+dataset: <em>A. baumannii</em> carries mexAB-oprM and acrAB-tolC as intrinsic genes although its
+characterised RND systems are AdeABC, AdeIJK and AdeFGH [28]; and blaTEM-1 is available
+only to <em>E. coli</em>, although it is common in <em>K. pneumoniae</em> [29].</p>
+<h2>3.3 Prediction task and dataset</h2>
+<h3>3.3.1 Graphs and labels</h3>
+<p>From a simulation snapshot we build a graph whose nodes are living cells (subsampled to at
+most 300 per snapshot with a seeded generator) and whose edges join pairs of cells within
+three grid cells of one another, added in both directions. Each node carries a 35-dimensional
+feature vector: ten binary gene-presence flags; five physiological values (fitness, energy,
+stress level, accumulated antibiotic damage, normalised age); two behavioural flags (biofilm
+membership, persister state); normalised position; three population descriptors (local
+density, generation, offspring count); a five-way species one-hot; a two-way Gram stain
+indicator; and the local concentration of each of the six drugs. Each edge carries five
+features: normalised shared-gene count, absolute fitness difference, a both-in-biofilm flag,
+absolute stress-level difference, and a coarsened proximity band with three levels
+(same cell / within three cells / farther).</p>
+<p>The edge radius of three is deliberately wider than the transfer radius of one. If the graph
+contained only transfer-eligible pairs, the existence of an edge would itself identify
+eligibility, which would put the label-generating gate back into the graph's topology.
+Including near-but-ineligible pairs under the same coarse proximity band prevents that.</p>
+<p>The target is defined per directed edge and per gene: did a recorded transfer of that gene
+occur from the source cell to the target cell within the snapshot window? Labels come from the
+simulator's own event log, recorded at the moment a transfer fires, and never from comparing
+genomes between snapshots. This distinction is necessary because a cell can gain a gene by
+mutation in the same window in which an eligible neighbour happens to carry it; inferring
+transfer from genome differences would label that as a transfer from a cell that had nothing
+to do with it.</p>
+<h3>3.3.2 Data generation</h3>
+<p>Each run initialises 120 cells, steps 15 times, then applies its scenario's drugs uniformly
+and continues to 80 steps, taking a snapshot every three steps and pairing consecutive
+snapshots. Under the corrected biology the dose is 0.25 µg/mL, cleared after five further
+steps; this time-limited course is an invented protocol, expressed in steps because no real
+step duration is defined. Five scenarios are used — <code>ecoli_cipro</code>,
+<code>klebsiella_carbapenem</code>, <code>pakistan_crisis</code>, <code>xdr_acinetobacter</code> and <code>mrsa_hospital</code> — each
+with three data seeds.</p>
+<p>The resulting dataset (SHA-256 <code>ee83ff385ca15ec9…</code>) contains 390 graph pairs,
+1,707,498 edges and 1,443 positive transfer events. Positives are distributed very unevenly
+across genes — blaCTX-M-15 480, tetM 420, mcr-1 179, blaNDM-1 177, blaKPC-2 94, vanA 35,
+gyrA_S83L 34, acrAB-tolC 19, blaTEM-1 5 and mexAB-oprM 0 — for the structural reason given in
+§3.1.2, not for any biological reason. Against ten gene outputs the positive rate is
+approximately 8.5 × 10⁻⁵ per edge-gene pair.</p>
+<h3>3.3.3 Splitting, and a caveat about it</h3>
+<p>Graph pairs are shuffled with a fixed seed and split 70% / 15% / 15% into training,
+validation and test sets. The same split seed is used by the neural model, by the baselines
+and by calibration, so that all of them are evaluated on the same held-out edges; this was not
+originally the case, and correcting it is part of the history in §3.4.</p>
+<p><strong>The split is over graph pairs, not over simulation runs.</strong> Because each run contributes
+roughly 26 pairs taken three steps apart, snapshots from one run — sharing its founding
+population, its seed and largely the same cells — can be distributed across training,
+validation and test. The held-out set therefore measures generalisation to new time windows
+of runs the model has seen, not to unseen runs, scenarios or species. This inflates the
+reported figures relative to a grouped split, and we state it here rather than leaving it to
+be inferred (see also Section 5, and Section 7.1 for what fixing it would involve).</p>
+<h2>3.4 Development history that affects the numbers</h2>
+<p>Two corrections separate the numbers reported here from earlier ones, and we record them
+because they change what the figures mean rather than merely improving them.</p>
+<p><strong>Label definition.</strong> Labels were originally inferred by comparing genomes between snapshots,
+which conflates transfer with independent mutation and produces positives attributable to a
+cell that did not donate anything. Labels now come from recorded events only.</p>
+<p><strong>Feature leakage.</strong> Four inputs were direct components of the rule that generates the label:
+the same-species edge flag and the raw edge distance (both hard preconditions for transfer),
+a transferable-gene count that mirrored the eligibility test almost exactly, and the SOS flag
+(the literal term that doubles the transfer probability). All four were removed. Node features
+went from 36 to 35 dimensions and edge features from 8 to 5. Raw distance was replaced by the
+coarsened proximity band described in §3.3.1, and the transferable-gene count by a plain
+shared-gene count. We confirmed which layout produced the earlier results by rebuilding the
+architecture under both: the pre-correction layout reproduces a parameter count of 349,370 and
+the corrected layout 349,162, matching the counts logged by the respective runs. Results
+obtained before these two corrections are not comparable with those reported here and are not
+reported. An audit file referenced in a source comment as holding the full leakage analysis is
+not present in the repository; §3.4 is the account of record.</p>
+<p>Separately, results obtained with the original default hyperparameters are superseded by the
+tuned configuration of §3.5, selected on the validation split.</p>
+<h2>3.5 Model</h2>
+<p>The model is a graph attention network [11]. Node features are encoded by one
+small linear encoder per feature group — genomic, physiological, behavioural, spatial,
+population, species, Gram stain, drug exposure — whose outputs are concatenated and projected
+to the hidden width, so that groups with different scales and meanings are not mixed by a
+single projection. Edge features are encoded separately by a two-layer network.</p>
+<p>Each message-passing block applies multi-head graph attention that takes the encoded edge
+vector as an edge attribute, followed by a residual connection and layer normalisation, then a
+position-wise feed-forward network with a further residual connection and normalisation. For
+each directed edge, a prediction head receives the source representation, the target
+representation and the encoded edge vector, and emits one logit per gene.</p>
+<p>The configuration used for all reported results, selected on the validation split, is: hidden
+width 128, edge encoding width 64, two attention blocks, four heads, dropout 0.15. Training
+uses binary cross-entropy with a positive-class weight of 15 to offset the extreme imbalance,
+AdamW at learning rate 10⁻³ with weight decay 10⁻⁴ and cosine annealing, gradient clipping at
+1.0, batch size 8, and at most 60 epochs. Early stopping watches validation AUROC with
+patience 12 and a minimum improvement of 10⁻³, but is suppressed for the first 20 epochs.</p>
+<p>That warm-up is not cosmetic. Without it, one seed stopped at epoch 13 because validation
+AUROC had peaked at epoch 1 — on an essentially untrained model — and had not yet recovered
+from a subsequent dip; the retained checkpoint was worse on every gene. The behaviour was
+reproducible on retraining, and the warm-up resolves it: that seed reaches the same range as
+the others, while a normally-behaved seed is unchanged. With the warm-up in place, every seed
+in the reported runs trained for 27 to 38 epochs with its best epoch between 15 and 32.</p>
+<p><strong>Edge features are zeroed in all reported runs.</strong> Tuned models with and without edge features
+were indistinguishable on the frozen biology, so the reported configuration does not use them.
+This should not be read as evidence that edge attributes are harmful; the one earlier result
+that appeared to show a cost was the early-stopping artefact described above.</p>
+<p><img alt="Figure 1: Model architecture, reference configuration" src="figures/fig2_architecture.png" /></p>
+<p><strong>Figure 1. Model architecture, reference configuration.</strong> Schematic of AMRResistanceGNN as configured for every reported result: node features (None-dim) through a per-group NodeEncoder to width 128, edge features (None-dim) through an EdgeEncoder to width None, then 2 graph-attention blocks (None heads, each with a residual connection, layer normalisation and a feed-forward sublayer), then a head that concatenates the two endpoint representations with the encoded edge vector and emits None per-gene logits for each directed edge. Edge features are zeroed in all reported runs, so that pathway is present but carries no information. The graph-free ablation removes the attention stack, leaving the encoders feeding the head directly, and costs 0.0031 ± 0.0014 headline AUROC (claim S4). Configuration read from <code>gnn_hparams</code> and <code>feature_dims</code>; layer structure from <code>ai/gnn_model.py</code>.</p>
+<h2>3.6 Baselines and ablations</h2>
+<p><strong>Per-gene classical baselines.</strong> Random forest and logistic regression are trained
+one-versus-rest per gene on the flattened concatenation of the two endpoint node vectors and
+the edge vector, using a seeded 100,000-edge subsample of the training edges. The random
+forest uses 300 trees, maximum depth 8 and balanced subsampling. A gene with fewer than five
+positives in that subsample cannot be trained and is scored 0.5 by construction. We keep this
+cutoff as it is: lowering it for the comparison would change the baseline rather than test it.</p>
+<p>Because the subsample is drawn independently for each seed, <strong>trainability is a per-seed
+property</strong>: two genes fall below the threshold in every seed, and a third falls below it in
+three seeds of five. The headline comparison is therefore computed on the four genes the
+random forest fits in <em>every</em> seed, so that no 0.5-by-construction score enters it. The genes
+it fits unreliably or never are reported separately under coverage, as a property of the
+approaches rather than folded into the same number.</p>
+<p><strong>Message-passing ablation.</strong> The same architecture with the attention blocks removed, so that
+node and edge encodings feed the prediction head directly, isolates the contribution of
+message passing.</p>
+<p><strong>Feature-group ablation.</strong> Groups of node features are zeroed one at a time to measure each
+group's contribution.</p>
+<h2>3.7 Evaluation</h2>
+<p>Genes are handled according to a fixed, pre-recorded policy. mexAB-oprM is excluded, having no
+transfer events by construction. vanA is evaluated but always reported separately and labelled
+a simplified mechanism. The headline macro average is taken over the remaining eight genes.
+One of those eight, blaTEM-1, has no positives in the test split (five in the whole dataset),
+so no model can be scored on it and the macro average is effectively over seven; we say so
+wherever the figure appears rather than implying eight evaluable genes.</p>
+<p>We report AUROC as the primary metric, since the positive rate makes accuracy uninformative,
+alongside AUPRC and expected calibration error. Every figure is a mean and standard deviation
+over five independent model seeds, with three seeds for the ablations; the seeds vary model
+initialisation and training, not the data. Per-gene AUROCs are reported as discrimination
+figures only, always with their positive counts, and are not interpreted as reflecting the
+relative mobility of real genes, for the reason given in §3.1.2.</p>
+<p>Data generation and training are seeded and deterministic across processes: identical
+simulated states and identical training pairs are produced under different Python hash seeds,
+which a regression test enforces for the frozen biology. Retraining the same seed on a GPU
+reproduces test AUROC to within 2.1 × 10⁻⁴.</p>
+<h1>4 Results</h1>
+<p>All figures are means and standard deviations over five independent model seeds (three for the
+ablations), on the held-out split described in Section 3.3.3. That split is over snapshot
+pairs rather than over runs, so throughout this section "test" means unseen time windows of
+runs that contributed training data, not unseen runs, scenarios or species. Unless stated
+otherwise, "headline AUROC" is the macro average over the eight genes fixed by the evaluation
+policy of Section 3.7, one of which (blaTEM-1) has no positives in the test split, so the
+macro is in practice over seven.</p>
+<h2>4.1 The GNN outperforms per-gene classical baselines</h2>
+<p>On the four genes the per-gene random forest can be trained on <strong>in every seed</strong> —
+blaCTX-M-15, blaNDM-1, mcr-1 and tetM — the GNN reaches a test AUROC of
+<strong>0.9777 ± 0.0023</strong> against <strong>0.9548 ± 0.0124</strong> for the random forest. The GNN is ahead on
+<strong>all five of five seeds</strong>. We treat this as the primary comparison, because it is the only
+one in which both models are actually fitted to the same genes in every run.</p>
+<p>The qualifier "in every seed" is doing real work here, and an earlier version of this analysis
+got it wrong. The baselines draw their 100,000-edge training subsample independently per seed,
+so a gene's trainability is a per-seed property rather than a fixed one. blaKPC-2, with 94
+positive events dataset-wide, clears the five-positive threshold in only two of the five
+seeds; in the other three the random forest scores it 0.5 by construction. Including it in
+this comparison — as we initially did — folds that construction artefact into the baseline's
+score, which is precisely what §4.1's closing paragraph says must not be done. It inflated the
+gap roughly threefold, from 0.023 to 0.079, and the tell was the baseline's implausibly large
+standard deviation, which turned out to be bimodal across seeds. blaKPC-2 is reported under
+coverage in §4.2 instead.</p>
+<p>The GNN's own headline macro, over the eight genes of the evaluation policy, is
+<strong>0.9805 ± 0.0012</strong>. Logistic regression reaches <strong>0.7096 ± 0.0359</strong> on the same headline
+macro.</p>
+<p>We deliberately do not quote a headline-macro <em>difference</em> between the GNN and the random
+forest. The random forest's headline macro is depressed by the genes it cannot reliably train,
+which are scored 0.5 by construction rather than by any prediction; a difference computed
+across all eight genes would therefore combine a genuine performance gap with a coverage gap
+and overstate the former. The two are reported separately: performance in this subsection, on
+the four genes both models always fit, and coverage in §4.2.</p>
+<p><img alt="Figure 2: Headline comparison, and where the per-gene baseline cannot be built" src="figures/fig4_model_comparison.png" /></p>
+<p><strong>Figure 2. Headline comparison, and where the per-gene baseline cannot be built.</strong> <strong>Panel A.</strong> Macro AUROC over the four genes the random forest fits in <em>every</em> seed (blaCTX-M-15, blaNDM-1, mcr-1, tetM): GNN 0.9777 ± 0.0023, random forest 0.9548 ± 0.0124, logistic regression 0.8359 ± 0.0658; the GNN is ahead on 5 of 5 seeds (claim S2). This set deliberately excludes blaKPC-2, because the baselines draw their 100,000-edge training subsample per seed and blaKPC-2 clears the five-positive threshold in only 2 of 5 seeds; including it would fold 0.5-by-construction scores into the baseline, which is the artefact claim U5 exists to keep out of a performance comparison. An earlier version of this analysis did include it and overstated the gap roughly threefold (0.079 against the correct 0.023). <strong>Panel B.</strong> Per-gene view of the same run, ordered as in the text, with each gene's total positive count. The dotted line marks 0.5, the score assigned when a gene cannot be fitted at all. acrAB-tolC (19 positives) and gyrA_S83L (34) are never fitted in any seed; blaKPC-2 (94) is fitted in 2 of 5, and the plotted random-forest bar for those three is a mean that includes those 0.5 scores, so it is a summary of availability rather than of skill. The GNN produces a stable prediction for every gene shown in every seed. Claims S2, S2b, U5. Values from <code>per_seed[*].per_gene_auroc</code> and <code>dataset.positives_per_gene</code>.</p>
+<h2>4.2 Coverage of genes the baselines cannot reliably train on</h2>
+<p>Our per-gene random forest and logistic-regression baselines require at least five positive
+examples for a gene within their 100,000-edge training subsample, and that subsample is drawn
+independently for each seed. Trainability is therefore a per-seed property, and it comes in
+degrees. The GNN, trained jointly on all ten gene outputs, produces stable predictions across
+all five seeds for every gene below:</p>
+<table>
+<thead>
+<tr>
+<th>Gene</th>
+<th>Positives</th>
+<th>Baselines trainable</th>
+<th>GNN test AUROC</th>
+<th>Random forest</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>acrAB-tolC*</td>
+<td>19</td>
+<td>0 of 5 seeds</td>
+<td>0.9986 ± 0.0018</td>
+<td>0.5 by construction, always</td>
+</tr>
+<tr>
+<td>gyrA_S83L*</td>
+<td>34</td>
+<td>0 of 5 seeds</td>
+<td>0.9977 ± 0.0006</td>
+<td>0.5 by construction, always</td>
+</tr>
+<tr>
+<td>blaKPC-2</td>
+<td>94</td>
+<td>2 of 5 seeds</td>
+<td>0.9564 ± 0.0021</td>
+<td>0.9611 and 0.8179 where it trains</td>
+</tr>
+</tbody>
+</table>
+<p>* transfer modelled by a simplified mechanism (Section 3.1.2).</p>
+<p>We state the tiers separately because they are not the same claim. For acrAB-tolC and
+gyrA_S83L the baseline is simply unavailable. For blaKPC-2 it is <em>unreliable</em>: it fits in two
+seeds out of five, and where it does fit it returns 0.9611 and 0.8179 — a spread of 0.14 on
+the same gene and the same data, against the GNN's 0.9564 ± 0.0021. The practical difference
+between a model that sometimes cannot be built and one that is built but varies this much is
+smaller than it looks, and blaKPC-2 is the cleaner illustration of the point, because unlike
+the other two it carries no mechanism caveat: it is a genuine plasmid-borne gene, mobilised by
+Tn4401 in reality as well as in our simulator.</p>
+<p>Three qualifications belong with these figures, and none is incidental.</p>
+<p>First, the counts. Nineteen, thirty-four and ninety-four positive events across the whole
+dataset are few, and the standard deviations above are over model seeds on a fixed split, so
+they do not reflect the sampling uncertainty that such counts imply. These AUROCs should not
+be read as precise.</p>
+<p>Second, the mechanism, for two of the three. acrAB-tolC and gyrA_S83L are chromosomal in real
+bacteria and are moved between neighbouring cells by the simulator as a deliberate
+simplification (Section 3.1.2), so their transfer events are not models of documented
+conjugative transfer. What their result demonstrates is a property of the learning setup — that
+joint training across genes yields usable predictions for targets too rare to fit
+individually — and not a biological finding about those genes. blaKPC-2 carries no such caveat.</p>
+<p>Third, this is a claim about our baselines as implemented, not about random forests. A
+different baseline design — a single multi-label forest, or a lower positive threshold — would
+face this differently, and we did not lower the threshold precisely because doing so would
+change the baseline rather than test it.</p>
+<p>With that scope stated, the coverage difference is a real advantage of the approach rather
+than an artefact of the comparison: it follows from training one model on all genes instead of
+one model per gene. It is a property of the baselines <em>as we implemented them</em>, namely
+one-versus-rest with a five-positive requirement, and not of random forests in general. We did
+not lower that threshold, since doing so would have changed the baseline rather than tested
+it.</p>
+<p>The GNN is evaluated on seven of the eight policy genes plus vanA separately. The eighth,
+blaTEM-1, has five positive events in the entire dataset and none in the test split, so no
+model of any kind can be scored on it; we report it as not evaluable rather than as a result.</p>
+<h2>4.3 Where the signal comes from</h2>
+<p><strong>Message passing contributes a small but consistent gain.</strong> Removing the attention blocks, so
+that node and edge encodings feed the prediction head directly, costs
+<strong>0.0031 ± 0.0014</strong> headline AUROC (0.9805 with message passing against 0.9774 ± 0.0006
+without). The direction is consistent across all five of five seeds. The effect is reliable
+and small: the graph-free model retains almost all of the performance, so most of what the
+model exploits is available from the two endpoint feature vectors alone rather than from the
+surrounding contact structure.</p>
+<p><strong>The genes a cell already carries dominate.</strong> Zeroing feature groups one at a time, only the
+genomic group matters appreciably: removing it costs <strong>0.0549 ± 0.0331</strong> headline AUROC
+(three seeds). Every other group changes the headline by less than ±0.003, which is within
+seed-to-seed variation and which we therefore do not interpret as an effect in either
+direction.</p>
+<p><strong>Local antibiotic exposure adds no measurable signal.</strong> Zeroing the six drug-concentration
+features changes the headline by <strong>+0.0001 ± 0.0001</strong> — that is, removing them does not hurt.
+This deserves an explicit caveat rather than a conclusion about antibiotic pressure: under our
+dosing protocol the drug is present for only five of the eighty simulated steps, so most
+snapshots carry no exposure to measure. The correct reading is that these features carry no
+signal <em>in this protocol</em>, not that antibiotic exposure is irrelevant to gene transfer.</p>
+<p><img alt="Figure 3: Feature-group ablation" src="figures/fig3_ablation.png" /></p>
+<p><strong>Figure 3. Feature-group ablation.</strong> Change in headline AUROC when each node-feature group is zeroed, mean ± SD over 3 seeds; more negative means the group contributed more. Only the carried-gene group matters: -0.0549 ± 0.0331. Every other group falls within ±0.003, which is inside seed-to-seed variation and is not interpreted as an effect in either direction — including antibiotic exposure, for which the drug is present in only 5 of the 80 simulated steps under this dosing protocol (claim U4). Full-model reference: 0.9807. Values from <code>ablation</code>. Claims S5, U4.</p>
+<h2>4.4 Calibration and precision–recall</h2>
+<p>Predicted probabilities are well calibrated, with an expected calibration error of
+<strong>0.0012 ± 0.0003</strong>.</p>
+<p>Headline AUPRC is <strong>0.0316 ± 0.0293</strong>. This is far above the base rate of approximately
+8.5 × 10⁻⁵ positives per edge-gene pair, so the ranking carries real information in absolute
+terms; but the standard deviation is nearly as large as the mean, so the figure is unstable
+across seeds and we do not treat it as a headline result. The instability is expected given
+how few positives the rarer genes contribute.</p>
+<h2>4.5 Per-gene discrimination</h2>
+<table>
+<thead>
+<tr>
+<th>Gene</th>
+<th>GNN test AUROC</th>
+<th>Positive events in dataset</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>acrAB-tolC</td>
+<td>0.9986 ± 0.0018</td>
+<td>19 — simplified mechanism</td>
+</tr>
+<tr>
+<td>gyrA_S83L</td>
+<td>0.9977 ± 0.0006</td>
+<td>34 — simplified mechanism</td>
+</tr>
+<tr>
+<td>mcr-1</td>
+<td>0.9908 ± 0.0011</td>
+<td>179</td>
+</tr>
+<tr>
+<td>tetM</td>
+<td>0.9805 ± 0.0033</td>
+<td>420</td>
+</tr>
+<tr>
+<td>blaNDM-1</td>
+<td>0.9755 ± 0.0039</td>
+<td>177</td>
+</tr>
+<tr>
+<td>blaCTX-M-15</td>
+<td>0.9642 ± 0.0030</td>
+<td>480</td>
+</tr>
+<tr>
+<td>blaKPC-2</td>
+<td>0.9564 ± 0.0021</td>
+<td>94</td>
+</tr>
+<tr>
+<td>blaTEM-1</td>
+<td>not evaluable</td>
+<td>5, none in the test split</td>
+</tr>
+</tbody>
+</table>
+<p><strong>We offer no biological interpretation of the ordering in this table, because the variation
+in it is confounded.</strong> Two confounds account for it without any appeal to gene biology.</p>
+<p>The first is <strong>sample size, and it runs opposite to the direction that would make the table
+interpretable</strong>. The positive counts span from 19 to 480, and the two highest AUROCs in the
+table belong to the two genes with the fewest positives (acrAB-tolC, 19; gyrA_S83L, 34), while
+the gene with by far the most positives (blaCTX-M-15, 480) sits near the bottom. A per-gene
+AUROC estimated from 19 positives is not comparable to one estimated from 480, and reading the
+ordering as a difficulty ranking would inverse-rank the genes by how much evidence supports
+each estimate.</p>
+<p>The second is the <strong>seeding artefact</strong> of Section 3.1.2. No acquired gene exists at
+initialisation, so each gene's count is set by how readily the donor-free mutation branch seeds
+it and by how early that happens, after which spread amplifies the result. These counts are not
+a monotonic function of the per-step transfer probabilities: blaKPC-2, blaNDM-1 and mcr-1 are
+available to the same species with probabilities of 0.02, 0.015 and 0.02, yet record 94, 177
+and 179 events. A roughly two-fold spread among otherwise matched genes is left unexplained by
+any parameter of the model, which is the clearest available indication that these counts are
+high-variance outcomes of the seeding process rather than stable properties of each gene.</p>
+<p>A gene's position in this table therefore reflects the simulator's seeding code, the timing of
+a chance event, and the amount of evidence behind its estimate — not the mobility of the
+corresponding real gene. We report the values for completeness and for comparison against
+future versions of the pipeline, and draw no per-gene conclusions from them.</p>
+<p><img alt="Figure 4: Per-gene discrimination, with positive-event counts" src="figures/fig1_per_gene_auroc.png" /></p>
+<p><strong>Figure 4. Per-gene discrimination, with positive-event counts.</strong> Per-gene test AUROC of the GNN, mean ± SD over 5 model seeds, each bar annotated with that gene's total positive transfer events in the dataset. <strong>The ordering is confounded, and runs opposite to the evidence behind it: the two highest-scoring genes are the two with the fewest positives — acrAB-tolC 0.9986 from 19 events and gyrA_S83L 0.9977 from 34 — while the best-evidenced gene, blaCTX-M-15 with 480 events, scores lowest at 0.9642.</strong> An AUROC estimated from 19 positives is not comparable to one estimated from 480, so this figure must not be read as a difficulty ranking over genes. Starred genes (acrAB-tolC, gyrA_S83L) are chromosomal in real bacteria and are transferred by the simulator as a labelled simplification (claim U10); vanA is likewise simplified (U6) and is excluded from the headline macro. blaTEM-1 (5 positives, none in the test split) and mexAB-oprM (0 positives, in no species' acquirable set) are not evaluable and are absent from the figure. Counts from <code>dataset.positives_per_gene</code>; AUROCs from <code>per_gene_auroc.gnn</code>. Claims S9, U6, U8, U10, U12.</p>
+<h2>4.6 vanA, reported separately</h2>
+<p>vanA reaches a test AUROC of 0.9988 on 35 positive events. It is excluded from the headline
+macro and reported here on its own, because the mechanism the simulator gives it is a
+simplification in two respects: the gene arises and spreads within MRSA, whereas the
+documented route is interspecies transfer of Tn1546 from <em>Enterococcus faecalis</em>, and
+<em>Enterococcus</em> is not modelled at all. This figure is a discrimination measurement on
+simulated events, not evidence about vancomycin resistance transfer.</p>
+<p>mexAB-oprM is excluded entirely: it is present only as an intrinsic gene, appears in no
+species' acquirable set, and therefore has zero transfer events by construction. There is
+nothing to predict and no score to report.</p>
+<h2>4.7 Reproducibility</h2>
+<p>Data generation and training are deterministic across processes. Identical simulated states
+and identical training pairs are produced under different Python hash seeds, which a
+regression test enforces byte-for-byte for the frozen <code>paper_v1</code> configuration. Retraining the
+same seed on a GPU reproduces test AUROC to within 2.1 × 10⁻⁴. Every figure in this section is
+a mean and standard deviation over independent model seeds, with the data held fixed, so the
+reported spreads capture variation from initialisation and training order and not from data
+generation.</p>
+<h2>4.8 Summary</h2>
+<p>The GNN discriminates simulated per-edge, per-gene transfer events well (headline AUROC
+0.9805 ± 0.0012) and beats a per-gene random forest on the four genes that baseline fits in
+every seed (0.9777 ± 0.0023 against 0.9548 ± 0.0124, on five of five seeds). Its advantage in
+coverage — stable predictions for genes the per-gene baselines fit unreliably or not at
+all — follows from joint training. Most of the signal is carried by the genes a cell already holds; message passing adds
+a small, consistent increment; edge features and local drug exposure add nothing measurable in
+this setting. What none of these figures establish is stated in Section 5: no external
+validation, a held-out split that does not test unseen runs, and an intraspecies-only
+transfer model.</p>
+<h1>5 Limitations</h1>
+<p>We group these by what they limit: the claims the numbers support (§5.1), the biology the
+simulator implements (§5.2), the parameters it uses (§5.3), and the history of the pipeline
+itself (§5.4). Several are consequences of decisions we would make differently in a future
+version, and we say so where that is the case rather than presenting each as an inherent
+constraint.</p>
+<h2>5.1 What the evaluation does and does not establish</h2>
+<p><strong>No external validation.</strong> Every number we report is internal to the simulator: the labels
+are its own recorded transfer events, and the model is never tested against real genomic data.
+We attempted such a validation and it is not functional. The public isolate collections we
+obtained are antimicrobial-resistance <em>phenotype</em> tables with no per-isolate gene calls, so the
+comparison degenerates — gene prevalences collapse to 1.0 or 0.0 and the rank correlation is
+undefined. A meaningful comparison requires re-annotating assemblies with a resistance-gene
+caller to obtain the gene-level calls the model predicts over. We scope that as future work
+and make no claim of external validity here. Consequently nothing in this paper should be read
+as a clinical or epidemiological prediction.</p>
+<p><strong>The held-out split does not test unseen simulations.</strong> We split graph pairs, not simulation
+runs. Each run contributes roughly twenty-six snapshot pairs three steps apart, and those pairs
+are distributed across training, validation and test, so a test pair typically comes from a run
+whose other windows were trained on — sharing its founding population, its random seed and
+largely the same individual cells. The reported figures therefore measure generalisation to
+unseen <em>time windows within seen runs</em>, and not to unseen runs, unseen scenarios or unseen
+species. This inflates them relative to a grouped split. A by-run or by-scenario split is the
+correct design, and we did not adopt it; doing so would change every number in Section 4 and
+requires a full regeneration, which we identify as the single most important change for a
+future version.</p>
+<p><strong>The comparison is between our implementations, not between model families.</strong> Our per-gene
+random forest and logistic-regression baselines are one-versus-rest with a five-positive
+training requirement, applied to a subsample drawn independently per seed. Two genes fall below
+it in every seed and a third in three seeds of five; in those cases the baseline is scored 0.5
+by construction. This is a
+property of how we implemented those baselines, not a limitation of random forests, and we do
+not claim otherwise. We kept the threshold rather than lowering it, because lowering it would
+have produced a different baseline rather than a fairer test of this one — but the consequence
+is that the coverage difference in §4.2 speaks to a design choice we made about the baselines
+as much as to the GNN.</p>
+<p>For the same reason we do not quote a macro-averaged difference between the GNN and the random
+forest across all eight policy genes. Such a difference would combine a performance gap on the
+genes both models fit with a coverage gap on the genes only one model fits, and would
+substantially overstate the former. The two are reported separately throughout.</p>
+<p><strong>One gene cannot be evaluated at all.</strong> blaTEM-1 has five positive events in the entire
+dataset and none in the test split, so no model can be scored on it. The headline macro,
+nominally over eight genes, is in practice over seven. This is not a property of the gene: the
+simulator makes blaTEM-1 available only to <em>E. coli</em>, although it is in fact common in
+<em>Klebsiella pneumoniae</em> — one survey found it in the great majority of its carbapenemase-
+producing <em>K. pneumoniae</em> isolates [29] — and widening its availability would very
+likely make it evaluable. We report it as not evaluable rather than reporting a figure.</p>
+<p><strong>Per-gene results are not interpretable as biology.</strong> As set out in §4.5, per-gene AUROCs are
+confounded both by sample size, which spans from 19 to 480 positives and runs opposite to the
+AUROC ordering, and by the seeding mechanism described below. We report them as discrimination
+measurements only.</p>
+<p><strong>Reported spreads are over model seeds, not over data.</strong> Every mean and standard deviation in
+Section 4 varies model initialisation and training order with the dataset held fixed. They
+therefore describe the stability of training, not sampling uncertainty in the dataset, and they
+understate total uncertainty — most sharply for the genes with the fewest positive events,
+where the sampling component is largest and is not represented at all.</p>
+<h2>5.2 What the simulated biology omits or simplifies</h2>
+<p><strong>Transfer is intraspecies only.</strong> A gene never crosses a species boundary in our simulator, so
+every cross-species contact is a negative example by construction. This excludes the route that
+matters most in the literature on these genes: the mcr-1 colistin-resistance plasmid was
+conjugated into <em>Escherichia coli</em> and maintained in <em>Klebsiella pneumoniae</em> and <em>Pseudomonas
+aeruginosa</em> [12]; an NDM-1 carbapenemase plasmid was conjugated from <em>Citrobacter
+freundii</em> into an <em>E. coli</em> recipient [13]; Tn916-borne tet(M) transferred from
+<em>Lactococcus lactis</em> to <em>Enterococcus faecalis</em> both in vitro and in a rat gut
+[22].</p>
+<p>The consequence is one of absence rather than of class balance, and it is worth stating
+precisely because the intuitive version is wrong. One might expect this restriction to flood the
+negative class with cross-species pairs that are rejectable from species identity alone. It does
+not: only 0.275% of contacts in our dataset are cross-species (4,696 of 1,707,498), they occur in
+only one of the five scenarios, and none of them carries a transfer. Four scenarios contain a
+single species, and in the mixed scenario the two populations are seeded as separate spatial
+clusters that seldom come within contact range. What follows instead is that the interspecies
+case is effectively absent from the data: the model is evaluated almost entirely on
+within-species pairs, it has not been shown to do anything at all on interspecies transfer, and
+our metrics cannot register that omission. That is the case of greatest practical interest, and
+we have no evidence about it either way.</p>
+<p><strong>Three of the eleven genes move by a mechanism that is not their real one.</strong> We label these
+simplified mechanisms rather than leave them implicit.</p>
+<ul>
+<li><em>gyrA_S83L</em> is a chromosomal target-site mutation. Quinolone resistance that is genuinely
+  plasmid-borne is carried by a different set of determinants — qnr proteins, a
+  quinolone-modifying acetyltransferase, and mobile efflux pumps — not by mobilised <em>gyrA</em>
+  [23, 24]. Our simulator both mutates it into existence, which is right,
+  and transfers it between neighbours, which is not. Additionally, the gene object carries
+  CARD's <em>Escherichia coli gyrA</em> entry while being available to three species in the model; we
+  therefore describe it generically as a <em>gyrA</em> target-site mutation and treat the specific
+  variant modelled as unverified across those species.</li>
+<li><em>acrAB-tolC</em> is a chromosomal RND efflux system, ubiquitous in the Gram-negative species
+  that carry it, and clinical resistance arises through overexpression rather than through
+  acquiring the genes [25]. The simulator transfers it between cells of a species
+  that already universally possesses it. We note for completeness that plasmid-borne RND pump
+  genes do exist [25], so transferring <em>an</em> efflux pump is not in itself
+  unrealistic; what is unrealistic is moving a species' own resident system between its cells.</li>
+<li><em>vanA</em> arises and spreads within MRSA in our model, whereas the documented route is
+  interspecies transfer of Tn1546 from <em>Enterococcus faecalis</em> to <em>Staphylococcus aureus</em>
+  [26, 27], and <em>Enterococcus</em> is not modelled. vanA is reported separately from
+  the headline throughout.</li>
+</ul>
+<p>These three genes are exactly the ones whose results are most easily over-read: two of them
+are the rare genes behind the coverage claim in §4.2, and the third posts the highest AUROC of
+any gene. Their figures measure the learning setup, not resistance biology.</p>
+<p>Two further genes are handled by <em>not</em> transferring them, which is correct but is itself a
+simplification: mexAB-oprM exists only as an intrinsic gene and so has no events to predict,
+and mecA is marked non-transferable because SCCmec mobilisation is a mechanism the simulator
+does not implement and conjugation is the wrong substitute for it.</p>
+<p><strong>A residual species-level error we did not correct.</strong> <em>Acinetobacter baumannii</em> carries
+mexAB-oprM and acrAB-tolC as intrinsic genes, whereas its characterised RND efflux systems are
+AdeABC, AdeIJK and AdeFGH [28]; MexAB-OprM belongs to <em>P. aeruginosa</em>. We traced the
+consequences and could identify no effect on the reported numbers — neither gene is in
+<em>A. baumannii</em>'s acquirable set, so neither can spread among those cells, and the only drug in
+the scenario that features this species is one that acrAB-tolC does not cover. We nonetheless
+record it rather than correcting it silently, because correcting it would change the dataset.</p>
+<p><strong>Genes appear from nowhere, and this shapes the dataset.</strong> No acquired gene is present at
+initialisation, so each one enters the population through a mutation branch that adds a
+uniformly chosen gene from the species' acquirable set with no donor at all. Real acquired genes
+must come from somewhere; this route exists only to seed the simulation. Because every gene's
+first carrier arises this way, the number of transfer events per gene is an outcome of the
+seeding code and of chance rather than of gene biology, as §4.5 sets out — and among three
+genes matched on species availability and near-matched on transfer probability, event counts
+still differ roughly two-fold.</p>
+<p><strong>Other simplifications carried from the simulator.</strong> Cells with no resistance genes receive
+neither biofilm nor persister protection, because protection is computed from gene-derived
+resistance before those modifiers are applied; this affects the species that begin with no
+intrinsic genes. Only bacteria are modelled, so no plasmid host range, no phage, and no
+environmental reservoir appears. Species composition is fixed per scenario.</p>
+<h2>5.3 Invented and unvalidated parameters</h2>
+<p>Several quantities that look like measurements are not, and we label them explicitly rather
+than let a reader assume provenance from context.</p>
+<ul>
+<li><strong>Per-gene transfer probabilities</strong> (0.01–0.05 per step) have no cited source, and neither
+  does the rule that a cell attempts transfer on a randomly chosen 30% of its steps.</li>
+<li><strong>The biofilm conjugation multipliers</strong> are motivated by the general finding that biofilm
+  matrices raise conjugation frequency, but the specific multipliers we use are chosen, not
+  measured.</li>
+<li><strong>The antibiotic damage function's shape parameters</strong> — a maximum effect of 0.3 and a Hill
+  coefficient of 2 — are hard-coded, with the half-maximal concentration set to each drug's
+  minimum bactericidal concentration. Only the last of these derives from drug data.</li>
+<li><strong>The dosing protocol</strong> — 0.25 µg/mL cleared after five steps — is an invented protocol. It
+  is expressed in simulation steps because no real duration is assigned to a step.</li>
+<li><strong>Per-drug decay rates</strong> are unvalidated against pharmacokinetic data. Since no step
+  duration is defined, they cannot even be compared with published half-lives. Assigning a
+  real step duration and sourcing per-drug half-lives is identified future work.</li>
+</ul>
+<p>The absence of a defined step duration is the common thread: it means no rate in the simulator
+can currently be checked against a measured rate. It also bears on the antibiotic-exposure
+ablation in §4.3, where drug is present for only five of eighty steps, so the finding that
+exposure features add no measurable signal holds for this protocol and should not be
+generalised.</p>
+<h2>5.4 Pipeline history that bears on interpretation</h2>
+<p>We record two corrections because they change what earlier figures meant, not merely how large
+they were.</p>
+<p>Labels were originally inferred by comparing genomes between consecutive snapshots. That
+conflates transfer with independent mutation and can attribute a gene's appearance to a
+neighbour that donated nothing. Labels now come only from events recorded at the moment a
+transfer fires.</p>
+<p>Four model inputs were direct components of the rule that generates the label: the
+same-species edge flag and the raw edge distance, both hard preconditions for transfer; a
+transferable-gene count that mirrored the eligibility test; and the SOS flag, the literal term
+that doubles the transfer probability. A model given these features can partly read the label
+off its own inputs. All four were removed, taking node features from 36 to 35 dimensions and
+edge features from 8 to 5. We verified which layout produced the earlier results by rebuilding
+the architecture under both and matching the parameter counts recorded in the training logs.
+Figures produced before these two corrections are not comparable with those reported here, and
+we do not report them. We also note that a file referenced in the source as containing the
+full leakage audit is not present in the repository, so the account in Section 3.4 is the
+record.</p>
+<p>Finally, a single simulator produced every result in this paper. The task, the feature
+definitions and the labels all derive from one implementation of one set of modelling
+decisions, many of them listed above. Performance figures obtained this way describe a model's
+fit to that implementation. Whether the approach transfers to another simulator, let alone to
+real populations, is untested, and §5.1's first point applies: no external validation exists
+yet.</p>
+<h1>6 Discussion</h1>
+<h2>6.1 What the headline number does and does not demonstrate</h2>
+<p>A headline AUROC of 0.9805 ± 0.0012 invites a stronger reading than our experiments support,
+so it is worth being precise about what produced it.</p>
+<p>Three of our own results, taken together, suggest that most of the achievable performance
+comes from the pair of endpoint feature vectors rather than from the surrounding contact
+structure. Removing message passing entirely costs 0.0031 ± 0.0014 — consistent in direction
+across every seed, and therefore real, but small enough that a model with no graph
+convolution at all retains nearly all of the performance. Zeroing feature groups one at a time
+shows a single group that matters: the genes a cell already carries, at 0.0549 ± 0.0331, with
+every other group inside ±0.003. And edge features are zeroed in the reported configuration
+without measurable cost.</p>
+<p>The likeliest explanation is that transfer in our simulator requires the donor to carry the gene
+and the recipient to be able to acquire it, and both conditions are readable from the two
+endpoint gene vectors. That would account for the genomic group dominating and for the contact
+graph adding little.</p>
+<p>It is worth ruling out a tempting but incorrect second explanation, since we entertained it
+ourselves. Because transfer is intraspecies only, one might expect the negative class to be
+padded with cross-species contacts that any model can reject from the species one-hot alone.
+We measured this and it is not so: only 0.275% of contacts in our dataset are cross-species
+(4,696 of 1,707,498), they arise in only one of the five scenarios, and none of them carries a
+transfer. Four of the five scenarios contain a single species, and in the one mixed scenario the
+two populations are seeded as separate spatial clusters that rarely come within contact range.
+The intraspecies restriction therefore does <em>not</em> make the task easier by supplying easy
+negatives; what it does instead is make the interspecies case effectively absent from the
+evaluation, so the model is assessed almost entirely on within-species discrimination (§6.4).</p>
+<p>Combined with a held-out split taken over snapshot pairs rather than over runs — so that test
+windows come from runs the model trained on — the natural reading of 0.98 is that <strong>the task as
+we posed it is substantially easier than the phrase "predicting horizontal gene transfer"
+suggests</strong>, not that the model has acquired a deep representation of conjugation. Note that the
+"easier" here rests on the label structure and the split, not on the class-balance argument we
+just rejected.</p>
+<p>We think this matters beyond our own paper. High discrimination on a simulator-derived task is
+easy to report and hard to interpret, because the task's difficulty is set by modelling
+decisions that are invisible in the metric. Our own pipeline supplies the cautionary example:
+before we removed four inputs that were literal components of the label-generating rule, the
+same architecture scored higher than it does now. The number improved when the experiment got
+worse.</p>
+<h2>6.2 What the results do support: joint training across genes</h2>
+<p>The result we consider most robust is also the one least dependent on the graph. Our per-gene
+baselines cannot be fitted for genes with fewer than five positive examples in the training
+subsample they draw, and because that subsample is drawn per seed, two genes fall below the
+line in every seed and a third falls below it in three seeds of five. A single model trained
+jointly on all ten gene outputs produces stable predictions for all of them. That advantage follows from parameter sharing
+across a multi-label output, not from message passing — the graph-free variant would inherit
+it too.</p>
+<p>This connects to a known weakness of the per-gene approach in the wider literature: a recent
+review of machine learning for resistance prediction notes that such models typically treat
+genes as independent predictors [17]. Our setting makes the cost of that assumption
+concrete and measurable, because the rare targets are exactly the ones a per-gene model cannot
+reach. The mechanism is mundane — shared representations let common genes subsidise rare ones —
+but for a problem where the interesting determinants are often the rare ones, it is the part of
+our design we would keep.</p>
+<p>Two caveats travel with it, and neither is optional. The genes concerned have 19, 34 and 94
+positive events in the whole dataset, so their AUROCs are imprecise in a way that seed-to-seed
+standard deviations do not capture. And two of the three are chromosomal in real bacteria and
+are moved by our simulator as a deliberate simplification, so for those the result demonstrates
+a property of the learning setup and not a fact about the genes. The third, blaKPC-2, carries
+no mechanism caveat, which makes it the cleanest case: a genuine plasmid-borne gene that the
+per-gene baseline fits in two seeds out of five, returning 0.9611 and 0.8179 where it does fit,
+against a jointly trained model that returns 0.9564 +/- 0.0021 every time.</p>
+<h2>6.3 Relation to prior approaches</h2>
+<p>The closest prior work predicts horizontal transfer between <em>genomes</em>: Zhou et al. infer recent
+transfer events from near-identical sequence shared by distantly related organisms and predict
+the resulting network from functional gene content, finding that a random forest on functional
+profiles performs best and that a graph convolutional network performs comparably, improving as
+network topology is added [19]. Recent graph neural network work on resistance operates
+at the isolate or patient level, classifying nodes that are whole isolates connected by genomic
+distance [20].</p>
+<p>Our formulation sits at a different scale — individual cells, their momentary contacts, and a
+specific next time window — and the trade is explicit. Genome-level work has real data and
+indirect labels, inferred from sequence similarity over evolutionary time. We have exact labels
+and simulated data. Neither is a substitute for the other, and our numbers are not comparable
+with theirs: different unit of prediction, different notion of an event, different data. We draw
+no comparison of magnitudes anywhere in this paper.</p>
+<p>It is worth noting that the direction of our own ablation echoes theirs. In their setting a
+non-graph model matched or beat the graph model on functional features; in ours, removing
+message passing costs 0.003. Two studies at different scales both finding limited benefit from
+graph structure is weak evidence, but it points the same way, and we would rather record it
+than present message passing as more load-bearing than it is.</p>
+<h2>6.4 The interspecies gap</h2>
+<p>The restriction we consider most limiting is that a gene never crosses a species boundary in
+our simulator. The literature on the very genes we model is largely about transfers that do:
+the mcr-1 plasmid conjugated into <em>Escherichia coli</em> and maintained in <em>Klebsiella pneumoniae</em>
+and <em>Pseudomonas aeruginosa</em> [12], an NDM-1 plasmid conjugated from <em>Citrobacter
+freundii</em> into <em>E. coli</em> [13].</p>
+<p>This is not a gap that a better model closes. It is a gap in the simulator, and it propagates
+into the task, the labels and the evaluation: a model trained where cross-species contacts are
+always negative has had no opportunity to learn anything about the case of greatest practical
+interest, and our metrics cannot detect that it has not. Adding interspecies transfer means
+deciding, per gene, which species boundaries it can cross and at what rate — which is a
+modelling problem requiring sourced host-range information rather than a parameter to tune. We
+regard it as the most valuable extension, and the one most likely to reduce the headline
+numbers, which we would treat as the experiment working rather than failing. Section 7.3
+sets out what it would take.</p>
+<h2>6.5 On calibration and precision–recall</h2>
+<p>Two secondary results deserve a brief, honest reading. Predicted probabilities are well
+calibrated (expected calibration error 0.0012 ± 0.0003), which is useful if such a model were
+ever to inform a ranking, but calibration on a simulator's own events says nothing about
+calibration against reality. Headline AUPRC is far above the base rate yet has a standard
+deviation nearly equal to its mean, so we treat it as evidence that the ranking carries
+information and not as a stable performance figure. Under extreme class imbalance the
+precision–recall summary is dominated by the handful of genes with the fewest positives, which
+is precisely where our dataset is least informative.</p>
+<p>Finally, the finding that local antibiotic exposure adds no measurable signal should not be
+read as a claim about selection pressure. Under our protocol the drug is present for five of
+eighty steps. The honest conclusion is that these features carry no signal in this protocol,
+and that a protocol with sustained exposure would be needed to say anything more.</p>
+<h1>7 Future Work</h1>
+<p>Each item below states what it would change about this paper's claims and roughly what it
+costs. Items 1 and 5 are the two we would do first, for different reasons: item 1 is cheap and
+changes how every number should be read, and item 5 removes a simplification that currently
+undercuts the result we most want to stand.</p>
+<p>Two costs recur, so we state them once. A full regeneration and retrain of the reference
+result set took <strong>3,510 s (about one hour)</strong> on a single CUDA GPU, as recorded in the results
+file, plus a few minutes of data generation. That is cheap enough that none of these items is
+blocked by compute; what they cost is design work, literature work, and in three cases the
+invalidation of every number in Section 4. Person-day figures are our estimates, not
+measurements.</p>
+<h2>7.1 Split by run or by scenario, not by snapshot pair</h2>
+<p><strong>What it changes.</strong> This is the only item that changes the paper's numbers without changing
+the simulator, and the only one that changes what those numbers <em>mean</em> rather than what they
+measure. Every figure in Section 4 is currently computed on a split over snapshot pairs, so it
+reports generalisation to unseen time windows of runs seen in training (U13). A grouped split
+would replace S1–S9 with figures that answer the question a reader assumes is being answered.
+We expect them to be lower; that is the point.</p>
+<p><strong>What it takes.</strong> The code change is small. <code>split_dataset</code> shuffles pairs; it would group by
+run instead. The run identity is not currently in a graph's metadata — which carries step,
+scenario, node and edge counts — so <code>collect_training_snapshots</code> would need to stamp each pair
+with its scenario and data seed first. That is perhaps half a day.</p>
+<p><strong>The real obstacle is that fifteen runs is too few to group.</strong> Five scenarios × three data
+seeds, split 70/15/15 by run, leaves about ten training runs and three test runs, which is too
+coarse for a stable estimate and would make the reported standard deviations largely a
+statement about which three runs landed in the test fold. Doing this properly means generating
+more runs — on the order of ten data seeds per scenario, so fifty runs — and reporting either
+leave-one-scenario-out (five folds, which also measures transfer to an unseen population
+composition) or leave-one-seed-out. At roughly ten seconds per run, the extra data generation
+is minutes; the retraining is five folds × five model seeds, so a handful of hours at the
+recorded rate.</p>
+<p><strong>Estimated effort:</strong> 2–3 person-days plus a few hours of compute. <strong>Consequence:</strong> S1–S9 are
+superseded; U13 is resolved.</p>
+<h2>7.2 Per-gene transfer mobility</h2>
+<p><strong>What it changes.</strong> The simulator applies one mechanism — conjugation between same-species
+neighbours — to every gene, regardless of how that gene actually moves. Fixing this would
+resolve U10 and the vanA half of U6, and would let per-gene results be read as something other
+than an artefact.</p>
+<p><strong>It would also remove the demonstration behind our coverage claim, which is why we rank it
+second.</strong> Two of the three genes in S2b, acrAB-tolC and gyrA_S83L, are exactly the ones whose
+transfer is a simplification. (The third, blaKPC-2, is unaffected and would survive the change,
+which softens this consequence but does not remove it.) If gyrA_S83L becomes mutation-only and acrAB-tolC becomes
+regulation-only — which is what the sources in §5.2 imply — then both drop out of the transfer
+label set, and the finding that joint training reaches genes the per-gene baselines cannot fit
+needs a new demonstration. blaTEM-1 is the natural candidate (5 positives, currently not
+evaluable; see item 6), but the claim would have to be re-earned rather than carried over. We
+would rather discover that now than have a reader discover it later.</p>
+<p><strong>What it takes.</strong> The design work is deciding what mechanisms to model and how each one moves:
+a conjugative plasmid (what the model already does), a conjugative transposon such as the Tn916
+that carries tet(M), a chromosomal point mutation that should not transfer at all, a
+regulatory-overexpression route for resident efflux systems, and a mobile genomic island such
+as SCCmec for mecA. Each needs a rate and a host range with a source rather than a chosen
+number. The code change is contained — <code>_attempt_hgt</code> already consults a per-gene
+<code>non_transferable</code> set, so the extension is a per-gene mechanism tag and a branch per
+mechanism.</p>
+<p><strong>Estimated effort:</strong> 1–2 person-weeks, most of it sourcing per-gene mechanism parameters,
+plus a regeneration. <strong>Consequence:</strong> U10 resolved, U6 partly resolved, S2b needs
+re-demonstration, all of Section 4 regenerated.</p>
+<h2>7.3 Interspecies transfer</h2>
+<p><strong>What it changes.</strong> This is the largest scope restriction in the paper. Transfer is currently
+intraspecies only, so the interspecies case that dominates the literature on these genes is
+absent from the task, the labels and the evaluation (U11), and our measurements cannot detect
+that absence — only 0.275% of contacts in our dataset even cross a species boundary (S10).
+Adding it would make the task match the phenomenon the paper names, and would very likely lower
+the headline figures, since the model would face a class of positives it has never seen.</p>
+<p><strong>What it takes.</strong> Not a parameter sweep. It requires deciding, per gene, which species
+boundaries it can cross and at what relative rate, which is a literature question: plasmid
+incompatibility groups and documented host ranges, the kind of evidence cited in §5.2 for
+mcr-1, NDM-1 and tet(M). It also interacts with scenario design, because four of the five
+current scenarios contain a single species and the fifth seeds its two species as separate
+spatial clusters that seldom touch (S10) — so scenarios with genuinely mixed, spatially
+interleaved populations would be needed for interspecies contacts to be common enough to learn
+from. That is a scenario-design change as much as a mechanism change.</p>
+<p><strong>Estimated effort:</strong> 2–3 person-weeks, dominated by host-range sourcing and scenario redesign,
+plus a regeneration. <strong>Consequence:</strong> U11 resolved; S10 no longer describes the dataset; every
+figure in Section 4 regenerated on a harder task.</p>
+<h2>7.4 External validation against real gene calls</h2>
+<p><strong>What it changes.</strong> U7 currently says no external validation exists. Our attempt failed for a
+data reason: the isolate collections we obtained carry resistance phenotypes, not per-isolate
+gene calls, so gene prevalences collapse and the rank correlation is undefined. Re-annotating
+assemblies with a resistance-gene caller such as ResFinder or AMRFinderPlus would supply the
+gene-level ground truth the pipeline needs.</p>
+<p><strong>What it would and would not validate, which we think matters more than the effort.</strong> A static
+collection of annotated genomes contains no transfer events, so it cannot validate the
+predictor. What it can validate is the <em>simulator</em>: whether the gene prevalences and
+co-occurrence patterns our populations produce resemble those in real isolates of the same
+species. That is worth doing — it is the difference between a simulator nobody has checked and
+one whose output distributions have been compared against reality — but it should be reported as
+validation of the data-generating process, not of the model, and we would be explicit about
+that. Validating the <em>predictions</em> would need observed transfer events, which means either
+longitudinal sampling with strain tracking or transfer networks inferred from sequence
+similarity, as in the genome-level work discussed in §6.3. We regard that as a separate study.</p>
+<p><strong>Estimated effort:</strong> about 1.5 person-weeks for the simulator-distribution comparison, matching
+our earlier scope for the re-annotation work, and substantially more for anything that validates
+the predictor. <strong>Consequence:</strong> U7 partly resolved, with the scope of the resolution stated
+precisely.</p>
+<h2>7.5 A defined step duration, and sourced pharmacokinetics</h2>
+<p><strong>What it changes.</strong> No simulated step is assigned a real duration anywhere in the code, and
+that single omission blocks every pharmacological comparison: per-drug decay rates cannot be
+checked against measured half-lives, the damage function's shape parameters cannot be checked
+at all, and the dosing protocol is necessarily arbitrary rather than a modelled course of
+treatment (§5.3). Fixing it would let several invented parameters be replaced with sourced ones.</p>
+<p><strong>What it takes.</strong> A calibration decision and then literature work. The natural anchor is
+growth: the model already assigns each species a doubling time in steps, so fixing a real
+doubling time for one species fixes the step. That choice is itself a claim needing a source and
+a stated growth condition, since doubling times vary widely with medium and temperature. Given a
+step duration, per-drug half-lives convert to per-step decay rates directly, and the dosing
+protocol can be restated as a real concentration over a real interval. We would treat the whole
+item as a biology change requiring sourced values rather than chosen ones.</p>
+<p><strong>Estimated effort:</strong> 3–5 person-days of sourcing and calibration, plus a regeneration.
+<strong>Consequence:</strong> several entries in §5.3 move from invented to sourced; the antibiotic-exposure
+result (U4) becomes testable under a realistic course rather than one lasting five of eighty
+steps.</p>
+<h2>7.6 A seeding mechanism with a biological counterpart</h2>
+<p><strong>What it changes.</strong> Acquired genes currently enter the population through a mutation branch
+that adds a random gene from a species' acquirable set with no donor at all. Nothing in reality
+corresponds to this, and it is the reason the per-gene positive counts cannot be interpreted
+(U12) and the reason blaTEM-1 is not evaluable (U8). Replacing it — with a small seeded carrier
+population, or an environmental reservoir from which genes are acquired — would make the
+per-gene counts a modelled quantity rather than an artefact, and would let the counts be set
+deliberately instead of falling out of pool sizes and chance.</p>
+<p><strong>What it takes.</strong> Small code change, real design thought about what the reservoir represents,
+and a regeneration. It pairs naturally with item 2, since both concern how genes enter and move.</p>
+<p><strong>Estimated effort:</strong> 3–5 person-days plus a regeneration. <strong>Consequence:</strong> U12 resolved; U8
+likely resolved; S9 becomes interpretable; per-gene counts become a designed property of the
+experiment.</p>
+<h2>7.7 Summary</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Item</th>
+<th>Effort (estimated)</th>
+<th>Claims affected</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Group the split by run or scenario</td>
+<td>2–3 days + hours of compute</td>
+<td>S1–S9 superseded; U13 resolved</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Per-gene transfer mobility</td>
+<td>1–2 weeks + regeneration</td>
+<td>U10 resolved; U6 partly; <strong>S2b needs re-demonstration</strong></td>
+</tr>
+<tr>
+<td>3</td>
+<td>Interspecies transfer</td>
+<td>2–3 weeks + regeneration</td>
+<td>U11 resolved; S10 obsolete; Section 4 regenerated</td>
+</tr>
+<tr>
+<td>4</td>
+<td>External validation via gene calls</td>
+<td>~1.5 weeks (simulator only)</td>
+<td>U7 partly resolved, scope stated</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Defined step duration + sourced PK</td>
+<td>3–5 days + regeneration</td>
+<td>§5.3 entries sourced; U4 testable</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Seeding with a biological counterpart</td>
+<td>3–5 days + regeneration</td>
+<td>U12 resolved; U8 likely; S9 interpretable</td>
+</tr>
+</tbody>
+</table>
+<p>Items 2, 3, 5 and 6 all change the simulator and therefore invalidate every figure in
+Section 4; they would sensibly be batched into one regeneration rather than run separately.
+Item 1 is independent of all of them and should be done first, because until it is, none of the
+reported figures answers the question a reader is most likely to think it answers.</p>
+<h1>8 Conclusion</h1>
+<p>We posed horizontal gene transfer prediction as a supervised problem at the level of individual
+cells: given a snapshot of a simulated bacterial population, predict for each directed
+cell-to-cell contact and each resistance gene whether that gene is transferred in the next time
+window. Because the labels are events the simulator records as they fire, the ground truth is
+exact — which is the property that motivated the formulation and is not available from
+observational genomic data.</p>
+<p>On this task a graph attention network trained jointly on all gene outputs reaches a test AUROC
+of 0.9777 ± 0.0023 on the four genes our per-gene random forest baseline fits in every seed,
+against 0.9548 ± 0.0124 for that baseline, and is ahead on every seed. It also gives stable
+predictions for three further genes the baselines fit unreliably or not at all — an advantage
+that comes from sharing parameters across a multi-label output rather than from the graph.</p>
+<p>That last distinction is the paper's main methodological conclusion. Message passing contributes
+a small but consistent 0.0031 ± 0.0014, and the genes a cell already carries dominate every
+other feature group by an order of magnitude. On this task, most of the signal is available from
+the two endpoint feature vectors, and what earns the architecture its place is joint training
+across genes, not the propagation of information over the contact graph. We report that rather
+than the more flattering alternative reading.</p>
+<p>The scope of these numbers is narrow, and deliberately stated as such throughout. They are
+internal to one simulator; no external validation exists, and our attempt at one failed for want
+of gene-level calls in the data we could obtain. The simulator transfers genes only between
+cells of the same species, so the interspecies transfers that dominate the literature on these
+very genes are absent from the task, the labels and the evaluation alike. The held-out split is
+taken over snapshot pairs rather than over runs, so it measures generalisation to unseen time
+windows of seen simulations and not to unseen simulations. Three of the eleven genes are moved
+by a mechanism that is not their real one, and several parameters that resemble measurements are
+invented. Under those conditions, a high AUROC is better read as a statement about the
+difficulty of the task as posed than as evidence of a model that understands conjugation.</p>
+<p>What we think survives those caveats is the formulation and one design choice: an exactly
+labelled, per-contact, per-gene transfer task is a usable testbed, and training one model across
+all genes reaches rare targets that per-gene models cannot. The pipeline that produces these
+results is seeded and deterministic across processes, with a frozen configuration guarded
+byte-for-byte by a regression test, so the numbers can be reproduced and, more importantly,
+can be moved by the changes set out in Section 7: splitting by run, adding interspecies
+transfer, modelling per-gene mobility, and validating against real gene calls. We expect several of those
+changes to lower the figures reported here, and regard that as the point of making them.</p>
+<h1>References</h1>
+<ol>
+<li>Antimicrobial Resistance Collaborators. Global burden of bacterial antimicrobial resistance in 2019: a systematic analysis. The Lancet, 399(10325), 629–655, 2022. doi:10.1016/S0140-6736(21)02724-0</li>
+<li>GBD 2021 Antimicrobial Resistance Collaborators. Global burden of bacterial antimicrobial resistance 1990–2021: a systematic analysis with forecasts to 2050. The Lancet, 404(10459), 1199–1226, 2024. doi:10.1016/S0140-6736(24)01867-1</li>
+<li>von Wintersdorff, Christian J. H.; Penders, John; van Niekerk, Julius M.; Mills, Nathan D.; Majumder, Snehali; van Alphen, Lieke B.; Savelkoul, Paul H. M.; Wolffs, Petra F. G. Dissemination of Antimicrobial Resistance in Microbial Ecosystems through Horizontal Gene Transfer. Frontiers in Microbiology, 7, 173, 2016. doi:10.3389/fmicb.2016.00173</li>
+<li>Partridge, Sally R.; Kwong, Stephen M.; Firth, Neville; Jensen, Slade O. Mobile Genetic Elements Associated with Antimicrobial Resistance. Clinical Microbiology Reviews, 31(4), e00088-17, 2018. doi:10.1128/CMR.00088-17</li>
+<li>Seoane, Jose; Yankelevich, Tatiana; Dechesne, Arnaud; Merkey, Brian; Sternberg, Claus; Smets, Barth F. An individual-based approach to explain plasmid invasion in bacterial populations. FEMS Microbiology Ecology, 75(1), 17–27, 2011. doi:10.1111/j.1574-6941.2010.00994.x</li>
+<li>Merkey, Brian V.; Lardon, Laurent A.; Seoane, Jose M.; Kreft, Jan-Ulrich; Smets, Barth F. Growth dependence of conjugation explains limited plasmid invasion in biofilms: an individual-based modelling study. Environmental Microbiology, 13(9), 2435–2452, 2011. doi:10.1111/j.1462-2920.2011.02535.x</li>
+<li>Brito, Ilana Lauren. Examining horizontal gene transfer in microbial communities. Nature Reviews Microbiology, 19(7), 442–453, 2021. doi:10.1038/s41579-021-00534-7</li>
+<li>Yaffe, Eitan; Relman, David A. Tracking microbial evolution in the human gut using Hi-C reveals extensive horizontal gene transfer, persistence and adaptation. Nature Microbiology, 5(2), 343–353, 2020. doi:10.1038/s41564-019-0625-0</li>
+<li>Hellweger, Ferdi L.; Clegg, Robert J.; Clark, James R.; Plugge, Caroline M.; Kreft, Jan-Ulrich. Advancing microbial sciences by individual-based modelling. Nature Reviews Microbiology, 14(7), 461–471, 2016. doi:10.1038/nrmicro.2016.62</li>
+<li>Krone, Stephen M.; Lu, Ruinan; Fox, Randal; Suzuki, Haruo; Top, Eva M. Modelling the spatial dynamics of plasmid transfer and persistence. Microbiology, 153(8), 2803–2816, 2007. doi:10.1099/mic.0.2006/004531-0</li>
+<li>Velickovic, Petar; Cucurull, Guillem; Casanova, Arantxa; Romero, Adriana; Lio, Pietro; Bengio, Yoshua. Graph Attention Networks. International Conference on Learning Representations (ICLR), 2018. arXiv:1710.10903.</li>
+<li>Liu, Yi-Yun; Wang, Yang; Walsh, Timothy R.; Yi, Ling-Xian; Zhang, Rong; Spencer, James; Doi, Yohei; Tian, Guobao; Dong, Baolei; Huang, Xianhui; Yu, Lin-Feng; Gu, Danxia; Ren, Hongwei; Chen, Xiaojie; Lv, Luchao; He, Dandan; Zhou, Hongwei; Liang, Zisen; Liu, Jian-Hua; Shen, Jianzhong. Emergence of plasmid-mediated colistin resistance mechanism MCR-1 in animals and human beings in China: a microbiological and molecular biological study. The Lancet Infectious Diseases, 16(2), 161–168, 2016. doi:10.1016/S1473-3099(15)00424-7</li>
+<li>Dolejska, Monika; Villa, Laura; Poirel, Laurent; Nordmann, Patrice; Carattoli, Alessandra. Complete sequencing of an IncHI1 plasmid encoding the carbapenemase NDM-1, the ArmA 16S RNA methylase and a resistance-nodulation-cell division/multidrug efflux pump. Journal of Antimicrobial Chemotherapy, 68(1), 34–39, 2013. doi:10.1093/jac/dks357</li>
+<li>Lardon, Laurent A.; Merkey, Brian V.; Martins, Sonia; Dotsch, Andreas; Picioreanu, Cristian; Kreft, Jan-Ulrich; Smets, Barth F. iDynoMiCS: next-generation individual-based modelling of biofilms. Environmental Microbiology, 13(9), 2416–2434, 2011. doi:10.1111/j.1462-2920.2011.02414.x</li>
+<li>Gorochowski, Thomas E.; Matyjaszkiewicz, Antoni; Todd, Thomas; Oak, Neeraj; Kowalska, Kira; Reid, Stephen; Tsaneva-Atanasova, Krasimira T.; Savery, Nigel J.; Grierson, Claire S.; di Bernardo, Mario. BSim: an agent-based tool for modeling bacterial populations in systems and synthetic biology. PLoS ONE, 7(8), e42790, 2012. doi:10.1371/journal.pone.0042790</li>
+<li>Glushchenko, Oksana E.; Prianichnikov, Nikita A.; Olekhnovich, Evgenii I.; Manolov, Alexander I.; Tyakht, Alexander V.; Starikova, Elizaveta V.; Odintsova, Vera E.; Kostryukova, Elena S.; Ilina, Elena I. VERA: agent-based modeling transmission of antibiotic resistance between human pathogens and gut microbiota. Bioinformatics, 35(19), 3803–3811, 2019. doi:10.1093/bioinformatics/btz154</li>
+<li>Kim, Jee In; Maguire, Finlay; Tsang, Kara K.; Gouliouris, Theodore; Peacock, Sharon J.; McAllister, Tim A.; McArthur, Andrew G.; Beiko, Robert G. Machine Learning for Antimicrobial Resistance Prediction: Current Practice, Limitations, and Clinical Perspective. Clinical Microbiology Reviews, 35(3), e0017921, 2022. doi:10.1128/cmr.00179-21</li>
+<li>Ellabaan, Mostafa M. H.; Munck, Christian; Porse, Andreas; Imamovic, Lejla; Sommer, Morten O. A. Forecasting the dissemination of antibiotic resistance genes across bacterial genomes. Nature Communications, 12, 2435, 2021. doi:10.1038/s41467-021-22757-1 (See Author Correction, Nat Commun 2026, doi:10.1038/s41467-026-74295-3)</li>
+<li>Zhou, Hao; Beltran, Juan Felipe; Brito, Ilana Lauren. Functions predict horizontal gene transfer and the emergence of antibiotic resistance. Science Advances, 7(43), eabj5056, 2021. doi:10.1126/sciadv.abj5056</li>
+<li>Nguyen, Hoai-An; Peleg, Anton Y.; Wisniewski, Jessica A.; Wang, Xiaoyu; Wang, Zhikang; Blakeway, Luke V.; Badoordeen, Gnei Z.; Theegala, Ravali; Doan, Nhu Quynh; Parker, Matthew H.; Green, Anna G.; Song, Jiangning; Dowe, David L.; Macesic, Nenad. AMR-GNN: a multi-representation graph neural network framework to enable genomic antimicrobial resistance prediction. Nature Communications, 17, 3555, 2026. doi:10.1038/s41467-026-69934-8</li>
+<li>Donabauer, Gregor; Rath, Anca; Caplunik-Pratsch, Aila; Eichner, Anja; Fritsch, Jurgen; Kieninger, Martin; Gaube, Susanne; Schneider-Brachert, Wulf; Kruschwitz, Udo; Kieninger, Barbel. AI modeling for outbreak prediction: A graph-neural-network approach for identifying vancomycin-resistant enterococcus carriers. PLOS Digital Health, 4(4), e0000821, 2025. doi:10.1371/journal.pdig.0000821</li>
+<li>Boguslawska, Joanna; Zycka-Krzesinska, Joanna; Wilcks, Andrea; Bardowski, Jacek. Intra- and interspecies conjugal transfer of Tn916-like elements from Lactococcus lactis in vitro and in vivo. Applied and Environmental Microbiology, 75(19), 6352–6360, 2009. doi:10.1128/AEM.00470-09</li>
+<li>Hooper, David C.; Jacoby, George A. Mechanisms of drug resistance: quinolone resistance. Annals of the New York Academy of Sciences, 1354(1), 12–31, 2015. doi:10.1111/nyas.12830</li>
+<li>Strahilevitz, Jacob; Jacoby, George A.; Hooper, David C.; Robicsek, Ari. Plasmid-mediated quinolone resistance: a multifaceted threat. Clinical Microbiology Reviews, 22(4), 664–689, 2009. doi:10.1128/CMR.00016-09</li>
+<li>Li, Xian-Zhi; Plesiat, Patrick; Nikaido, Hiroshi. The challenge of efflux-mediated antibiotic resistance in Gram-negative bacteria. Clinical Microbiology Reviews, 28(2), 337–418, 2015. doi:10.1128/CMR.00117-14</li>
+<li>Weigel, Linda M.; Clewell, Don B.; Gill, Steven R.; Clark, Nancye C.; McDougal, Linda K.; Flannagan, Susan E.; Kolonay, James F.; Shetty, Jyoti; Killgore, George E.; Tenover, Fred C. Genetic analysis of a high-level vancomycin-resistant isolate of Staphylococcus aureus. Science, 302(5650), 1569–1571, 2003. doi:10.1126/science.1090956</li>
+<li>Clark, Nancye C.; Weigel, Linda M.; Patel, Jean B.; Tenover, Fred C. Comparison of Tn1546-like elements in vancomycin-resistant Staphylococcus aureus isolates from Michigan and Pennsylvania. Antimicrobial Agents and Chemotherapy, 49(1), 470–472, 2005. doi:10.1128/AAC.49.1.470-472.2005</li>
+<li>Coyne, Sebastien; Courvalin, Patrice; Perichon, Bruno. Efflux-mediated antibiotic resistance in Acinetobacter spp.. Antimicrobial Agents and Chemotherapy, 55(3), 947–953, 2011. doi:10.1128/AAC.01388-10</li>
+<li>Cuzon, Gaelle; Naas, Thierry; Truong, HaVy; Villegas, Maria Virginia; Wisell, Karin T.; Carmeli, Yehuda; Gales, Ana C.; Venezia, Shiri Navon; Quinn, John P.; Nordmann, Patrice. Worldwide diversity of Klebsiella pneumoniae that produce beta-lactamase blaKPC-2 gene. Emerging Infectious Diseases, 16(9), 1349–1356, 2010. doi:10.3201/eid1609.091389</li>
+</ol>
+<h1>Appendix A. Citation notes</h1>
+<p>Every reference above was checked against the source itself, not merely confirmed to exist: author list, venue, year and DOI, and whether the source actually supports the claim it is cited for. The audit is recorded in <code>paper/citations.md</code> and, for gene transfer mechanisms, in <code>paper/gene_mechanism_audit.md</code>.</p>
+<p>Because this version has no submission deadline, sources whose full text sits behind a paywall were verified against their abstracts and are cited only for what those abstracts state. They are listed here so the distinction is on the record rather than implied.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Reference key</th>
+<th>Verified against</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>gbd2019amr</code></td>
+<td>publisher page and abstract</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>gbd2021amr</code></td>
+<td>publisher page and abstract</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>vonwintersdorff2016</code></td>
+<td>abstract</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>partridge2018</code></td>
+<td>abstract</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>seoane2011</code></td>
+<td>abstract</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>merkey2011</code></td>
+<td>abstract</td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>brito2021</code></td>
+<td>abstract</td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>yaffe2020</code></td>
+<td>full text</td>
+</tr>
+<tr>
+<td>9</td>
+<td><code>hellweger2016</code></td>
+<td>abstract</td>
+</tr>
+<tr>
+<td>10</td>
+<td><code>krone2007</code></td>
+<td>abstract</td>
+</tr>
+<tr>
+<td>11</td>
+<td><code>velickovic2018</code></td>
+<td>preprint page and abstract</td>
+</tr>
+<tr>
+<td>12</td>
+<td><code>liu2016mcr</code></td>
+<td>abstract</td>
+</tr>
+<tr>
+<td>13</td>
+<td><code>dolejska2012</code></td>
+<td>abstract</td>
+</tr>
+<tr>
+<td>14</td>
+<td><code>lardon2011</code></td>
+<td>abstract</td>
+</tr>
+<tr>
+<td>15</td>
+<td><code>gorochowski2012</code></td>
+<td>abstract</td>
+</tr>
+<tr>
+<td>16</td>
+<td><code>glushchenko2019</code></td>
+<td>abstract</td>
+</tr>
+<tr>
+<td>17</td>
+<td><code>kim2022</code></td>
+<td>abstract</td>
+</tr>
+<tr>
+<td>18</td>
+<td><code>ellabaan2021</code></td>
+<td>abstract; its 2026 Author Correction read in full</td>
+</tr>
+<tr>
+<td>19</td>
+<td><code>zhou2021</code></td>
+<td>full text</td>
+</tr>
+<tr>
+<td>20</td>
+<td><code>nguyen2026amrgnn</code></td>
+<td>full text</td>
+</tr>
+<tr>
+<td>21</td>
+<td><code>donabauer2025</code></td>
+<td>abstract</td>
+</tr>
+<tr>
+<td>22</td>
+<td><code>boguslawska2009</code></td>
+<td>abstract</td>
+</tr>
+<tr>
+<td>23</td>
+<td><code>hooper2015</code></td>
+<td>abstract</td>
+</tr>
+<tr>
+<td>24</td>
+<td><code>strahilevitz2009</code></td>
+<td>abstract</td>
+</tr>
+<tr>
+<td>25</td>
+<td><code>li2015efflux</code></td>
+<td>abstract</td>
+</tr>
+<tr>
+<td>26</td>
+<td><code>weigel2003</code></td>
+<td>abstract</td>
+</tr>
+<tr>
+<td>27</td>
+<td><code>clark2005</code></td>
+<td>abstract</td>
+</tr>
+<tr>
+<td>28</td>
+<td><code>coyne2011</code></td>
+<td>abstract</td>
+</tr>
+<tr>
+<td>29</td>
+<td><code>cuzon2010</code></td>
+<td>abstract</td>
+</tr>
+</tbody>
+</table>
+<p>23 of the 29 cited sources were verified at abstract level only. Upgrading them to full text is listed as outstanding work in <code>paper/STATUS.md</code>.</p>
+<p><code>paper/refs.bib</code> additionally holds <code>bonnin2012</code>, <code>dandrea2013</code>, <code>devirgiliis2009</code> — sources verified during the gene-mechanism audit that the text does not cite. They are kept for that record and are deliberately absent from the reference list above.</p></body></html>

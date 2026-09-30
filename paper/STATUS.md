@@ -22,6 +22,16 @@ Read first: `paper/claims_to_numbers.md` (claim → number → source), then
 
 | `paper/draft/00_abstract.md` | Abstract | Written last; scope weighted as in Discussion |
 
+## Assembled document
+
+`paper/amr_hgt_gnn.{md,html,pdf}` — the whole paper as one standalone document
+(31 pages), built by `paper/assemble.py` from `paper/draft/`. Citations are resolved to
+numbered references from `paper/refs.bib`; figures are inserted with inline captions and
+numbered in document order; Appendix A records how far each source was verified.
+Rebuild with `python paper/assemble.py` (`--check` validates citations and figure
+anchors without writing). Build-time extras: the `markdown` package, and Chrome or Edge
+for the PDF step.
+
 ## Supporting files complete
 
 - `paper/citations.md` — per-reference audit: existence, venue, year, authors, DOI, the text
@@ -44,13 +54,14 @@ requirements.
 ## Open — work not started
 
 **Submission prep (blocked by design: no venue).**
-- Figures/tables beyond Table 1. Nothing generated.
-- LaTeX assembly and compile. The drafts are Markdown with `[bibkey]` placeholders, not
-  `\cite{}`; converting is part of assembly.
-- Abstract.
-- Full-text re-verification of the ~20 abstract-only citations listed in `paper/citations.md`
-  and `paper/gene_mechanism_audit.md` §4. Each is currently cited only for what its abstract
-  states, which is defensible but should be upgraded before submission.
+- ~~Figures~~ done: four, from committed result files, by `paper/make_figures.py`.
+- ~~Assembly~~ done: `paper/assemble.py` resolves citations and emits Markdown/HTML/PDF.
+  No LaTeX or IEEE template, by instruction — there is no venue.
+- ~~Abstract~~ done.
+- Full-text re-verification of the 23 abstract-only citations (of 29 cited), listed in
+  Appendix A of the assembled document and in `paper/citations.md`. Each is currently cited
+  only for what its abstract states, which is defensible for a draft and is disclosed in
+  the document itself.
 
 **Methodological work that would change the numbers** (from Discussion §6.5, in priority order):
 1. Split by run instead of by snapshot pair (U13). Cheapest; changes how every number reads.
