@@ -1,8 +1,11 @@
 # Paper status — as of 2026-09-30
 
-Local only; nothing pushed. No venue chosen. **No submission target**, so submission prep
-(figures, LaTeX build, remaining citation checks, repo/portfolio work) is deliberately NOT
-started.
+**Resuming? Read `paper/RESUME.md` first** — it holds the six-step plan, which
+steps are done, and exactly what steps 5 (portfolio pack) and 6 (push) need.
+
+Local only; nothing pushed; no git remote is configured. **This version has no venue and
+will not be submitted** — it is finished as a standalone document, so there is no LaTeX or
+template work by instruction.
 
 Read first: `paper/claims_to_numbers.md` (claim → number → source), then
 `paper/decisions_log.md` (dated decisions; OPEN items marked), then this file.
@@ -50,6 +53,10 @@ decided on 2026-09-30: excluded entirely; the AMR burden is cited from the GBD p
 **This version will not be submitted to any venue** (owner, 2026-09-30). It is being completed
 as a standalone document, so "submission prep" items below are scoped to that, not to a venue's
 requirements.
+
+**Outstanding work: steps 5 and 6 only** — the portfolio pack
+(`portfolio/paper4_portfolio.md`, SLURP format) and the push to the private repo, which the
+owner runs. Both are specified in `paper/RESUME.md`.
 
 ## Open — work not started
 

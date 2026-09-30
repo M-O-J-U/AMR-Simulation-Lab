@@ -270,8 +270,11 @@ Decided: ResFinder/ARIBA validation and the software paper are FUTURE WORK.
 RF comparison policy DECIDED 2026-09-30 (report both; headline = 5 common genes, RF cutoff not
 lowered) -- see paper/decisions_log.md.
 
-**Paper drafting (2026-09-30): Sections 1-7 are DRAFTED, awaiting owner review. Abstract not
-written (deferred). Read `paper/STATUS.md` first** -- it lists what is complete, what needs an
+**Paper phase (2026-09-30): the paper is DRAFTED AND ASSEMBLED, awaiting owner review.
+READ `paper/RESUME.md` FIRST** -- it holds the owner's six-step plan (steps 1-4 done:
+abstract, Future Work section, figures, assembled document; steps 5-6 open: the SLURP-format
+portfolio pack and the push, which the owner runs). Output: `paper/amr_hgt_gnn.{md,html,pdf}`,
+31 pages, 4 figures, 29 verified references. Also read `paper/STATUS.md` -- it lists what is complete, what needs an
 owner decision, and what is deliberately not started. No venue chosen, so submission prep
 (figures, LaTeX, abstract, full-text re-verification of abstract-only citations) is NOT started
 by instruction.
