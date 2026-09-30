@@ -252,35 +252,25 @@ pipeline; nothing below is to be reconciled with the retired draft.
   encoding error (`external_validation_rerun.txt`). Real validation needs gene re-annotation
   of BV-BRC assemblies (scoped, not started).
 
-## RESUME HERE (saved 2026-09-29; last commit fffd163; tree clean; nothing pushed)
-**Waiting on the user for two decisions; do not proceed on either without an answer.**
-1. **lab_v2 dosing protocol.** Approved: option (b), time-limited course. Time-limiting alone
-   fails at the current dose 1.5 ug/mL (pakistan_crisis extinct at every N). PROPOSED, not
-   approved: dose **0.25 ug/mL, cleared after N=5 steps** -> 0/12 runs extinct, 312 pairs,
-   1,011 positives (paper_v1: 301 / 1,222); pakistan_crisis min pop 119 (real pressure).
-   Survey scripts were in the session scratchpad (lost); rerun via
-   `collect_training_snapshots(..., biology="lab_v2", dose=..., dose_duration=...)`.
-   On approval: set `DEFAULT_CONFIG["dose_duration_steps"]=5` and add a config key for the
-   dose (pipeline currently passes only dose_duration; `dose` defaults to 1.5 — thread
-   `config["dose"]` through the 3 callers like dose_duration), label both as invented
-   protocol parameters, then run:
-   `python -m ai.reseeded_results --biology lab_v2` and
-   `python -m ai.hparam_sweep --part gnn --biology lab_v2` / `--part rf` / `--summarize`,
-   then report the three-column summary: retired draft -> paper_v1 corrected -> lab_v2
-   corrected (every headline number). NO paper text until the user says so.
-2. **External validation:** user is deciding whether the paper waits for a ResFinder
-   re-annotation of BV-BRC assemblies (~1-2 weeks; gene->phenotype concordance is the
-   feasible, useful check; per-edge HGT cannot be validated from genomes) or ships with it as
-   a labelled limitation.
+## RESUME HERE (updated 2026-09-30; last results commit 081a30f; nothing pushed)
+Done: lab_v2 dosing approved and set (0.25 ug/mL, cleared after 5 steps; `TRAINING_PROTOCOLS`
+in ai/gnn_trainer.py, paper_v1 keeps 1.5/never). lab_v2 reseeded comparison + ablation +
+per-gene (`ai/checkpoints/reseeded/lab_v2/`) and sweep (`sweep/lab_v2/`) are committed; the
+three-column summary was reported to the user.
+Decided by user: ResFinder/ARIBA validation and the software-paper track are FUTURE WORK
+(name them in the new paper's Limitations/Future Work), not blockers. No paper text yet.
 
-**Numbers so far (paper_v1, corrected; test AUROC mean ± SD over seeds 0-4):**
-- Default hparams (`reseeded/paper_v1`): GNN 0.9261±0.0211, RF 0.9226±0.0263, LR 0.8466±0.0406.
-- Tuned (`sweep/paper_v1`, validation-selected): GNN full 0.9665±0.0048 (hidden 128, lr 1e-3,
-  2 layers); edge features zeroed 0.9673±0.0035; graph-free (no message passing)
-  0.9546±0.0084; RF 0.9306±0.0317 (300 trees, depth 8). Supports: GNN > RF (5/5 seeds);
-  message passing +0.012 (5/5); edge feature vectors add nothing. Default lr 3e-4 was the cause
-  of the earlier "GNN ≈ RF, edges hurt" result.
-- Retired draft (invalid, pre-leakage-fix, 36-dim): GNN 0.9934, RF 0.9896, LR 0.9746.
+**Waiting on the user:**
+1. Rare-gene proposal: (a) add existing `mrsa_hospital` to lab_v2 training (tetM 23 -> ~420
+   positives over 3 seeds at 80 steps; longer runs barely help); (b) vanA: report separately
+   as a simplified mechanism or exclude (documented route is interspecies Tn1546 transfer from
+   E. faecalis, Weigel 2003 doi:10.1126/science.1090956; VRSA isolates are independent events,
+   Clark 2005 doi:10.1128/AAC.49.1.470-472.2005; sim has no Enterococcus); (c) drop
+   mexAB-oprM from evaluable genes (intrinsic, never acquirable -> zero positives by design).
+   Also flagged: mexAB-oprM is intrinsic in A. baumannii in both biologies, but CARD describes
+   it as a P. aeruginosa system (candidate lab_v2 correction, needs sourcing).
+   Adding mrsa_hospital changes the lab_v2 dataset -> rerun reseeded + sweep (~1.5-2 h).
+2. Suggested (not approved): rerun the ablation with the TUNED hyperparameters (the current
+   ablations use defaults, which on lab_v2 are near-chance-level unstable, ±0.13).
 
-**Lab (Phases 1-2) is done** (WebSocket stream, frontend rebuild). Phase 3 (UX/experiment
-mode, run comparison) and Phase 4 (final validation) not started.
+Headline numbers are in the reseeded/sweep summary.md files for each biology.
