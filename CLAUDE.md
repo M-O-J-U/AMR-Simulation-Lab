@@ -267,4 +267,5 @@ GNN 0.9735 ± 0.0017 vs RF 0.8950 ± 0.0386. blaTEM-1 has no test positives (5 t
 Bimodal seed (earlier lab_v2 run, 0.739): reproducible early-stopping artifact (lucky epoch-1
 validation peak), fixed by the warm-up; not a model failure mode.
 Decided: ResFinder/ARIBA validation and the software paper are FUTURE WORK. No paper text yet.
-Waiting on the user for next steps.
+RF comparison policy DECIDED 2026-09-30 (report both; headline = 5 common genes, RF cutoff not
+lowered) -- see paper/decisions_log.md. Waiting on the user for next steps.
