@@ -15,6 +15,9 @@ klebsiella_amr.csv
 # Run logs: historical files up to 2026-09-29 stay committed; new runs are not tracked.
 logs/
 
+# Personal Claude Code permission overrides (not project config)
+.claude/settings.local.json
+
 # In-progress scratch files written by long-running sweeps
 ai/checkpoints/sweep/**/_tmp*
 ai/checkpoints/reseeded/**/_tmp*
