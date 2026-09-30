@@ -73,7 +73,7 @@ validation/byte-identity re-check.
 
 ## Things that must not regress
 
-- 276 tests pass, including `tests/test_paper_v1_frozen.py`, which guards `paper_v1`
+- 280 tests pass, including `tests/test_paper_v1_frozen.py`, which guards `paper_v1`
   byte-for-byte. Run `python -m pytest -q` before and after any change.
 - The reference result set is `ai/checkpoints/reseeded/lab_v2_tuned_noedge_mrsa/`
   (+ `sweep/lab_v2_mrsa_noedge/`). Dataset SHA-256 `ee83ff385ca15ec9…`.

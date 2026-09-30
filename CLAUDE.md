@@ -282,4 +282,9 @@ pairs, not runs, so it does not measure generalisation to unseen simulations). A
 `paper/gene_mechanism_audit.md` checks all 11 genes' real mobility against sources, and
 `ai/gnn_model.py` docstrings were cleaned of a fabricated citation ("Orenstein et al. 2021"),
 an unsupported "validated against CARD transfer rates" claim, and an unqualified novelty claim
-(comments only; 276 tests pass).
+(comments only; tests pass).
+S10 (measured 2026-09-30): cross-species contacts are only 4,696 of 1,707,498 edges (0.275%)
+and carry ZERO transfers, so the intraspecies restriction does NOT pad the negative class --
+the drafted "easy negatives" argument was measured, refuted and removed (U14). Reproduce with
+`python paper/measure_cross_species_edges.py`; invariant pinned by `tests/test_cross_species.py`
+(280 tests pass).
