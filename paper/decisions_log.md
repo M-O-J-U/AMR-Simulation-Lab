@@ -70,6 +70,15 @@ See also `CLAUDE.md` (rules, paper-phase notes, RESUME HERE) and `paper/claims_t
     genes); decided by the owner 2026-09-30.
 - **Next steps: OPEN.** Lab Phases 3–4 aren't started. No paper text.
 
+## 2026-09-30 (later still) — full-text access pass
+- Owner asked for full-text attempts on the six sources behind U10 and U11, via legitimate
+  routes only. **3 of 6 upgraded:** Boguslawska 2009, Hooper & Jacoby 2015 and Li 2015 are
+  now verified in full text (PMC). Dolejska 2012, Liu 2016 and Weigel 2003 remain
+  abstract-only behind publisher paywalls with no legitimate open copy; each is still cited
+  only for what its abstract states. Recorded in `paper/citations.md` and in the assembled
+  document's Appendix A. Substantive gain: Hooper 2015's full text resolved the §3.4 open
+  item (below) and independently corroborates both halves of U10 and the A. baumannii note.
+
 ## 2026-09-30 (later, found during the Related Work citation audit)
 - **DECIDED 2026-09-30 (owner): label as simplified mechanisms, do NOT rerun.**
   gyrA_S83L and acrAB-tolC are handled like vanA (U6): the coverage advantage in S2b stays,
@@ -113,10 +122,13 @@ See also `CLAUDE.md` (rules, paper-phase notes, RESUME HERE) and `paper/claims_t
     positive counts therefore track pool size and `acquisition_prob`, i.e. the seeding code,
     not gene epidemiology. This is the mechanical explanation of U8 (blaTEM-1, 5 positives)
     and it constrains how S9 and S2b may be worded.
-  - **OPEN (§3.4):** `gyrA_S83L` is CARD's *E. coli* gyrA entry but sits in Klebsiella's and
-    P. aeruginosa's pools; no source found establishing S83L as the dominant variant in all
-    three. Recommendation: describe it generically in Methods ("a gyrA target-site
-    mutation") or restrict the claim to E. coli. **Owner decision on wording.**
+  - **§3.4 RESOLVED 2026-09-30** by obtaining the full text of Hooper & Jacoby 2015
+    (PMC4626314) during the owner-requested full-text pass. The review says an equivalent
+    serine is conserved across species and is the residue most often mutated in resistant
+    strains, so the *mechanism* generalises; only the residue *number* (83) is E. coli's.
+    `gyrA_S83L` is therefore a naming inaccuracy across the three species, not a mechanistic
+    one. Methods now states this positively instead of hedging. Generic wording retained, as
+    the owner directed on 2026-09-30.
   - **DECIDED 2026-09-30 (owner): option 1 applied. "S2 contamination", found while
     preparing figures — the headline comparison had been contaminated by the very
     artefact U5 warns about.**

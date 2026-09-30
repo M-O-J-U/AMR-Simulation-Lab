@@ -195,6 +195,35 @@ strength of the citation's existence.
   - An agent-based model at the human-population level, including HGT of resistance
     determinants from commensals to a pathogen.
 
+## Full-text upgrade pass (2026-09-30)
+
+At the owner's request, full-text access was attempted for the six sources behind U10 and
+U11 via legitimate open-access routes only (PMC, Europe PMC, publisher pages, institutional
+repositories). No paywall-circumvention service was used.
+
+| Source | Outcome | Route |
+|---|---|---|
+| Boguslawska 2009 | **upgraded to full text** | PMC2753074 |
+| Hooper & Jacoby 2015 | **upgraded to full text** | PMC4626314 |
+| Li, Plesiat & Nikaido 2015 | **upgraded to full text** | PMC4402952 |
+| Dolejska 2012 | remains abstract | OUP paywall; the claim we cite it for is stated in the abstract ("plasmid DNA purified from the pNDM-CIT *Escherichia coli* J53 transconjugant") |
+| Liu 2016 | remains abstract | Elsevier paywall. The Bristol research portal lists metadata only, with no accepted manuscript. No legitimate open copy found |
+| Weigel 2003 | remains abstract | *Science* paywall; no legitimate open copy found. (A CDC Stacks hit was a different 2007 paper) |
+
+What the new full texts confirmed, beyond the abstracts:
+
+- **Hooper & Jacoby 2015** states directly that plasmid-mediated quinolone resistance is due
+  to Qnr proteins, the AAC(6')-Ib-cr acetyltransferase and mobile efflux pumps (QepA, OqxAB) —
+  i.e. *gyrA itself is not the mobilised element*, which is the exact basis of U10.
+  It also independently supports the acrAB-tolC half of U10: resistance follows from
+  regulatory mutation raising pump expression ("mutations in the MarR regulator result in both
+  an increase in [acrAB] expression as well as a decrease in [ompF] expression").
+  It further supports the A. baumannii note in `gene_mechanism_audit.md` §3.6 (AdeIJK
+  constitutive, AdeABC/AdeFGH overexpressed) independently of Coyne 2011.
+- **Li 2015** confirms all three points it is cited for, including the caveat we chose to
+  state: "Plasmid-borne efflux pump genes (including those for RND pumps) have increasingly
+  been identified."
+
 ## Open items for the owner
 1. O'Neill 2016: replace (recommended) or keep with de Kraker 2016 + GBD 2021.
 2. The reworded in-situ sentence and the "determined by" → "depends on" change in the

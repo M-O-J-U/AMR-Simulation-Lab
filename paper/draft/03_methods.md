@@ -88,10 +88,13 @@ Three restrictions define the task, and all three must be read alongside the res
    vanA is simplified in a different way: it arises and spreads within MRSA, whereas the
    documented route is interspecies transfer of Tn1546 from *E. faecalis* [weigel2003;
    clark2005], and *Enterococcus* is not modelled. vanA is reported separately throughout.
-   For gyrA_S83L we use the generic description "a gyrA target-site mutation": the gene object
-   carries CARD's *E. coli* gyrA entry but is available to three species in the model, and we
-   did not establish that the S83L substitution specifically is the dominant variant in all
-   three, so the particular variant modelled should be treated as unverified.
+   For gyrA_S83L we use the generic description "a gyrA target-site mutation". The gene object
+   carries CARD's *E. coli* gyrA entry but is available to three species in the model. The
+   mechanism does generalise — an equivalent serine is conserved across species and is the
+   residue most often mutated in quinolone-resistant strains [hooper2015] — but the residue
+   number does not, since 83 is *E. coli*'s numbering. The identifier we inherited is therefore
+   accurate for one of the three species it is applied to, and we treat it as a label rather
+   than as a claim about the specific substitution in the other two.
 3. **Two genes are never transferred, correctly.** mexAB-oprM appears only as an intrinsic
    gene and is in no species' acquirable set, so it has no transfer events by construction and
    is excluded from evaluation. mecA is marked non-transferable because its real mobilisation

@@ -141,11 +141,22 @@ so the gene table is self-contained. Methods must label them invented (CLAUDE.md
 
 `data/card_loader.py` cites CARD ARO:3003294, which the code comment correctly identifies as
 the *E. coli* gyrA entry. The same gene object is in Klebsiella's and P. aeruginosa's pools.
-Target-site numbering and the favoured substitution are not identical across these species
-(Hooper & Jacoby 2015 describe the mutations as lying in a localised domain of GyrA, without
-a single universal substitution). **Flagged, not settled:** I did not find a source
-establishing that S83L specifically is the dominant variant in all three. Methods should
-describe it generically ("a gyrA target-site mutation") or restrict the claim to E. coli.
+
+**Partly settled 2026-09-30** by the full text of Hooper & Jacoby 2015 (obtained via
+PMC4626314; this section previously recorded it as unsettled on the strength of the abstract
+alone). The review states that in *E. coli* "the most common site of mutation in GyrA … is at
+Ser83 followed by Asp87, with similar predominance of mutations at equivalent positions in
+other species", and that "there is conservation of an equivalent Ser and another acidic
+residue separated by four amino acids for GyrA in other species … and likewise it is mutation
+in these residues that is most often present in resistant strains."
+
+So the *mechanism* does generalise: an equivalent serine is conserved across species and is
+the residue most often mutated in resistant strains. What does **not** generalise is the
+label: "S83" is *E. coli* residue numbering, and the equivalent residue carries a different
+number in other species. Applying the identifier `gyrA_S83L` to three species is therefore a
+naming inaccuracy rather than a mechanistic one. Methods describes it generically ("a gyrA
+target-site mutation") and says the specific numbering is *E. coli*'s — which is now a
+positively supported statement rather than a hedge.
 
 ### 3.5 blaTEM-1 is confined to E. coli, though it is common in Klebsiella
 
