@@ -47,8 +47,11 @@ the mcr-1 colistin-resistance plasmid was conjugated into *Escherichia coli* and
 *Klebsiella pneumoniae* and *Pseudomonas aeruginosa* [liu2016mcr], and an NDM-1
 carbapenemase plasmid was conjugated from *Citrobacter freundii* into an *E. coli* recipient
 [dolejska2012]. The prediction task we report on is therefore easier than the corresponding
-task in a community of mixed species, and our results should be read with that in mind
-(Sections 3, 5 and 6).
+task in a community of mixed species. A second qualification applies to the evaluation
+itself: our held-out split is taken over snapshot pairs rather than over simulation runs, so
+it measures generalisation to new time windows within runs seen during training, and not to
+unseen runs, scenarios or species. Both restrictions should be kept in mind when reading the
+figures below (Sections 3, 5 and 6).
 
 Our contributions are:
 
@@ -56,10 +59,13 @@ Our contributions are:
    documented simulation whose biology exists in two explicitly versioned forms. Results are
    reported on the corrected version (Section 3).
 
-2. **A GNN that outperforms a per-gene Random Forest baseline.** On the five resistance
-   genes for which our per-gene Random Forest baseline can be trained, the GNN reaches a test
-   AUROC of 0.9735 ± 0.0017, against 0.8950 ± 0.0386 for the Random Forest, and is better on all
-   5 of 5 seeds (Section 4).
+2. **A GNN that outperforms a per-gene Random Forest baseline, under the evaluation described
+   above.** On the five resistance genes for which our per-gene Random Forest baseline can be
+   trained, the GNN reaches a test AUROC of 0.9735 ± 0.0017, against 0.8950 ± 0.0386 for the
+   Random Forest, and is better on all 5 of 5 seeds (Section 4). Both models are evaluated on
+   the same held-out snapshot pairs, so this is a like-for-like comparison between the two
+   approaches on this task; it is not evidence about either model's behaviour on unseen runs
+   or on interspecies transfer, neither of which we test.
 
 3. **Coverage of rare genes.** Our per-gene Random Forest and logistic-regression baselines, as
    implemented, need at least five positive examples in their training subsample, and so cannot

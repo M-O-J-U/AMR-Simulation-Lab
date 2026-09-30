@@ -2,28 +2,42 @@
 GNN Resistance Predictor — Graph Attention Network (GAT).
 
 Architecture:
-  Input:  node features (35-dim) + edge features (5-dim)
-  Layers: 3x GAT conv layers with edge feature integration
+  Input:  node features (NODE_FEATURE_DIM = 35) + edge features (EDGE_FEATURE_DIM = 5)
+  Layers: n_layers GAT conv blocks (constructor default 3; the configuration used
+          for the reported results uses 2 — see paper/draft/03_methods.md §3.5)
   Output: per-edge, per-gene transfer probability (E × 10)
 
-Why GAT over GCN:
-  - Attention mechanism learns WHICH neighbors matter most
-    (a donor with blaNDM-1 should attend more to susceptible nearby cells)
-  - Edge features (distance, shared genes, biofilm status) are
-    incorporated via EdgeConv-style augmentation before each layer
-  - Multiple attention heads capture different biological signals
-    (one head may learn distance matters, another learns SOS matters)
+Why GAT rather than a non-attentional convolution: attention weights neighbours
+rather than averaging them uniformly, and GATConv accepts an edge attribute, so
+the encoded edge vector participates in attention. Note that the reported runs
+zero the edge features, so this capacity is available but unused there.
 
-Why this is novel:
-  - First GNN applied directly to agent-based AMR simulation state
-  - Predicts WHICH specific gene transfers NEXT (not just IF resistance emerges)
-  - Edge features encode real biological conjugation prerequisites
-  - Trained on simulation ground truth; validated against CARD transfer rates
+What this model does: it predicts, per directed edge and per gene, whether that
+gene is transferred along that contact in the next snapshot window, rather than
+predicting only whether resistance emerges in the population.
 
-References:
-  - Veličković et al. 2018 — Graph Attention Networks
+CAUTION on interpreting attention: we have NOT run any analysis of what
+individual heads attend to, so no claim is made here about heads specialising to
+particular biological factors. (An earlier version of this docstring asserted
+that heads learn "distance" and "SOS" — besides being unverified, both of those
+features were REMOVED as label leakage; see ai/feature_engineering.py.)
+
+CAUTION on edge features: they encode transfer CORRELATES (shared genes, fitness
+difference, both-in-biofilm, stress difference, coarsened proximity), not the
+conjugation preconditions. The features that were the actual preconditions were
+removed as leakage.
+
+No external validation of this model exists in this repository. Earlier text here
+claimed validation "against CARD transfer rates"; there is no such experiment.
+See paper/claims_to_numbers.md U7.
+
+References (both verified 2026-09-30):
+  - Veličković et al. 2018 — Graph Attention Networks (ICLR 2018, arXiv:1710.10903)
   - Gilmer et al. 2017 — Neural Message Passing for Quantum Chemistry
-  - Orenstein et al. 2021 — GNNs for microbial ecology
+    (Gilmer, Schoenholz, Riley, Vinyals, Dahl; arXiv:1704.01212)
+  (A third reference, "Orenstein et al. 2021 — GNNs for microbial ecology", was
+  removed on 2026-09-30: no such paper could be found on PubMed or the open web,
+  so it is treated as fabricated. CLAUDE.md rule 7.)
 """
 
 import math
@@ -50,9 +64,10 @@ from ai.feature_engineering import (
 
 class EdgeEncoder(nn.Module):
     """
-    Encodes 8-dim edge features into a hidden representation.
-    This hidden rep is concatenated to node features before each GAT layer,
-    effectively injecting edge context into node attention.
+    Encodes the edge feature vector (edge_dim, = EDGE_FEATURE_DIM = 5) into a
+    hidden representation of width hidden_dim. The result is passed to each GAT
+    layer as GATConv's edge attribute, and is also concatenated with the two
+    endpoint representations in the prediction head.
     """
     def __init__(self, edge_dim: int, hidden_dim: int):
         super().__init__()
@@ -75,8 +90,9 @@ class NodeEncoder(nn.Module):
     """
     Projects raw 35-dim node features into hidden_dim space.
     Separate sub-encoders for each feature group (genomic, physiological etc.)
-    then concatenates and projects — this is better than a single linear
-    because features have very different scales and semantics.
+    then concatenates and projects. The rationale is that the groups have very
+    different scales and semantics; we have NOT compared this against a single
+    linear projection, so no claim is made that it performs better.
 
     NOTE: behavioral group is 2-dim (in_biofilm, is_persister), not 3 —
     sos_active was removed as direct leakage of the HGT label-generating
@@ -136,11 +152,16 @@ class NodeEncoder(nn.Module):
 
 class GATLayerWithEdge(nn.Module):
     """
-    GAT layer that incorporates edge features by:
-    1. Encoding edge features to same dim as node hidden
-    2. Adding edge encoding to source node features before attention
-    3. Running standard GAT conv
-    4. Residual connection + LayerNorm
+    GAT block. Given node states and the already-encoded edge vectors, it:
+    1. runs GATConv with the encoded edge vector as its edge attribute
+       (edge_dim = edge_enc_dim, which need not equal hidden_dim),
+    2. adds a residual connection and normalises,
+    3. applies a position-wise feed-forward network,
+    4. adds a second residual connection and normalises.
+
+    Note: the edge encoding is consumed by GATConv's own edge_dim pathway. It is
+    NOT added to the source node features before attention (an earlier version of
+    this docstring said it was; the code never did that).
     """
     def __init__(self, hidden_dim: int, heads: int, edge_dim: int, dropout: float):
         super().__init__()
@@ -220,9 +241,10 @@ class AMRResistanceGNN(nn.Module):
     Full Graph Attention Network for AMR resistance gene transfer prediction.
 
     Forward pass:
-      1. Encode node features (35-dim → hidden_dim)
-      2. Encode edge features (8-dim → edge_enc_dim)
-      3. 3 rounds of GAT message passing (with edge features)
+      1. Encode node features (NODE_FEATURE_DIM=35 → hidden_dim)
+      2. Encode edge features (EDGE_FEATURE_DIM=5 → edge_enc_dim)
+      3. n_layers rounds of GAT message passing (0 = no message passing, the
+         graph-free ablation)
       4. For each directed edge (i→j): predict which genes will transfer
 
     Args:
@@ -282,9 +304,9 @@ class AMRResistanceGNN(nn.Module):
           logits: (E, N_GENES) — raw logits per edge per gene
                   Apply sigmoid for probabilities
         """
-        x          = data.x           # (N, 35)
+        x          = data.x           # (N, NODE_FEATURE_DIM) = (N, 35)
         edge_index = data.edge_index  # (2, E)
-        edge_attr  = data.edge_attr   # (E, 8)
+        edge_attr  = data.edge_attr   # (E, EDGE_FEATURE_DIM) = (E, 5)
 
         # Encode nodes and edges
         h = self.node_encoder(x)           # (N, hidden_dim)
