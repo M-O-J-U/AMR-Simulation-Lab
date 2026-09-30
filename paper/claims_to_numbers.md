@@ -20,7 +20,8 @@ gyrA_S83L 34, mexAB-oprM 0). "Headline" = macro over genes in `ai/eval_genes.py`
 | # | Claim | Number(s) | Source |
 |---|---|---|---|
 | S1 | A tuned GNN predicts per-edge HGT events with high discrimination, stable across seeds | Headline AUROC 0.9805 ± 0.0012 (n=5) | reseeded/lab_v2_tuned_noedge_mrsa/results.json → `summary.gnn.headline_auroc` |
-| S2 | The GNN outperforms Random Forest — **stated on genes RF actually trained on** | GNN 0.9735 ± 0.0017 vs RF 0.8950 ± 0.0386 on {blaCTX-M-15, blaKPC-2, blaNDM-1, mcr-1, tetM}; GNN better on 5/5 seeds | computed from `per_seed[*].{gnn,random_forest}.per_gene_auroc` (see OPEN decision D6) |
+| S2 | **HEADLINE (abstract, main text):** the GNN outperforms Random Forest on the genes RF can train on | GNN **0.9735 ± 0.0017** vs RF **0.8950 ± 0.0386** on {blaCTX-M-15, blaKPC-2, blaNDM-1, mcr-1, tetM}; GNN better on 5/5 seeds | computed from `per_seed[*].{gnn,random_forest}.per_gene_auroc` (decision 2026-09-30, `paper/decisions_log.md`) |
+| S2b | **Stated separately, as a real advantage of the approach:** the per-gene RF/LR baselines as implemented (one-vs-rest, ≥5 positives in the 100k-edge training subsample; cutoff NOT lowered) can't be trained for rare genes, while the GNN, trained jointly on all genes, gives evaluable predictions for them | RF/LR untrainable for acrAB-tolC and gyrA_S83L (scored 0.5 by construction). GNN evaluable on 7 of 8 headline genes (blaTEM-1: no test positives, so no model can be scored on it) + vanA separately = 8. GNN on the RF-untrainable genes: acrAB-tolC 0.9986 ± 0.0018, gyrA_S83L 0.9977 ± 0.0006 — **quote with their total positive counts (19 and 34)** | same file → `per_gene_auroc`; `dataset.positives_per_gene` |
 | S3 | …and Logistic Regression | Headline LR 0.7096 ± 0.0359 | same file → `summary.logistic_regression.headline_auroc` |
 | S4 | Message passing adds a small but consistent gain | GNN − no-message-passing: +0.0031 ± 0.0014 headline AUROC, 5/5 seeds (0.9805 vs 0.9774 ± 0.0006) | same file → `comparisons.gnn_minus_graph_free`; also sweep/lab_v2_mrsa_noedge/summary.md |
 | S5 | Carried resistance genes are the dominant feature group | Ablation "No genomic genes" Δ = −0.0549 ± 0.0331 (n=3); all other groups within ±0.003 | same file → `ablation` |
@@ -37,10 +38,10 @@ gyrA_S83L 34, mexAB-oprM 0). "Headline" = macro over genes in `ai/eval_genes.py`
 | U2 | "Graph structure drives prediction" / large graph advantage | Message passing adds only +0.003 (S4); edge features add nothing (below) |
 | U3 | Edge features carry signal | Tuned: GNN with vs without edge features ≈ equal on paper_v1 (0.9665 vs 0.9673); on lab_v2 (4-scenario) including them coincided with a training failure; they are zeroed in the reference set |
 | U4 | Antibiotic exposure is the strongest signal (retired: ΔAUROC −0.0284) | Ablation Δ = +0.0001 ± 0.0001 (S5 file). Caveat: under the lab_v2 protocol drug is present for only 5 of 80 steps |
-| U5 | GNN beats RF by ~0.20 | Headline gap 0.1984 is inflated: RF/LR score 0.5 by construction on acrAB-tolC and gyrA_S83L (skipped: <5 positives in their 100k-edge subsample). Use S2 |
+| U5 | GNN beats RF by ~0.20 | The 8-gene headline gap (0.1984) mixes in two genes RF/LR can't train on (scored 0.5 by construction). The GNN-vs-RF number is S2; the coverage difference is stated separately as S2b |
 | U6 | vanA prediction is a biological result | vanA AUROC 0.9988 reflects a SIMPLIFIED mechanism (de novo in MRSA, MRSA→MRSA spread; documented route is Tn1546 from *E. faecalis* — Weigel 2003 doi:10.1126/science.1090956; Clark 2005 doi:10.1128/AAC.49.1.470-472.2005) and species confinement; report separately, labelled |
 | U7 | External validation against real genomes | Current external validation is non-functional (phenotype tables, no gene calls; Spearman NaN). ResFinder re-annotation = FUTURE WORK |
-| U8 | blaTEM-1 performance | Not evaluable: 5 positives total, none in test |
+| U8 | blaTEM-1 performance, or "the GNN evaluates all 8 headline genes" | Not evaluable: 5 positives total, none in test — the GNN is evaluated on 7 of 8 headline genes (+ vanA separately) |
 | U9 | Default-hyperparameter numbers (e.g. lab_v2 GNN 0.68) | Superseded; defaults (lr 3e-4) were mistuned |
 
 ## Earlier result sets (context for a before/after table; not the reference)

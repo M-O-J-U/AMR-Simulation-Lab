@@ -47,13 +47,25 @@ See also `CLAUDE.md` (rules, paper-phase notes, RESUME HERE) and `paper/claims_t
   - Evidence: `ai/gnn_trainer.py` comment; commit 2e8fcd1. The investigation scripts were in
     the session scratchpad (not kept).
 - **Edge features zeroed in the reference set (approved as part of the combined rerun).**
-- **Fair RF comparison policy: OPEN (not decided).**
-  - Fact: `run_baselines` doesn't train RF/LR on a gene with fewer than 5 positives in its
-    100k-edge training subsample; that gene scores 0.5 by construction. In the reference
-    set this affects acrAB-tolC and gyrA_S83L, which inflates the headline gap
-    (0.198 vs 0.079 on the genes RF trained on).
-  - Options put to the owner: (a) compare only on genes both models trained on (as in
-    `claims_to_numbers.md` S2); (b) let RF train on rare genes (lower the 5-positive cutoff,
-    or subsample stratified by gene) and rerun.
-  - Until decided, cite S2, not the headline gap.
+- **Fair RF comparison policy: DECIDED — report both.**
+  - **Headline (abstract, main text):** GNN **0.9735 ± 0.0017** vs RF **0.8950 ± 0.0386**,
+    on the 5 genes RF can train on (blaCTX-M-15, blaKPC-2, blaNDM-1, mcr-1, tetM).
+    GNN better on 5/5 seeds.
+  - **Separately:** the RF/LR baselines can't be trained below the 5-positive cutoff, while
+    the GNN is trained jointly on all genes and gives evaluable predictions for them.
+    Framed as a real advantage of the approach, not an artifact.
+  - **RF's cutoff is NOT lowered.** The existing baseline stays as is.
+  - **Accuracy notes for the framing** (added when recording the decision):
+    - Scope the claim to the baselines *as implemented*: per-gene one-vs-rest, with at least
+      5 positives needed in the 100k-edge training subsample. The cutoff is a property of
+      this baseline design, not of Random Forests in general.
+    - The GNN is *evaluated* on 7 of the 8 headline genes: blaTEM-1 has no test positives
+      (5 in total), so no model can be scored on it. Adding vanA (reported separately)
+      gives 8 evaluated genes. It is *trained* on all 10 outputs jointly.
+    - The two genes only the GNN covers have few positives in total (acrAB-tolC 19,
+      gyrA_S83L 34); their GNN AUROCs (0.9986, 0.9977) should be quoted with those counts.
+  - The headline gap on all 8 genes (0.1984) is **not** to be quoted as the GNN-vs-RF
+    difference.
+  - Previously OPEN (options offered: compare on common genes, or let RF train on rare
+    genes); decided by the owner 2026-09-30.
 - **Next steps: OPEN.** Lab Phases 3–4 aren't started. No paper text.
