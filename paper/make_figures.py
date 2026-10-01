@@ -48,29 +48,36 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RESULTS = os.path.join(REPO, "ai", "checkpoints", "reseeded",
-                       "lab_v2_tuned_noedge_mrsa", "results.json")
+                       "lab_v2_grouped50_runsplit", "results.json")
 FIGDIR = os.path.join(REPO, "paper", "figures")
-SRC_LABEL = "ai/checkpoints/reseeded/lab_v2_tuned_noedge_mrsa/results.json"
+SRC_LABEL = "ai/checkpoints/reseeded/lab_v2_grouped50_runsplit/results.json"
 
 # Values recorded in paper/claims_to_numbers.md, used only to verify the plotted data.
 CLAIMED = {
-    "S1_headline_gnn": (0.9805, 0.0012),
-    "S2_gnn_4gene": (0.9777, 0.0023),
-    "S2_rf_4gene": (0.9548, 0.0124),
-    "S3_headline_lr": (0.7096, 0.0359),
-    "S4_msg_passing_gain": (0.0031, 0.0014),
-    "S5_no_genomic_delta": (-0.0549, 0.0331),
+    "S1_headline_gnn": (0.9676, 0.0076),
+    "S2_gnn_4gene": (0.9805, 0.0021),
+    "S2_rf_4gene": (0.9647, 0.0031),
+    "S3_headline_lr": (0.7911, 0.0336),
+    "S4_msg_passing_gain": (0.0065, 0.0086),
+    "S5_no_genomic_delta": (-0.0442, 0.0071),
     "S6_ece": (0.0012, 0.0003),
     "S9_per_gene": {
-        "blaCTX-M-15": (0.9642, 0.0030), "blaKPC-2": (0.9564, 0.0021),
-        "blaNDM-1": (0.9755, 0.0039), "mcr-1": (0.9908, 0.0011),
-        "tetM": (0.9805, 0.0033), "acrAB-tolC": (0.9986, 0.0018),
-        "gyrA_S83L": (0.9977, 0.0006),
+        "blaCTX-M-15": (0.9821, 0.0024), "blaKPC-2": (0.9761, 0.0045),
+        "blaNDM-1": (0.9860, 0.0054), "mcr-1": (0.9738, 0.0018),
+        "tetM": (0.9844, 0.0010), "acrAB-tolC": (0.8890, 0.0506),
+        "gyrA_S83L": (0.9822, 0.0049), "vanA": (0.8669, 0.0504),
     },
     "positives_per_gene": {
-        "blaCTX-M-15": 480, "tetM": 420, "mcr-1": 179, "blaNDM-1": 177,
-        "blaKPC-2": 94, "vanA": 35, "gyrA_S83L": 34, "acrAB-tolC": 19,
-        "blaTEM-1": 5, "mexAB-oprM": 0,
+        "blaCTX-M-15": 1446, "tetM": 1230, "mcr-1": 766, "blaNDM-1": 554,
+        "blaKPC-2": 536, "gyrA_S83L": 109, "vanA": 75, "blaTEM-1": 24,
+        "acrAB-tolC": 23, "mexAB-oprM": 0,
+    },
+    # Positives in the held-out split: what each per-gene AUROC is actually
+    # estimated from. Far more informative than the dataset-wide count.
+    "test_positives": {
+        "tetM": 311, "mcr-1": 217, "blaCTX-M-15": 212, "blaKPC-2": 61,
+        "gyrA_S83L": 24, "blaNDM-1": 16, "acrAB-tolC": 5, "vanA": 5,
+        "blaTEM-1": 0, "mexAB-oprM": 0,
     },
 }
 # Genes whose simulated transfer is a labelled simplification (U6, U10).
@@ -125,8 +132,8 @@ def check(data: dict) -> list:
 
     gm, gsd, gvals = subset_macro(data, "gnn", HEADLINE_SET)
     rm, rsd, rvals = subset_macro(data, "random_forest", HEADLINE_SET)
-    cmp("S2 GNN (4-gene)", gm, gsd, CLAIMED["S2_gnn_4gene"])
-    cmp("S2 RF (4-gene)", rm, rsd, CLAIMED["S2_rf_4gene"])
+    cmp("S2 GNN (headline set)", gm, gsd, CLAIMED["S2_gnn_4gene"])
+    cmp("S2 RF (headline set)", rm, rsd, CLAIMED["S2_rf_4gene"])
     wins = sum(1 for a, b in zip(gvals, rvals) if a > b)
     if wins != 5:
         problems.append(f"S2: GNN ahead on {wins}/5 seeds, claimed 5/5")
@@ -153,8 +160,8 @@ def check(data: dict) -> list:
         if pos.get(gene) != want:
             problems.append(f"positives {gene}: {pos.get(gene)} != claimed {want}")
 
-    for key, want in (("n_graph_pairs", 390), ("n_edges", 1_707_498),
-                      ("n_edge_gene_positives", 1_443)):
+    for key, want in (("n_graph_pairs", 1300), ("n_edges", 6_029_316),
+                      ("n_edge_gene_positives", 4_763)):
         if data["dataset"][key] != want:
             problems.append(f"dataset {key}: {data['dataset'][key]} != claimed {want}")
     return problems
@@ -205,7 +212,7 @@ def rf_coverage(data: dict) -> None:
 
 # ---------------------------------------------------------------- figure 1
 def fig_per_gene(data: dict) -> str:
-    pos = data["dataset"]["positives_per_gene"]
+    pos = CLAIMED["test_positives"]       # positives the estimate actually rests on
     rows = []
     for gene, row in data["per_gene_auroc"]["gnn"].items():
         if row["mean"] is None:
@@ -230,11 +237,12 @@ def fig_per_gene(data: dict) -> str:
     ax.set_yticks(list(y))
     ax.set_yticklabels([f"{n}*" if n in SIMPLIFIED else n for n in names], fontsize=10)
     ax.invert_yaxis()
-    ax.set_xlim(0.94, 1.018)
-    ax.set_xlabel("Test AUROC (mean ± SD over 5 model seeds)")
-    ax.set_title("Per-gene discrimination, with positive-event counts\n"
-                 "Fewest positives score highest; best-evidenced gene scores lowest",
-                 fontsize=11)
+    ax.set_xlim(0.80, 1.045)
+    ax.set_xlabel("Test AUROC (mean ± SD over 5 model seeds); "
+                  "n = positives in the held-out split")
+    ax.set_title("Per-gene discrimination, with held-out positive counts\n"
+                 "The two genes with only 5 test positives score lowest, "
+                 "with by far the widest spread", fontsize=11)
     ax.grid(axis="x", alpha=0.3, lw=0.6)
     ax.set_axisbelow(True)
     handles = [patches.Patch(color="#3a6ea5", label="modelled as conjugative transfer"),
@@ -353,7 +361,10 @@ def fig_ablation(data: dict) -> str:
 
 
 # ---------------------------------------------------------------- figure 4
-HEADLINE_SET = ["blaCTX-M-15", "blaNDM-1", "mcr-1", "tetM"]
+# Genes the per-gene baseline can be fitted to in EVERY seed, at the current
+# reference set. blaKPC-2 qualifies at 50 runs (5/5); at 15 runs it was 2/5,
+# which is why the earlier version of this set had only four genes.
+HEADLINE_SET = ["blaCTX-M-15", "blaKPC-2", "blaNDM-1", "mcr-1", "tetM"]
 
 
 def subset_macro(data: dict, model: str, genes: list) -> tuple:
@@ -388,15 +399,15 @@ def fig_comparison(data: dict) -> str:
     ax1.set_xticks(list(x))
     ax1.set_xticklabels(labels, fontsize=9)
     ax1.set_ylim(0.5, 1.06)
-    ax1.set_ylabel("Macro AUROC over the 4 genes")
-    ax1.set_title("A. Like-for-like: the 4 genes the baseline\n"
+    ax1.set_ylabel("Macro AUROC over the 5 genes")
+    ax1.set_title("A. Like-for-like: the 5 genes the baseline\n"
                   "fits in every seed", fontsize=10)
     ax1.grid(axis="y", alpha=0.3, lw=0.6)
     ax1.set_axisbelow(True)
 
     # Panel B: per-gene, showing where the baseline cannot be fitted.
-    genes = HEADLINE_SET + ["blaKPC-2", "gyrA_S83L", "acrAB-tolC"]
-    pos = data["dataset"]["positives_per_gene"]
+    genes = HEADLINE_SET + ["gyrA_S83L", "vanA", "acrAB-tolC"]
+    pos = CLAIMED["test_positives"]   # held-out, as in fig 1
     gnn_m = [data["per_gene_auroc"]["gnn"][g]["mean"] for g in genes]
     rf_vals = {g: [s["random_forest"]["per_gene_auroc"][g]
                    for s in data["per_seed"]] for g in genes}
@@ -441,7 +452,7 @@ def save(fig, stem: str) -> str:
 
 def captions(data: dict) -> str:
     """Write captions generated from the same numbers as the figures."""
-    pos = data["dataset"]["positives_per_gene"]
+    pos = CLAIMED["test_positives"]   # held-out counts throughout
     pg = data["per_gene_auroc"]["gnn"]
     s = data["summary"]
     gm, gsd, gvals = subset_macro(data, "gnn", HEADLINE_SET)
@@ -472,23 +483,28 @@ edge-gene positives). Generated by `paper/make_figures.py`, which verifies every
 number against `paper/claims_to_numbers.md` and fails if any has drifted.
 
 <!-- fig: fig1_per_gene_auroc -->
-## Per-gene discrimination, with positive-event counts
+## Per-gene discrimination, with held-out positive counts
 
-Per-gene test AUROC of the GNN, mean ± SD over 5 model seeds, each bar annotated with
-that gene's total positive transfer events in the dataset.
-**The ordering is confounded, and runs opposite to the evidence behind it: the two
-highest-scoring genes are the two with the fewest positives — acrAB-tolC
-{f(pg['acrAB-tolC']['mean'])} from {pos['acrAB-tolC']} events and gyrA_S83L
-{f(pg['gyrA_S83L']['mean'])} from {pos['gyrA_S83L']} — while the best-evidenced gene,
-blaCTX-M-15 with {pos['blaCTX-M-15']} events, scores lowest at
-{f(pg['blaCTX-M-15']['mean'])}.** An AUROC estimated from {pos['acrAB-tolC']} positives is
-not comparable to one estimated from {pos['blaCTX-M-15']}, so this figure must not be read as
-a difficulty ranking over genes. Starred genes (acrAB-tolC, gyrA_S83L) are chromosomal in real
-bacteria and are transferred by the simulator as a labelled simplification (claim U10); vanA is
-likewise simplified (U6) and is excluded from the headline macro. blaTEM-1 ({pos['blaTEM-1']}
-positives, none in the test split) and mexAB-oprM ({pos['mexAB-oprM']} positives, in no
-species' acquirable set) are not evaluable and are absent from the figure. Counts from
-`dataset.positives_per_gene`; AUROCs from `per_gene_auroc.gnn`. Claims S9, U6, U8, U10, U12.
+Per-gene test AUROC of the GNN, mean ± SD over 5 model seeds, each bar annotated with the
+number of positive transfer events for that gene **in the held-out split** — the evidence the
+estimate actually rests on, which is far more informative than the dataset-wide count.
+**The two genes with only 5 held-out positives score lowest and carry by far the widest
+spread: acrAB-tolC {f(pg['acrAB-tolC']['mean'])} ± {f(pg['acrAB-tolC']['sd'])} and vanA
+{f(pg['vanA']['mean'])} ± {f(pg['vanA']['sd'])}, against 0.97–0.99 for every gene with tens or
+hundreds of held-out positives.** Those seed-to-seed spreads still understate the true
+uncertainty, which is dominated by sampling 5 events.
+**This figure replaces an earlier version whose ordering ran the other way** — under the
+superseded pair-level split these same two genes scored 0.9986 and 0.9988, the highest in the
+table. That ordering was an artefact of splitting snapshots rather than simulation runs, so
+test snapshots came from runs the model had trained on (claim U13). It is the clearest single
+illustration of what that split was doing. Do not read any version of this figure as a
+difficulty ranking over genes: per-gene counts are set by the simulator's seeding code
+(claim U12), not by gene biology.
+Starred genes (acrAB-tolC, gyrA_S83L) are chromosomal in real bacteria and are transferred by
+the simulator as a labelled simplification (claim U10); vanA is likewise simplified (U6) and is
+excluded from the headline macro. blaTEM-1 ({pos['blaTEM-1']} held-out positives) and
+mexAB-oprM ({pos['mexAB-oprM']}, in no species' acquirable set) cannot be scored and are absent.
+Counts from the held-out split; AUROCs from `per_gene_auroc.gnn`. Claims S9, U6, U8, U10, U12, U13.
 
 <!-- fig: fig2_architecture -->
 ## Model architecture, reference configuration
@@ -521,22 +537,21 @@ Claims S5, U4.
 <!-- fig: fig4_model_comparison -->
 ## Headline comparison, and where the per-gene baseline cannot be built
 
-**Panel A.** Macro AUROC over the four genes the random forest fits in *every* seed
-(blaCTX-M-15, blaNDM-1, mcr-1, tetM): GNN {f(g4m)} ± {f(g4s)}, random forest {f(r4m)}
-± {f(r4s)}, logistic regression {f(l4m)} ± {f(l4s)}; the GNN is ahead on 5 of 5 seeds
-(claim S2). This set deliberately excludes blaKPC-2, because the baselines draw their
-100,000-edge training subsample per seed and blaKPC-2 clears the five-positive threshold in
-only 2 of 5 seeds; including it would fold 0.5-by-construction scores into the baseline, which
-is the artefact claim U5 exists to keep out of a performance comparison. An earlier version of
-this analysis did include it and overstated the gap roughly threefold (0.079 against the
-correct 0.023).
-**Panel B.** Per-gene view of the same run, ordered as in the text, with each gene's total positive
-count. The dotted line marks 0.5, the score assigned when a gene cannot be fitted at all.
-acrAB-tolC ({pos['acrAB-tolC']} positives) and gyrA_S83L ({pos['gyrA_S83L']}) are never fitted in any seed;
-blaKPC-2 ({pos['blaKPC-2']}) is fitted in 2 of 5, and the plotted random-forest bar for those three is a
-mean that includes those 0.5 scores, so it is a summary of availability rather than of skill.
-The GNN produces a stable prediction for every gene shown in every seed. Claims S2, S2b, U5.
-Values from `per_seed[*].per_gene_auroc` and `dataset.positives_per_gene`.
+**Panel A.** Macro AUROC over the five genes the random forest can be fitted to in *every*
+seed (blaCTX-M-15, blaKPC-2, blaNDM-1, mcr-1, tetM): GNN {f(g4m)} ± {f(g4s)}, random forest
+{f(r4m)} ± {f(r4s)}, logistic regression {f(l4m)} ± {f(l4s)}; the GNN is ahead on 5 of 5 seeds
+(claim S2). The set is the stated criterion applied to the current data; on the earlier,
+smaller dataset blaKPC-2 cleared the five-positive threshold in only 2 of 5 seeds and was
+therefore excluded. This comparison is notably **robust**: the gap is 0.016–0.023 across a
+3.3× increase in data and the correction from a snapshot-level to a run-level split.
+**Panel B.** Per-gene view, with each gene's positive count in the held-out split — the
+evidence behind each estimate. The dotted line marks 0.5, the score assigned when a gene
+cannot be fitted at all. At this dataset size **only acrAB-tolC ({pos['acrAB-tolC']} held-out positives)
+is never fitted by the baseline**; gyrA_S83L ({pos['gyrA_S83L']}) is fitted in 3 of 5 seeds and vanA is
+now fitted in all 5. The baseline bars for partially fitted genes are means that include those
+0.5 scores, so they summarise availability rather than skill. The coverage gap has narrowed
+sharply as data grew, which is why it is no longer presented as a headline contribution.
+Claims S2, S2b, U5. Values from `per_seed[*].per_gene_auroc` and the held-out split.
 """
     path = os.path.join(FIGDIR, "captions.md")
     os.makedirs(FIGDIR, exist_ok=True)

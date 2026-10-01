@@ -3,10 +3,13 @@
 This script produced claim **S10** in `paper/claims_to_numbers.md`, and the numbers
 quoted in the Abstract, Discussion §6.1 and Limitations §5.2:
 
-    cross-species edges        4,696 of 1,707,498  (0.275%)
-    where                      pakistan_crisis only (4,696 of its 192,984 edges);
+    cross-species edges        6,428 of 6,029,316  (0.1066%)   [50-run reference set]
+    where                      pakistan_crisis only (6,428 of its 682,678 edges);
                                the other four scenarios are single-species -> 0
-    positives on those edges   0  (all 1,443 positives are same-species)
+    positives on those edges   0  (all 4,763 positives are same-species)
+
+    On the superseded 15-run set the figures were 4,696 of 1,707,498 (0.275%),
+    likewise with zero positives. The conclusion is unchanged and strengthened.
 
 It was written to CHECK a claim that turned out to be false — that intraspecies-only
 transfer floods the negative class with easily separable cross-species pairs. It does
@@ -54,7 +57,9 @@ from ai.feature_engineering import GENE_INDEX, collect_training_snapshots
 from ai.gnn_trainer import DEFAULT_CONFIG, dosing_for, scenarios_for
 
 # Committed reference totals, for the self-check (paper/claims_to_numbers.md header).
-EXPECTED = {"graph_pairs": 390, "edges": 1_707_498, "edge_gene_positives": 1_443}
+# The run50 reference set (50 runs). The earlier 15-run set was
+# 390 / 1,707,498 / 1,443.
+EXPECTED = {"graph_pairs": 1300, "edges": 6_029_316, "edge_gene_positives": 4_763}
 
 
 def tally(pairs: list) -> dict:
@@ -94,9 +99,14 @@ def main() -> int:
     ap.add_argument("--scenario", help="measure one scenario only (default: all five)")
     ap.add_argument("--seed", type=int, help="measure one data seed only, e.g. 100")
     ap.add_argument("--json", help="write the full breakdown to this path")
+    ap.add_argument("--data-seeds", type=int, default=None,
+                    help="data seeds per scenario (DEFAULT_CONFIG: 3; the run50 "
+                         "reference set uses 10)")
     args = ap.parse_args()
 
     config = dict(DEFAULT_CONFIG)
+    if args.data_seeds:
+        config["seeds_per_scenario"] = args.data_seeds
     dosing = dosing_for(config)
     scenarios = [args.scenario] if args.scenario else scenarios_for(config)
     seeds = ([args.seed] if args.seed is not None
@@ -156,7 +166,7 @@ def main() -> int:
             print("The reference numbers in paper/ may no longer describe this code.")
             return 1
         print("\nTotals match the committed reference dataset "
-              "(390 / 1,707,498 / 1,443): S8 determinism re-confirmed.")
+              "(1,300 / 6,029,316 / 4,763): S8 determinism re-confirmed.")
 
     if args.json:
         payload = {"totals": totals, "per_scenario": per_scenario,
