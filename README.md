@@ -106,8 +106,8 @@ using per-drug `diffusion_rate` / `decay_rate` from `data/card_loader.py`.
 
 ### 1. Install dependencies
 ```bash
-git clone https://github.com/M-O-J-U/amr-simulation
-cd amr-simulation
+git clone https://github.com/M-O-J-U/AMR-Simulation-Lab
+cd AMR-Simulation-Lab
 pip install -r requirements.txt
 ```
 
@@ -364,10 +364,13 @@ LinkedIn: [linkedin.com/in/abdul-moiz-muhammad](https://linkedin.com/in/abdul-mo
 > and a split by simulation run**, because the pair-level split was inflating results — see
 > `paper/claims_to_numbers.md` (claim U13) and §4.9 of the paper.
 >
-> To regenerate the paper's reference set instead:
+> To regenerate the paper's reference set instead, run this as a **single line**
+> (PowerShell users: swap the single quotes for double quotes):
+>
 > ```bash
-> python -m ai.reseeded_results --seeds 5 --ablation-seeds 3 --data-seeds 10 >     --train-frac 0.6 --val-frac 0.2 --split-by run >     --gnn-hparams '{"hidden_dim":128,"lr":0.001,"n_layers":2}' >     --rf-hparams  '{"n_estimators":300,"max_depth":8}' >     --no-edge --graph-free --tag grouped50_runsplit
+> python -m ai.reseeded_results --seeds 5 --ablation-seeds 3 --data-seeds 10 --train-frac 0.6 --val-frac 0.2 --split-by run --gnn-hparams '{"hidden_dim":128,"lr":0.001,"n_layers":2}' --rf-hparams '{"n_estimators":300,"max_depth":8}' --no-edge --graph-free --tag grouped50_runsplit
 > ```
+>
 > (~3.5 h on an RTX 4070 SUPER.) The steps below are kept as a record of how the earlier,
 > superseded numbers were produced.
 
