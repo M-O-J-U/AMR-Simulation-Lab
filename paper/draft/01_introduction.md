@@ -48,10 +48,10 @@ the mcr-1 colistin-resistance plasmid was conjugated into *Escherichia coli* and
 carbapenemase plasmid was conjugated from *Citrobacter freundii* into an *E. coli* recipient
 [dolejska2012]. The prediction task we report on is therefore easier than the corresponding
 task in a community of mixed species. A second qualification applies to the evaluation
-itself: our held-out split is taken over snapshot pairs rather than over simulation runs, so
-it measures generalisation to new time windows within runs seen during training, and not to
-unseen runs, scenarios or species. Both restrictions should be kept in mind when reading the
-figures below (Sections 3, 5 and 6).
+itself: our held-out split holds out whole simulation runs, so the figures below do measure
+generalisation to unseen runs — but those runs come from the same five scenarios and five
+species used in training, so generalisation to unseen scenarios or species is untested. Both
+restrictions should be kept in mind when reading the figures below (Sections 3, 5 and 6).
 
 Our contributions are:
 
@@ -60,33 +60,34 @@ Our contributions are:
    reported on the corrected version (Section 3).
 
 2. **A GNN that outperforms a per-gene Random Forest baseline, under the evaluation described
-   above.** On the four resistance genes our per-gene Random Forest baseline can be trained on
-   in every seed, the GNN reaches a test AUROC of 0.9777 ± 0.0023, against 0.9548 ± 0.0124 for
-   the Random Forest, and is better on all 5 of 5 seeds (Section 4). Both models are evaluated on
-   the same held-out snapshot pairs, so this is a like-for-like comparison between the two
-   approaches on this task; it is not evidence about either model's behaviour on unseen runs
-   or on interspecies transfer, neither of which we test.
+   above.** On the five resistance genes our per-gene Random Forest baseline can be fitted to
+   in every seed, the GNN reaches a test AUROC of 0.9805 ± 0.0021, against 0.9647 ± 0.0031 for
+   the Random Forest, and is better on all 5 of 5 seeds (Section 4). Both models are evaluated
+   on the same held-out runs, so this is a like-for-like comparison between the two approaches
+   on this task. It is the one result that survived both a threefold increase in simulated data
+   and a correction to our evaluation (Section 4.9), which is why we lead with it; it is not
+   evidence about behaviour on unseen scenarios, unseen species, or interspecies transfer, none
+   of which we test.
 
-3. **Coverage of rare genes.** Our per-gene Random Forest and logistic-regression baselines, as
-   implemented, need at least five positive examples in the training subsample they draw, and
-   that subsample is drawn per seed. Two genes fall below the threshold in every seed
-   (acrAB-tolC and gyrA_S83L, with 19 and 34 positive transfer events in the whole dataset),
-   and a third falls below it in three seeds of five (blaKPC-2, with 94). The GNN, trained
-   jointly on all genes, gives stable predictions for all three (Section 4). We note which is
-   which rather than treating them alike, and we flag that acrAB-tolC and gyrA_S83L are
-   chromosomal in real bacteria and are moved between neighbouring cells by our simulator as a
-   deliberate simplification, so their transfer events are not models of documented conjugative
-   transfer (Sections 3 and 5); blaKPC-2 carries no such caveat.
+3. **A measurement of what a snapshot-level split costs on this kind of task.** An earlier
+   version of this work split the data by snapshot rather than by simulation run, so snapshots
+   three simulated steps apart — from the same run and the same founding population — sat on
+   both sides of the split. Rerunning both splits on identical data shows that this inflated
+   the headline by 0.0176 AUROC and the two rarest genes by roughly 0.09 and 0.07, turning
+   scores of 0.999 into 0.87–0.89 (Section 4.9). We report this because the inflation is
+   concentrated precisely where it is least visible and most flattering: on the rare genes
+   whose near-perfect scores are the most quotable numbers a paper like this produces.
 
 4. **An honest account of where the signal comes from.** Message passing over the contact graph
-   adds a small but consistent gain (+0.0031 ± 0.0014 AUROC, better on 5 of 5 seeds). The genes a
-   cell already carries are by far the most important input, while edge features and local
-   antibiotic exposure add no measurable signal in our setting. For antibiotic exposure this is
-   under our dosing protocol, in which drug is present for only 5 of the 80 simulated steps
-   (Section 4).
+   shows no reliable benefit: +0.0065 ± 0.0086 AUROC, positive in only 3 of 5 seeds, a spread
+   that includes zero. The genes a cell already carries are by far the most important input
+   (−0.0442 ± 0.0071 when removed, with no other feature group distinguishable from zero), while
+   edge features and local antibiotic exposure add no measurable signal. For antibiotic exposure
+   this is under our dosing protocol, in which drug is present for only 5 of the 80 simulated
+   steps (Section 4).
 
 5. **A reproducible pipeline**: the simulation and training-data generation are seeded and
    deterministic across processes (verified byte-for-byte for the frozen `paper_v1`
    configuration), GPU training with the same seed reproduces test AUROC to within
-   2.1 × 10⁻⁴, and every reported number is a mean ± standard deviation over independent model
+   1.6 × 10⁻³, and every reported number is a mean ± standard deviation over independent model
    seeds (Section 3).

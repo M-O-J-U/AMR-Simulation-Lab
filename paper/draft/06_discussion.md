@@ -19,16 +19,16 @@ Work) on 2026-09-30 at the owner's request; the old §6.6 is now §6.5.
 
 ## 6.1 What the headline number does and does not demonstrate
 
-A headline AUROC of 0.9805 ± 0.0012 invites a stronger reading than our experiments support,
+A headline AUROC of 0.9676 ± 0.0076 invites a stronger reading than our experiments support,
 so it is worth being precise about what produced it.
 
 Three of our own results, taken together, suggest that most of the achievable performance
 comes from the pair of endpoint feature vectors rather than from the surrounding contact
-structure. Removing message passing entirely costs 0.0031 ± 0.0014 — consistent in direction
-across every seed, and therefore real, but small enough that a model with no graph
-convolution at all retains nearly all of the performance. Zeroing feature groups one at a time
-shows a single group that matters: the genes a cell already carries, at 0.0549 ± 0.0331, with
-every other group inside ±0.003. And edge features are zeroed in the reported configuration
+structure. Removing message passing entirely changes the headline by +0.0065 ± 0.0086 and is positive in
+only three seeds of five, so its contribution cannot be distinguished from zero; a model with no
+graph convolution at all retains essentially all of the performance. Zeroing feature groups one
+at a time shows a single group that matters: the genes a cell already carries, at
+0.0442 ± 0.0071, with no other group distinguishable from zero. And edge features are zeroed in the reported configuration
 without measurable cost.
 
 The likeliest explanation is that transfer in our simulator requires the donor to carry the gene
@@ -39,8 +39,8 @@ graph adding little.
 It is worth ruling out a tempting but incorrect second explanation, since we entertained it
 ourselves. Because transfer is intraspecies only, one might expect the negative class to be
 padded with cross-species contacts that any model can reject from the species one-hot alone.
-We measured this and it is not so: only 0.275% of contacts in our dataset are cross-species
-(4,696 of 1,707,498), they arise in only one of the five scenarios, and none of them carries a
+We measured this and it is not so: only 0.107% of contacts in our dataset are cross-species
+(6,428 of 6,029,316), they arise in only one of the five scenarios, and none of them carries a
 transfer. Four of the five scenarios contain a single species, and in the one mixed scenario the
 two populations are seeded as separate spatial clusters that rarely come within contact range.
 The intraspecies restriction therefore does *not* make the task easier by supplying easy
@@ -56,18 +56,42 @@ just rejected.
 
 We think this matters beyond our own paper. High discrimination on a simulator-derived task is
 easy to report and hard to interpret, because the task's difficulty is set by modelling
-decisions that are invisible in the metric. Our own pipeline supplies the cautionary example:
-before we removed four inputs that were literal components of the label-generating rule, the
-same architecture scored higher than it does now. The number improved when the experiment got
-worse.
+decisions that are invisible in the metric. Our own pipeline supplies two cautionary examples,
+and we think the second is the more useful contribution of this work.
+
+The first is feature leakage: before we removed four inputs that were literal components of the
+label-generating rule, the same architecture scored higher than it does now. The number improved
+when the experiment got worse.
+
+The second is subtler, and we would not have found it by inspection. An earlier version of this
+work split the data by snapshot rather than by simulation run. Snapshots are taken every three
+simulated steps, so the training and test sets contained near-duplicate views of the same
+population — the same individual cells, three steps apart. Nothing about that is visible in a
+metric. Rerunning the entire pipeline twice on identical data, once per split, isolates what it
+was doing: the headline fell by 0.0176 AUROC, which is modest, **but the two rarest genes fell
+by roughly 0.09 and 0.07, from 0.9986 and 0.9988 to 0.8890 and 0.8669** (§4.9).
+
+The distribution of that error is the point. The inflation was not spread evenly: it concentrated
+on the genes with the fewest held-out positive events — five each — which are exactly the genes
+whose scores look most impressive and get quoted most readily. Under the broken split those two
+genes topped the per-gene table at 0.999; under the correct one they sit at the bottom. An
+earlier draft of this paper contained a figure whose stated message was that the genes with the
+fewest examples scored highest. That was not a finding about rare-gene learnability. It was a
+leakage signature, and we had written a caption explaining it as though it were a result.
+
+The general lesson is not "group your splits", which is standard advice. It is that when a task
+is generated by a simulator, the unit of independence is the *simulation run*, not the sample,
+and that violating it does its worst damage in the least conspicuous place: the small-sample
+rows of a per-gene table, where there is least evidence and the most eye-catching numbers.
 
 ## 6.2 What the results do support: joint training across genes
 
 The result we consider most robust is also the one least dependent on the graph. Our per-gene
 baselines cannot be fitted for genes with fewer than five positive examples in the training
-subsample they draw, and because that subsample is drawn per seed, two genes fall below the
-line in every seed and a third falls below it in three seeds of five. A single model trained
-jointly on all ten gene outputs produces stable predictions for all of them. That advantage follows from parameter sharing
+subsample they draw. On a smaller dataset this bound on three genes and we presented it as a
+contribution; at the present dataset size it binds on one, acrAB-tolC, whose score rests on
+five held-out events. We have demoted the claim accordingly (§4.2, §5.1), and record here that
+it was data volume, not any change of method, that dissolved it. That advantage follows from parameter sharing
 across a multi-label output, not from message passing — the graph-free variant would inherit
 it too.
 
@@ -79,14 +103,11 @@ reach. The mechanism is mundane — shared representations let common genes subs
 but for a problem where the interesting determinants are often the rare ones, it is the part of
 our design we would keep.
 
-Two caveats travel with it, and neither is optional. The genes concerned have 19, 34 and 94
-positive events in the whole dataset, so their AUROCs are imprecise in a way that seed-to-seed
-standard deviations do not capture. And two of the three are chromosomal in real bacteria and
-are moved by our simulator as a deliberate simplification, so for those the result demonstrates
-a property of the learning setup and not a fact about the genes. The third, blaKPC-2, carries
-no mechanism caveat, which makes it the cleanest case: a genuine plasmid-borne gene that the
-per-gene baseline fits in two seeds out of five, returning 0.9611 and 0.8179 where it does fit,
-against a jointly trained model that returns 0.9564 +/- 0.0021 every time.
+What survives is narrower and worth stating precisely: a per-gene model cannot be built at all
+below its positive threshold, whereas a jointly trained one always emits a prediction. That is
+structurally true and will matter whenever the targets of interest are rare. It is not, on this
+evidence, a quantified advantage — the one gene it still applies to is measured from five
+held-out events, and it is a gene our simulator moves by a mechanism that is not its real one.
 
 ## 6.3 Relation to prior approaches
 
@@ -106,10 +127,11 @@ with theirs: different unit of prediction, different notion of an event, differe
 no comparison of magnitudes anywhere in this paper.
 
 It is worth noting that the direction of our own ablation echoes theirs. In their setting a
-non-graph model matched or beat the graph model on functional features; in ours, removing
-message passing costs 0.003. Two studies at different scales both finding limited benefit from
-graph structure is weak evidence, but it points the same way, and we would rather record it
-than present message passing as more load-bearing than it is.
+non-graph model matched or beat the graph model on functional features; in ours we cannot
+distinguish the contribution of message passing from zero. Two studies at different scales both
+finding limited benefit from graph structure is weak evidence, but it points the same way, and
+we would rather record it than present message passing as more load-bearing than it is. We note
+that our own earlier, uncorrected evaluation did make it look load-bearing and consistent.
 
 ## 6.4 The interspecies gap
 

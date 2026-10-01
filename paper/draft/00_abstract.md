@@ -18,29 +18,32 @@ population, predict for each directed cell-to-cell contact and each resistance g
 that gene is transferred in the next time window. We train a graph attention network on this
 task and evaluate it against per-gene random forest and logistic regression baselines.
 
-The network reaches a test AUROC of 0.9777 ± 0.0023 on the four genes our per-gene random
-forest can fit in every seed, against 0.9548 ± 0.0124 for that baseline, and is ahead on all
-five model seeds; its macro average over the eight genes in our evaluation policy is
-0.9805 ± 0.0012. Because it is trained jointly on all gene outputs, it also gives stable
-predictions for genes the baselines cannot reliably fit at all: two that fall below their
-five-positive training threshold in every seed, and a third that falls below it in three seeds
-of five. We attribute this coverage advantage to
-parameter sharing across a multi-label output rather than to the graph: removing message
-passing costs only 0.0031 ± 0.0014, and the genes a cell already carries dominate every other
-feature group by an order of magnitude.
+The network reaches a test AUROC of 0.9805 ± 0.0021 on the five genes our per-gene random
+forest can fit in every seed, against 0.9647 ± 0.0031 for that baseline, ahead on all five
+model seeds; its macro average over the eight genes in our evaluation policy is
+0.9676 ± 0.0076. That comparison is the one result that held steady across both a threefold
+increase in simulated data and a correction to the evaluation itself. The graph contributes
+little: removing message passing between cells changes the headline by +0.0065 ± 0.0086 and is
+positive in only three seeds of five, so we cannot distinguish its contribution from zero,
+while the genes a cell already carries dominate every other feature group by an order of
+magnitude.
 
 We are explicit about what these figures do not establish. The simulator transfers genes only
 between cells of the same species, so the interspecies transfers that dominate the literature
 on these genes are absent from the task, the labels and the evaluation alike; in our dataset
-only 0.275% of contacts are cross-species, and none of them carries a transfer, so the model is
-evaluated almost entirely on within-species pairs. The held-out split is taken over
-snapshot pairs rather than over simulation runs, so it measures generalisation to unseen time
-windows of runs seen in training, not to unseen simulations. Three of the eleven modelled genes
+only 0.107% of contacts are cross-species, and none of them carries a transfer, so the model is
+evaluated almost entirely on within-species pairs. Our held-out split holds out whole
+simulation runs, but those runs come from the same five scenarios and five species used in
+training, so generalisation to unseen scenarios or species is untested. Three of the eleven
+modelled genes
 are moved by a mechanism that is not their real one, and several parameters that resemble
 measurements are invented; all are labelled as such. No external validation against real
 genomic data exists: our attempt failed because the isolate data we could obtain carries
 resistance phenotypes rather than per-isolate gene calls. Under these conditions we read a high
 AUROC as a statement about the difficulty of the task as posed rather than as evidence that the
-model has learned conjugation. What we take to be transferable is the formulation — an exactly
-labelled, per-contact, per-gene transfer task — and the finding that training one model across
-all genes reaches rare targets that per-gene models cannot.
+model has learned conjugation. We also report a methodological result we think generalises
+beyond this system: an earlier version of this work split the data by snapshot rather than by
+simulation run, and that alone inflated the headline by 0.0176 AUROC and the two rarest genes
+by roughly 0.09 — turning scores of 0.999 into 0.87–0.89. What we take to be transferable is
+the formulation, an exactly labelled per-contact, per-gene transfer task, together with that
+cautionary result.

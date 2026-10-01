@@ -28,32 +28,24 @@ blocked by compute; what they cost is design work, literature work, and in three
 invalidation of every number in Section 4. Person-day figures are our estimates, not
 measurements.
 
-## 7.1 Split by run or by scenario, not by snapshot pair
+## 7.1 Split by run — **done**, and what it cost
 
-**What it changes.** This is the only item that changes the paper's numbers without changing
-the simulator, and the only one that changes what those numbers *mean* rather than what they
-measure. Every figure in Section 4 is currently computed on a split over snapshot pairs, so it
-reports generalisation to unseen time windows of runs seen in training (U13). A grouped split
-would replace S1–S9 with figures that answer the question a reader assumes is being answered.
-We expect them to be lower; that is the point.
+This item is complete and is reported in §4.9 rather than proposed here. We regenerated the
+dataset at 50 runs (ten data seeds per scenario, up from three) and reran the whole pipeline
+twice on identical data: once with the original snapshot-level split and once grouping by run
+and stratifying by scenario. Running both arms was what allowed the effect of the split to be
+separated from the effect of having more data.
 
-**What it takes.** The code change is small. `split_dataset` shuffles pairs; it would group by
-run instead. The run identity is not currently in a graph's metadata — which carries step,
-scenario, node and edge counts — so `collect_training_snapshots` would need to stamp each pair
-with its scenario and data seed first. That is perhaps half a day.
+The split correction lowered the headline by 0.0176 AUROC and the two rarest genes by roughly
+0.09 and 0.07. It also removed the consistency of the message-passing result, which had been
+positive in five seeds of five and is now positive in three. Everything reported in this paper
+uses the run-grouped split.
 
-**The real obstacle is that fifteen runs is too few to group.** Five scenarios × three data
-seeds, split 70/15/15 by run, leaves about ten training runs and three test runs, which is too
-coarse for a stable estimate and would make the reported standard deviations largely a
-statement about which three runs landed in the test fold. Doing this properly means generating
-more runs — on the order of ten data seeds per scenario, so fifty runs — and reporting either
-leave-one-scenario-out (five folds, which also measures transfer to an unseen population
-composition) or leave-one-seed-out. At roughly ten seconds per run, the extra data generation
-is minutes; the retraining is five folds × five model seeds, so a handful of hours at the
-recorded rate.
-
-**Estimated effort:** 2–3 person-days plus a few hours of compute. **Consequence:** S1–S9 are
-superseded; U13 is resolved.
+**What remains.** The held-out runs are unseen runs, but they come from the same five scenarios
+and the same five species as the training runs. A leave-one-scenario-out protocol would test
+generalisation to an unseen population composition, which is the next question of this kind and
+a harder one. Estimated effort: 1 day plus five folds of retraining, roughly 15 GPU-hours at the
+present dataset size.
 
 ## 7.2 Per-gene transfer mobility
 
@@ -63,9 +55,11 @@ resolve U10 and the vanA half of U6, and would let per-gene results be read as s
 than an artefact.
 
 **It would also remove the demonstration behind our coverage claim, which is why we rank it
-second.** Two of the three genes in S2b, acrAB-tolC and gyrA_S83L, are exactly the ones whose
-transfer is a simplification. (The third, blaKPC-2, is unaffected and would survive the change,
-which softens this consequence but does not remove it.) If gyrA_S83L becomes mutation-only and acrAB-tolC becomes
+second.** The coverage finding now rests on acrAB-tolC alone (§4.2), and acrAB-tolC is one of
+the genes whose transfer is a simplification — so modelling per-gene mobility would remove the
+last gene supporting it. That is a reason to make the change, not to avoid it: a finding that
+depends entirely on a gene the simulator moves by the wrong mechanism is not one worth
+protecting. If gyrA_S83L becomes mutation-only and acrAB-tolC becomes
 regulation-only — which is what the sources in §5.2 imply — then both drop out of the transfer
 label set, and the finding that joint training reaches genes the per-gene baselines cannot fit
 needs a new demonstration. blaTEM-1 is the natural candidate (5 positives, currently not
@@ -90,7 +84,7 @@ re-demonstration, all of Section 4 regenerated.
 **What it changes.** This is the largest scope restriction in the paper. Transfer is currently
 intraspecies only, so the interspecies case that dominates the literature on these genes is
 absent from the task, the labels and the evaluation (U11), and our measurements cannot detect
-that absence — only 0.275% of contacts in our dataset even cross a species boundary (S10).
+that absence — only 0.107% of contacts in our dataset even cross a species boundary (S10).
 Adding it would make the task match the phenomenon the paper names, and would very likely lower
 the headline figures, since the model would face a class of positives it has never seen.
 
@@ -173,7 +167,7 @@ experiment.
 
 | # | Item | Effort (estimated) | Claims affected |
 |---|---|---|---|
-| 1 | Group the split by run or scenario | 2–3 days + hours of compute | S1–S9 superseded; U13 resolved |
+| 1 | ~~Group the split by run~~ **done** (§7.1) | spent: 2 days + ~7 GPU-hours | S1–S9 superseded by the corrected values; **U13 resolved** |
 | 2 | Per-gene transfer mobility | 1–2 weeks + regeneration | U10 resolved; U6 partly; **S2b needs re-demonstration** |
 | 3 | Interspecies transfer | 2–3 weeks + regeneration | U11 resolved; S10 obsolete; Section 4 regenerated |
 | 4 | External validation via gene calls | ~1.5 weeks (simulator only) | U7 partly resolved, scope stated |
@@ -182,5 +176,5 @@ experiment.
 
 Items 2, 3, 5 and 6 all change the simulator and therefore invalidate every figure in
 Section 4; they would sensibly be batched into one regeneration rather than run separately.
-Item 1 is independent of all of them and should be done first, because until it is, none of the
-reported figures answers the question a reader is most likely to think it answers.
+Item 1 has been done, and doing it first was the right order: every number now being compared
+against future changes rests on an evaluation we trust, which was not true before.

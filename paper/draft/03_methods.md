@@ -186,29 +186,40 @@ snapshots. Under the corrected biology the dose is 0.25 µg/mL, cleared after fi
 steps; this time-limited course is an invented protocol, expressed in steps because no real
 step duration is defined. Five scenarios are used — `ecoli_cipro`,
 `klebsiella_carbapenem`, `pakistan_crisis`, `xdr_acinetobacter` and `mrsa_hospital` — each
-with three data seeds.
+with ten data seeds, giving 50 independent simulation runs.
 
-The resulting dataset (SHA-256 `ee83ff385ca15ec9…`) contains 390 graph pairs,
-1,707,498 edges and 1,443 positive transfer events. Positives are distributed very unevenly
-across genes — blaCTX-M-15 480, tetM 420, mcr-1 179, blaNDM-1 177, blaKPC-2 94, vanA 35,
-gyrA_S83L 34, acrAB-tolC 19, blaTEM-1 5 and mexAB-oprM 0 — for the structural reason given in
-§3.1.2, not for any biological reason. Against ten gene outputs the positive rate is
-approximately 8.5 × 10⁻⁵ per edge-gene pair.
+The resulting dataset (SHA-256 `7492f6e14601ed8f…`) contains 1,300 graph pairs,
+6,029,316 edges and 4,763 positive transfer events. Positives are distributed very unevenly
+across genes — blaCTX-M-15 1,446, tetM 1,230, mcr-1 766, blaNDM-1 554, blaKPC-2 536,
+gyrA_S83L 109, vanA 75, blaTEM-1 24, acrAB-tolC 23 and mexAB-oprM 0 — for the structural reason
+given in §3.1.2, not for any biological reason. Against ten gene outputs the positive rate is
+approximately 7.9 × 10⁻⁵ per edge-gene pair.
 
-### 3.3.3 Splitting, and a caveat about it
+### 3.3.3 Splitting by simulation run
 
-Graph pairs are shuffled with a fixed seed and split 70% / 15% / 15% into training,
-validation and test sets. The same split seed is used by the neural model, by the baselines
-and by calibration, so that all of them are evaluated on the same held-out edges; this was not
-originally the case, and correcting it is part of the history in §3.4.
+**The held-out split holds out whole simulation runs, not individual snapshots.** Runs are
+assigned to training, validation and test in a 6 / 2 / 2 ratio *within each scenario*, giving
+30 training, 10 validation and 10 test runs and 780 / 260 / 260 graph pairs. Stratifying by
+scenario prevents a random draw from placing every test run in one scenario. The same split
+seed is used by the neural model, the baselines and calibration, so all are evaluated on the
+same held-out edges.
 
-**The split is over graph pairs, not over simulation runs.** Because each run contributes
-roughly 26 pairs taken three steps apart, snapshots from one run — sharing its founding
-population, its seed and largely the same cells — can be distributed across training,
-validation and test. The held-out set therefore measures generalisation to new time windows
-of runs the model has seen, not to unseen runs, scenarios or species. This inflates the
-reported figures relative to a grouped split, and we state it here rather than leaving it to
-be inferred (see also Section 5, and Section 7.1 for what fixing it would involve).
+This matters more than it may appear, and an earlier version of this work got it wrong. A split
+taken over snapshot *pairs* places snapshots three simulated steps apart — from the same run,
+the same founding population and the same random seed, containing largely the same individual
+cells — on both sides of the split. The held-out set then measures generalisation to new time
+windows of runs the model has already seen. We quantify what that cost in §4.9: on identical
+data it inflated the headline by 0.0176 AUROC and the two rarest genes by roughly 0.09.
+
+What the present split does **not** establish is generalisation beyond the runs themselves. The
+ten held-out runs are drawn from the same five scenarios, with the same five species and the
+same initial conditions, as the training runs. Unseen scenarios and unseen species remain
+untested, and Section 5 treats that as a live limitation rather than a solved one.
+
+Because the baselines draw a fixed-size subsample of the training edges, that subsample is
+scaled with the dataset — 303,449 edges, holding the sampling fraction at the 8.264% used by
+the earlier, smaller reference set — so the baselines see the same share of the evidence
+rather than a shrinking one.
 
 ## 3.4 Development history that affects the numbers
 
@@ -261,7 +272,7 @@ AUROC had peaked at epoch 1 — on an essentially untrained model — and had no
 from a subsequent dip; the retained checkpoint was worse on every gene. The behaviour was
 reproducible on retraining, and the warm-up resolves it: that seed reaches the same range as
 the others, while a normally-behaved seed is unchanged. With the warm-up in place, every seed
-in the reported runs trained for 27 to 38 epochs with its best epoch between 15 and 32.
+in the reported runs trained for 20 to 39 epochs with its best epoch between 11 and 27.
 
 **Edge features are zeroed in all reported runs.** Tuned models with and without edge features
 were indistinguishable on the frozen biology, so the reported configuration does not use them.
@@ -278,11 +289,12 @@ positives in that subsample cannot be trained and is scored 0.5 by construction.
 cutoff as it is: lowering it for the comparison would change the baseline rather than test it.
 
 Because the subsample is drawn independently for each seed, **trainability is a per-seed
-property**: two genes fall below the threshold in every seed, and a third falls below it in
-three seeds of five. The headline comparison is therefore computed on the four genes the
-random forest fits in *every* seed, so that no 0.5-by-construction score enters it. The genes
-it fits unreliably or never are reported separately under coverage, as a property of the
-approaches rather than folded into the same number.
+property**. The headline comparison is therefore computed on the genes the random forest fits
+in *every* seed — five genes at the present dataset size — so that no 0.5-by-construction score
+enters it. The genes it fits unreliably or never are reported separately in §4.2. We apply that
+criterion to the current data rather than freezing a gene list: on the earlier, smaller dataset
+only four genes qualified, because blaKPC-2 then cleared the five-positive threshold in just two
+seeds of five.
 
 **Message-passing ablation.** The same architecture with the attention blocks removed, so that
 node and edge encodings feed the prediction head directly, isolates the contribution of
@@ -310,4 +322,4 @@ relative mobility of real genes, for the reason given in §3.1.2.
 Data generation and training are seeded and deterministic across processes: identical
 simulated states and identical training pairs are produced under different Python hash seeds,
 which a regression test enforces for the frozen biology. Retraining the same seed on a GPU
-reproduces test AUROC to within 2.1 × 10⁻⁴.
+reproduces test AUROC to within 1.6 × 10⁻³.

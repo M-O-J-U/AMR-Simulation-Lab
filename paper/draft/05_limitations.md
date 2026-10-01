@@ -33,16 +33,13 @@ caller to obtain the gene-level calls the model predicts over. We scope that as 
 and make no claim of external validity here. Consequently nothing in this paper should be read
 as a clinical or epidemiological prediction.
 
-**The held-out split does not test unseen simulations.** We split graph pairs, not simulation
-runs. Each run contributes roughly twenty-six snapshot pairs three steps apart, and those pairs
-are distributed across training, validation and test, so a test pair typically comes from a run
-whose other windows were trained on — sharing its founding population, its random seed and
-largely the same individual cells. The reported figures therefore measure generalisation to
-unseen *time windows within seen runs*, and not to unseen runs, unseen scenarios or unseen
-species. This inflates them relative to a grouped split. A by-run or by-scenario split is the
-correct design, and we did not adopt it; doing so would change every number in Section 4 and
-requires a full regeneration, which we identify as the single most important change for a
-future version.
+**The held-out split tests unseen runs, but not unseen scenarios or species.** We now split by
+simulation run, stratified by scenario, so no test run contributed anything to training. That
+fixes a real defect — an earlier version split by snapshot, and §4.9 quantifies what it was
+costing — but it does not make the evaluation general. The ten held-out runs use the same five
+scenarios, the same five species and the same initial conditions as the thirty training runs.
+A model that had memorised scenario-specific regularities would still score well here. Testing
+that requires a leave-one-scenario-out protocol, which we have not run (§7.1).
 
 **The comparison is between our implementations, not between model families.** Our per-gene
 random forest and logistic-regression baselines are one-versus-rest with a five-positive
@@ -60,6 +57,18 @@ forest across all eight policy genes. Such a difference would combine a performa
 genes both models fit with a coverage gap on the genes only one model fits, and would
 substantially overstate the former. The two are reported separately throughout.
 
+**The coverage advantage we previously claimed did not survive more data.** An earlier version
+of this work presented it as a contribution: that a jointly trained model yields predictions for
+genes a per-gene baseline cannot be fitted to at all. Tripling the dataset dissolved most of it.
+The baselines now fit vanA in every seed (was one in five), blaKPC-2 in every seed (was two) and
+gyrA_S83L in three (was none). Only acrAB-tolC is still never fitted, and its score,
+0.8890 ± 0.0506, rests on five held-out positive events — too little evidence to carry a claim.
+What remains is structural rather than quantitative: a per-gene model cannot be built below its
+positive threshold, whereas a jointly trained one always emits a prediction. In this dataset
+that binds for one gene in ten, and it binds less as data grows, so it describes a small-data
+regime rather than a property of the method. We report it in §4.2 as an inconclusive finding
+and no longer as a contribution.
+
 **One gene cannot be evaluated at all.** blaTEM-1 has five positive events in the entire
 dataset and none in the test split, so no model can be scored on it. The headline macro,
 nominally over eight genes, is in practice over seven. This is not a property of the gene: the
@@ -69,8 +78,9 @@ producing *K. pneumoniae* isolates [cuzon2010] — and widening its availability
 likely make it evaluable. We report it as not evaluable rather than reporting a figure.
 
 **Per-gene results are not interpretable as biology.** As set out in §4.5, per-gene AUROCs are
-confounded both by sample size, which spans from 19 to 480 positives and runs opposite to the
-AUROC ordering, and by the seeding mechanism described below. We report them as discrimination
+confounded both by the evidence behind them — held-out positive counts span 5 to 311, and the
+two genes with only five score lowest with by far the widest spread — and by the seeding
+mechanism described below. We report them as discrimination
 measurements only.
 
 **Reported spreads are over model seeds, not over data.** Every mean and standard deviation in
@@ -93,7 +103,7 @@ freundii* into an *E. coli* recipient [dolejska2012]; Tn916-borne tet(M) transfe
 The consequence is one of absence rather than of class balance, and it is worth stating
 precisely because the intuitive version is wrong. One might expect this restriction to flood the
 negative class with cross-species pairs that are rejectable from species identity alone. It does
-not: only 0.275% of contacts in our dataset are cross-species (4,696 of 1,707,498), they occur in
+not: only 0.107% of contacts in our dataset are cross-species (6,428 of 6,029,316), they occur in
 only one of the five scenarios, and none of them carries a transfer. Four scenarios contain a
 single species, and in the mixed scenario the two populations are seeded as separate spatial
 clusters that seldom come within contact range. What follows instead is that the interspecies

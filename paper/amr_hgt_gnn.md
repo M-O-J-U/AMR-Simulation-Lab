@@ -1,7 +1,7 @@
 # Predicting per-contact, per-gene horizontal transfer of antimicrobial resistance genes in an agent-based simulation
 
 **Draft, not submitted. No venue.**  
-Assembled 2026-09-30 by `paper/assemble.py` from `paper/draft/`.  
+Assembled 2026-10-01 by `paper/assemble.py` from `paper/draft/`.  
 Every number is traceable to `paper/claims_to_numbers.md`; figures are regenerated from committed result files by `paper/make_figures.py`.
 
 ---
@@ -15,32 +15,35 @@ population, predict for each directed cell-to-cell contact and each resistance g
 that gene is transferred in the next time window. We train a graph attention network on this
 task and evaluate it against per-gene random forest and logistic regression baselines.
 
-The network reaches a test AUROC of 0.9777 ± 0.0023 on the four genes our per-gene random
-forest can fit in every seed, against 0.9548 ± 0.0124 for that baseline, and is ahead on all
-five model seeds; its macro average over the eight genes in our evaluation policy is
-0.9805 ± 0.0012. Because it is trained jointly on all gene outputs, it also gives stable
-predictions for genes the baselines cannot reliably fit at all: two that fall below their
-five-positive training threshold in every seed, and a third that falls below it in three seeds
-of five. We attribute this coverage advantage to
-parameter sharing across a multi-label output rather than to the graph: removing message
-passing costs only 0.0031 ± 0.0014, and the genes a cell already carries dominate every other
-feature group by an order of magnitude.
+The network reaches a test AUROC of 0.9805 ± 0.0021 on the five genes our per-gene random
+forest can fit in every seed, against 0.9647 ± 0.0031 for that baseline, ahead on all five
+model seeds; its macro average over the eight genes in our evaluation policy is
+0.9676 ± 0.0076. That comparison is the one result that held steady across both a threefold
+increase in simulated data and a correction to the evaluation itself. The graph contributes
+little: removing message passing between cells changes the headline by +0.0065 ± 0.0086 and is
+positive in only three seeds of five, so we cannot distinguish its contribution from zero,
+while the genes a cell already carries dominate every other feature group by an order of
+magnitude.
 
 We are explicit about what these figures do not establish. The simulator transfers genes only
 between cells of the same species, so the interspecies transfers that dominate the literature
 on these genes are absent from the task, the labels and the evaluation alike; in our dataset
-only 0.275% of contacts are cross-species, and none of them carries a transfer, so the model is
-evaluated almost entirely on within-species pairs. The held-out split is taken over
-snapshot pairs rather than over simulation runs, so it measures generalisation to unseen time
-windows of runs seen in training, not to unseen simulations. Three of the eleven modelled genes
+only 0.107% of contacts are cross-species, and none of them carries a transfer, so the model is
+evaluated almost entirely on within-species pairs. Our held-out split holds out whole
+simulation runs, but those runs come from the same five scenarios and five species used in
+training, so generalisation to unseen scenarios or species is untested. Three of the eleven
+modelled genes
 are moved by a mechanism that is not their real one, and several parameters that resemble
 measurements are invented; all are labelled as such. No external validation against real
 genomic data exists: our attempt failed because the isolate data we could obtain carries
 resistance phenotypes rather than per-isolate gene calls. Under these conditions we read a high
 AUROC as a statement about the difficulty of the task as posed rather than as evidence that the
-model has learned conjugation. What we take to be transferable is the formulation — an exactly
-labelled, per-contact, per-gene transfer task — and the finding that training one model across
-all genes reaches rare targets that per-gene models cannot.
+model has learned conjugation. We also report a methodological result we think generalises
+beyond this system: an earlier version of this work split the data by snapshot rather than by
+simulation run, and that alone inflated the headline by 0.0176 AUROC and the two rarest genes
+by roughly 0.09 — turning scores of 0.999 into 0.87–0.89. What we take to be transferable is
+the formulation, an exactly labelled per-contact, per-gene transfer task, together with that
+cautionary result.
 
 # 1 Introduction
 
@@ -83,10 +86,10 @@ the mcr-1 colistin-resistance plasmid was conjugated into *Escherichia coli* and
 carbapenemase plasmid was conjugated from *Citrobacter freundii* into an *E. coli* recipient
 [13]. The prediction task we report on is therefore easier than the corresponding
 task in a community of mixed species. A second qualification applies to the evaluation
-itself: our held-out split is taken over snapshot pairs rather than over simulation runs, so
-it measures generalisation to new time windows within runs seen during training, and not to
-unseen runs, scenarios or species. Both restrictions should be kept in mind when reading the
-figures below (Sections 3, 5 and 6).
+itself: our held-out split holds out whole simulation runs, so the figures below do measure
+generalisation to unseen runs — but those runs come from the same five scenarios and five
+species used in training, so generalisation to unseen scenarios or species is untested. Both
+restrictions should be kept in mind when reading the figures below (Sections 3, 5 and 6).
 
 Our contributions are:
 
@@ -95,35 +98,36 @@ Our contributions are:
    reported on the corrected version (Section 3).
 
 2. **A GNN that outperforms a per-gene Random Forest baseline, under the evaluation described
-   above.** On the four resistance genes our per-gene Random Forest baseline can be trained on
-   in every seed, the GNN reaches a test AUROC of 0.9777 ± 0.0023, against 0.9548 ± 0.0124 for
-   the Random Forest, and is better on all 5 of 5 seeds (Section 4). Both models are evaluated on
-   the same held-out snapshot pairs, so this is a like-for-like comparison between the two
-   approaches on this task; it is not evidence about either model's behaviour on unseen runs
-   or on interspecies transfer, neither of which we test.
+   above.** On the five resistance genes our per-gene Random Forest baseline can be fitted to
+   in every seed, the GNN reaches a test AUROC of 0.9805 ± 0.0021, against 0.9647 ± 0.0031 for
+   the Random Forest, and is better on all 5 of 5 seeds (Section 4). Both models are evaluated
+   on the same held-out runs, so this is a like-for-like comparison between the two approaches
+   on this task. It is the one result that survived both a threefold increase in simulated data
+   and a correction to our evaluation (Section 4.9), which is why we lead with it; it is not
+   evidence about behaviour on unseen scenarios, unseen species, or interspecies transfer, none
+   of which we test.
 
-3. **Coverage of rare genes.** Our per-gene Random Forest and logistic-regression baselines, as
-   implemented, need at least five positive examples in the training subsample they draw, and
-   that subsample is drawn per seed. Two genes fall below the threshold in every seed
-   (acrAB-tolC and gyrA_S83L, with 19 and 34 positive transfer events in the whole dataset),
-   and a third falls below it in three seeds of five (blaKPC-2, with 94). The GNN, trained
-   jointly on all genes, gives stable predictions for all three (Section 4). We note which is
-   which rather than treating them alike, and we flag that acrAB-tolC and gyrA_S83L are
-   chromosomal in real bacteria and are moved between neighbouring cells by our simulator as a
-   deliberate simplification, so their transfer events are not models of documented conjugative
-   transfer (Sections 3 and 5); blaKPC-2 carries no such caveat.
+3. **A measurement of what a snapshot-level split costs on this kind of task.** An earlier
+   version of this work split the data by snapshot rather than by simulation run, so snapshots
+   three simulated steps apart — from the same run and the same founding population — sat on
+   both sides of the split. Rerunning both splits on identical data shows that this inflated
+   the headline by 0.0176 AUROC and the two rarest genes by roughly 0.09 and 0.07, turning
+   scores of 0.999 into 0.87–0.89 (Section 4.9). We report this because the inflation is
+   concentrated precisely where it is least visible and most flattering: on the rare genes
+   whose near-perfect scores are the most quotable numbers a paper like this produces.
 
 4. **An honest account of where the signal comes from.** Message passing over the contact graph
-   adds a small but consistent gain (+0.0031 ± 0.0014 AUROC, better on 5 of 5 seeds). The genes a
-   cell already carries are by far the most important input, while edge features and local
-   antibiotic exposure add no measurable signal in our setting. For antibiotic exposure this is
-   under our dosing protocol, in which drug is present for only 5 of the 80 simulated steps
-   (Section 4).
+   shows no reliable benefit: +0.0065 ± 0.0086 AUROC, positive in only 3 of 5 seeds, a spread
+   that includes zero. The genes a cell already carries are by far the most important input
+   (−0.0442 ± 0.0071 when removed, with no other feature group distinguishable from zero), while
+   edge features and local antibiotic exposure add no measurable signal. For antibiotic exposure
+   this is under our dosing protocol, in which drug is present for only 5 of the 80 simulated
+   steps (Section 4).
 
 5. **A reproducible pipeline**: the simulation and training-data generation are seeded and
    deterministic across processes (verified byte-for-byte for the frozen `paper_v1`
    configuration), GPU training with the same seed reproduces test AUROC to within
-   2.1 × 10⁻⁴, and every reported number is a mean ± standard deviation over independent model
+   1.6 × 10⁻³, and every reported number is a mean ± standard deviation over independent model
    seeds (Section 3).
 
 # 2 Related Work
@@ -376,29 +380,40 @@ snapshots. Under the corrected biology the dose is 0.25 µg/mL, cleared after fi
 steps; this time-limited course is an invented protocol, expressed in steps because no real
 step duration is defined. Five scenarios are used — `ecoli_cipro`,
 `klebsiella_carbapenem`, `pakistan_crisis`, `xdr_acinetobacter` and `mrsa_hospital` — each
-with three data seeds.
+with ten data seeds, giving 50 independent simulation runs.
 
-The resulting dataset (SHA-256 `ee83ff385ca15ec9…`) contains 390 graph pairs,
-1,707,498 edges and 1,443 positive transfer events. Positives are distributed very unevenly
-across genes — blaCTX-M-15 480, tetM 420, mcr-1 179, blaNDM-1 177, blaKPC-2 94, vanA 35,
-gyrA_S83L 34, acrAB-tolC 19, blaTEM-1 5 and mexAB-oprM 0 — for the structural reason given in
-§3.1.2, not for any biological reason. Against ten gene outputs the positive rate is
-approximately 8.5 × 10⁻⁵ per edge-gene pair.
+The resulting dataset (SHA-256 `7492f6e14601ed8f…`) contains 1,300 graph pairs,
+6,029,316 edges and 4,763 positive transfer events. Positives are distributed very unevenly
+across genes — blaCTX-M-15 1,446, tetM 1,230, mcr-1 766, blaNDM-1 554, blaKPC-2 536,
+gyrA_S83L 109, vanA 75, blaTEM-1 24, acrAB-tolC 23 and mexAB-oprM 0 — for the structural reason
+given in §3.1.2, not for any biological reason. Against ten gene outputs the positive rate is
+approximately 7.9 × 10⁻⁵ per edge-gene pair.
 
-### 3.3.3 Splitting, and a caveat about it
+### 3.3.3 Splitting by simulation run
 
-Graph pairs are shuffled with a fixed seed and split 70% / 15% / 15% into training,
-validation and test sets. The same split seed is used by the neural model, by the baselines
-and by calibration, so that all of them are evaluated on the same held-out edges; this was not
-originally the case, and correcting it is part of the history in §3.4.
+**The held-out split holds out whole simulation runs, not individual snapshots.** Runs are
+assigned to training, validation and test in a 6 / 2 / 2 ratio *within each scenario*, giving
+30 training, 10 validation and 10 test runs and 780 / 260 / 260 graph pairs. Stratifying by
+scenario prevents a random draw from placing every test run in one scenario. The same split
+seed is used by the neural model, the baselines and calibration, so all are evaluated on the
+same held-out edges.
 
-**The split is over graph pairs, not over simulation runs.** Because each run contributes
-roughly 26 pairs taken three steps apart, snapshots from one run — sharing its founding
-population, its seed and largely the same cells — can be distributed across training,
-validation and test. The held-out set therefore measures generalisation to new time windows
-of runs the model has seen, not to unseen runs, scenarios or species. This inflates the
-reported figures relative to a grouped split, and we state it here rather than leaving it to
-be inferred (see also Section 5, and Section 7.1 for what fixing it would involve).
+This matters more than it may appear, and an earlier version of this work got it wrong. A split
+taken over snapshot *pairs* places snapshots three simulated steps apart — from the same run,
+the same founding population and the same random seed, containing largely the same individual
+cells — on both sides of the split. The held-out set then measures generalisation to new time
+windows of runs the model has already seen. We quantify what that cost in §4.9: on identical
+data it inflated the headline by 0.0176 AUROC and the two rarest genes by roughly 0.09.
+
+What the present split does **not** establish is generalisation beyond the runs themselves. The
+ten held-out runs are drawn from the same five scenarios, with the same five species and the
+same initial conditions, as the training runs. Unseen scenarios and unseen species remain
+untested, and Section 5 treats that as a live limitation rather than a solved one.
+
+Because the baselines draw a fixed-size subsample of the training edges, that subsample is
+scaled with the dataset — 303,449 edges, holding the sampling fraction at the 8.264% used by
+the earlier, smaller reference set — so the baselines see the same share of the evidence
+rather than a shrinking one.
 
 ## 3.4 Development history that affects the numbers
 
@@ -451,7 +466,7 @@ AUROC had peaked at epoch 1 — on an essentially untrained model — and had no
 from a subsequent dip; the retained checkpoint was worse on every gene. The behaviour was
 reproducible on retraining, and the warm-up resolves it: that seed reaches the same range as
 the others, while a normally-behaved seed is unchanged. With the warm-up in place, every seed
-in the reported runs trained for 27 to 38 epochs with its best epoch between 15 and 32.
+in the reported runs trained for 20 to 39 epochs with its best epoch between 11 and 27.
 
 **Edge features are zeroed in all reported runs.** Tuned models with and without edge features
 were indistinguishable on the frozen biology, so the reported configuration does not use them.
@@ -461,7 +476,7 @@ that appeared to show a cost was the early-stopping artefact described above.
 
 ![Figure 1: Model architecture, reference configuration](figures/fig2_architecture.png)
 
-**Figure 1. Model architecture, reference configuration.** Schematic of AMRResistanceGNN as configured for every reported result: node features (35-dim) through a per-group NodeEncoder to width 128, edge features (5-dim) through an EdgeEncoder to width 64, then 2 graph-attention blocks (4 heads, each with a residual connection, layer normalisation and a feed-forward sublayer), then a head that concatenates the two endpoint representations with the encoded edge vector and emits 10 per-gene logits for each directed edge. Edge features are zeroed in all reported runs, so that pathway is present but carries no information. The graph-free ablation removes the attention stack, leaving the encoders feeding the head directly, and costs 0.0031 ± 0.0014 headline AUROC (claim S4). Configuration read from `gnn_hparams` and `feature_dims`; layer structure from `ai/gnn_model.py`.
+**Figure 1. Model architecture, reference configuration.** Schematic of AMRResistanceGNN as configured for every reported result: node features (35-dim) through a per-group NodeEncoder to width 128, edge features (5-dim) through an EdgeEncoder to width 64, then 2 graph-attention blocks (4 heads, each with a residual connection, layer normalisation and a feed-forward sublayer), then a head that concatenates the two endpoint representations with the encoded edge vector and emits 10 per-gene logits for each directed edge. Edge features are zeroed in all reported runs, so that pathway is present but carries no information. The graph-free ablation removes the attention stack, leaving the encoders feeding the head directly, and costs 0.0065 ± 0.0086 headline AUROC (claim S4). Configuration read from `gnn_hparams` and `feature_dims`; layer structure from `ai/gnn_model.py`.
 
 ## 3.6 Baselines and ablations
 
@@ -473,11 +488,12 @@ positives in that subsample cannot be trained and is scored 0.5 by construction.
 cutoff as it is: lowering it for the comparison would change the baseline rather than test it.
 
 Because the subsample is drawn independently for each seed, **trainability is a per-seed
-property**: two genes fall below the threshold in every seed, and a third falls below it in
-three seeds of five. The headline comparison is therefore computed on the four genes the
-random forest fits in *every* seed, so that no 0.5-by-construction score enters it. The genes
-it fits unreliably or never are reported separately under coverage, as a property of the
-approaches rather than folded into the same number.
+property**. The headline comparison is therefore computed on the genes the random forest fits
+in *every* seed — five genes at the present dataset size — so that no 0.5-by-construction score
+enters it. The genes it fits unreliably or never are reported separately in §4.2. We apply that
+criterion to the current data rather than freezing a gene list: on the earlier, smaller dataset
+only four genes qualified, because blaKPC-2 then cleared the five-positive threshold in just two
+seeds of five.
 
 **Message-passing ablation.** The same architecture with the attention blocks removed, so that
 node and edge encodings feed the prediction head directly, isolates the contribution of
@@ -505,25 +521,39 @@ relative mobility of real genes, for the reason given in §3.1.2.
 Data generation and training are seeded and deterministic across processes: identical
 simulated states and identical training pairs are produced under different Python hash seeds,
 which a regression test enforces for the frozen biology. Retraining the same seed on a GPU
-reproduces test AUROC to within 2.1 × 10⁻⁴.
+reproduces test AUROC to within 1.6 × 10⁻³.
 
 # 4 Results
 
 All figures are means and standard deviations over five independent model seeds (three for the
-ablations), on the held-out split described in Section 3.3.3. That split is over snapshot
-pairs rather than over runs, so throughout this section "test" means unseen time windows of
-runs that contributed training data, not unseen runs, scenarios or species. Unless stated
+ablations), on the held-out split described in Section 3.3.3. That split holds out whole
+simulation runs, so throughout this section "test" means runs the model never trained on. It
+does not mean unseen scenarios or unseen species: the ten held-out runs are drawn from the same
+five scenarios as the training runs.
+
+**These numbers replace an earlier set, and the replacement is itself a result.** Every figure
+in this section was previously computed on a split taken over snapshot *pairs*, which placed
+snapshots three steps apart — from the same run, the same founding population and the same
+seed — on both sides of the split. Correcting that cost 0.0176 AUROC on the headline and far
+more on the rare genes (§4.9). We report the corrected numbers throughout and state the size of
+each change where it matters, rather than quietly substituting them. Unless stated
 otherwise, "headline AUROC" is the macro average over the eight genes fixed by the evaluation
 policy of Section 3.7, one of which (blaTEM-1) has no positives in the test split, so the
 macro is in practice over seven.
 
 ## 4.1 The GNN outperforms per-gene classical baselines
 
-On the four genes the per-gene random forest can be trained on **in every seed** —
-blaCTX-M-15, blaNDM-1, mcr-1 and tetM — the GNN reaches a test AUROC of
-**0.9777 ± 0.0023** against **0.9548 ± 0.0124** for the random forest. The GNN is ahead on
+On the five genes the per-gene random forest can be fitted to **in every seed** —
+blaCTX-M-15, blaKPC-2, blaNDM-1, mcr-1 and tetM — the GNN reaches a test AUROC of
+**0.9805 ± 0.0021** against **0.9647 ± 0.0031** for the random forest. The GNN is ahead on
 **all five of five seeds**. We treat this as the primary comparison, because it is the only
 one in which both models are actually fitted to the same genes in every run.
+
+This comparison is the most robust result in the paper. The gap is 0.0158 here; on the earlier,
+three-times-smaller dataset it was 0.0229, and on that same smaller dataset under the
+uncorrected split it was also 0.0204. A gap stable to within 0.003 across both a 3.3-fold
+increase in data and a correction to the evaluation itself is the one claim we would expect to
+survive further scrutiny.
 
 The qualifier "in every seed" is doing real work here, and an earlier version of this analysis
 got it wrong. The baselines draw their 100,000-edge training subsample independently per seed,
@@ -537,8 +567,9 @@ standard deviation, which turned out to be bimodal across seeds. blaKPC-2 is rep
 coverage in §4.2 instead.
 
 The GNN's own headline macro, over the eight genes of the evaluation policy, is
-**0.9805 ± 0.0012**. Logistic regression reaches **0.7096 ± 0.0359** on the same headline
-macro.
+**0.9676 ± 0.0076** (previously 0.9805 ± 0.0012 under the uncorrected split). Logistic
+regression reaches **0.7911 ± 0.0336** on the same headline macro, and the random forest
+0.8711 ± 0.0366.
 
 We deliberately do not quote a headline-macro *difference* between the GNN and the random
 forest. The random forest's headline macro is depressed by the genes it cannot reliably train,
@@ -550,81 +581,71 @@ the four genes both models always fit, and coverage in §4.2.
 
 ![Figure 2: Headline comparison, and where the per-gene baseline cannot be built](figures/fig4_model_comparison.png)
 
-**Figure 2. Headline comparison, and where the per-gene baseline cannot be built.** **Panel A.** Macro AUROC over the four genes the random forest fits in *every* seed (blaCTX-M-15, blaNDM-1, mcr-1, tetM): GNN 0.9777 ± 0.0023, random forest 0.9548 ± 0.0124, logistic regression 0.8359 ± 0.0658; the GNN is ahead on 5 of 5 seeds (claim S2). This set deliberately excludes blaKPC-2, because the baselines draw their 100,000-edge training subsample per seed and blaKPC-2 clears the five-positive threshold in only 2 of 5 seeds; including it would fold 0.5-by-construction scores into the baseline, which is the artefact claim U5 exists to keep out of a performance comparison. An earlier version of this analysis did include it and overstated the gap roughly threefold (0.079 against the correct 0.023). **Panel B.** Per-gene view of the same run, ordered as in the text, with each gene's total positive count. The dotted line marks 0.5, the score assigned when a gene cannot be fitted at all. acrAB-tolC (19 positives) and gyrA_S83L (34) are never fitted in any seed; blaKPC-2 (94) is fitted in 2 of 5, and the plotted random-forest bar for those three is a mean that includes those 0.5 scores, so it is a summary of availability rather than of skill. The GNN produces a stable prediction for every gene shown in every seed. Claims S2, S2b, U5. Values from `per_seed[*].per_gene_auroc` and `dataset.positives_per_gene`.
+**Figure 2. Headline comparison, and where the per-gene baseline cannot be built.** **Panel A.** Macro AUROC over the five genes the random forest can be fitted to in *every* seed (blaCTX-M-15, blaKPC-2, blaNDM-1, mcr-1, tetM): GNN 0.9805 ± 0.0021, random forest 0.9647 ± 0.0031, logistic regression 0.8590 ± 0.0248; the GNN is ahead on 5 of 5 seeds (claim S2). The set is the stated criterion applied to the current data; on the earlier, smaller dataset blaKPC-2 cleared the five-positive threshold in only 2 of 5 seeds and was therefore excluded. This comparison is notably **robust**: the gap is 0.016–0.023 across a 3.3× increase in data and the correction from a snapshot-level to a run-level split. **Panel B.** Per-gene view, with each gene's positive count in the held-out split — the evidence behind each estimate. The dotted line marks 0.5, the score assigned when a gene cannot be fitted at all. At this dataset size **only acrAB-tolC (5 held-out positives) is never fitted by the baseline**; gyrA_S83L (24) is fitted in 3 of 5 seeds and vanA is now fitted in all 5. The baseline bars for partially fitted genes are means that include those 0.5 scores, so they summarise availability rather than skill. The coverage gap has narrowed sharply as data grew, which is why it is no longer presented as a headline contribution. Claims S2, S2b, U5. Values from `per_seed[*].per_gene_auroc` and the held-out split.
 
-## 4.2 Coverage of genes the baselines cannot reliably train on
+## 4.2 Coverage of genes the baselines cannot be fitted to: a weaker finding than we first reported
 
-Our per-gene random forest and logistic-regression baselines require at least five positive
-examples for a gene within their 100,000-edge training subsample, and that subsample is drawn
-independently for each seed. Trainability is therefore a per-seed property, and it comes in
-degrees. The GNN, trained jointly on all ten gene outputs, produces stable predictions across
-all five seeds for every gene below:
+Our per-gene baselines require at least five positive examples for a gene within the training
+subsample they draw, and that subsample is drawn independently for each seed. On a smaller
+dataset this excluded three genes to varying degrees, and we presented the resulting coverage
+advantage as a contribution. **At the present dataset size it does not support that billing,
+and we have demoted it.**
 
-| Gene | Positives | Baselines trainable | GNN test AUROC | Random forest |
-|---|---|---|---|---|
-| acrAB-tolC* | 19 | 0 of 5 seeds | 0.9986 ± 0.0018 | 0.5 by construction, always |
-| gyrA_S83L* | 34 | 0 of 5 seeds | 0.9977 ± 0.0006 | 0.5 by construction, always |
-| blaKPC-2 | 94 | 2 of 5 seeds | 0.9564 ± 0.0021 | 0.9611 and 0.8179 where it trains |
+| Gene | Held-out positives | Baseline fitted | GNN test AUROC |
+|---|---|---|---|
+| acrAB-tolC* | 5 | **0 of 5 seeds** | 0.8890 ± 0.0506 |
+| gyrA_S83L* | 24 | 3 of 5 seeds | 0.9822 ± 0.0049 |
+| vanA* | 5 | 5 of 5 seeds | 0.8669 ± 0.0504 |
+| blaKPC-2 | 61 | 5 of 5 seeds | 0.9761 ± 0.0045 |
 
 \* transfer modelled by a simplified mechanism (Section 3.1.2).
 
-We state the tiers separately because they are not the same claim. For acrAB-tolC and
-gyrA_S83L the baseline is simply unavailable. For blaKPC-2 it is *unreliable*: it fits in two
-seeds out of five, and where it does fit it returns 0.9611 and 0.8179 — a spread of 0.14 on
-the same gene and the same data, against the GNN's 0.9564 ± 0.0021. The practical difference
-between a model that sometimes cannot be built and one that is built but varies this much is
-smaller than it looks, and blaKPC-2 is the cleaner illustration of the point, because unlike
-the other two it carries no mechanism caveat: it is a genuine plasmid-borne gene, mobilised by
-Tn4401 in reality as well as in our simulator.
+Two things changed. First, tripling the data let the baselines fit almost everything: vanA went
+from one seed in five to all five, blaKPC-2 from two to all five, gyrA_S83L from none to three.
+Only **acrAB-tolC** is still never fitted. The coverage advantage was therefore substantially a
+property of the data regime, not of the method, and it shrinks as data grows.
 
-Three qualifications belong with these figures, and none is incidental.
+Second, the one gene that still carries it is estimated from **five** held-out positive events,
+at 0.8890 ± 0.0506. That spread is over model seeds on a fixed split; the sampling uncertainty
+attached to five events is far larger and is not shown. We do not think a single gene, measured
+that imprecisely, can carry a headline claim.
 
-First, the counts. Nineteen, thirty-four and ninety-four positive events across the whole
-dataset are few, and the standard deviations above are over model seeds on a fixed split, so
-they do not reflect the sampling uncertainty that such counts imply. These AUROCs should not
-be read as precise.
-
-Second, the mechanism, for two of the three. acrAB-tolC and gyrA_S83L are chromosomal in real
-bacteria and are moved between neighbouring cells by the simulator as a deliberate
-simplification (Section 3.1.2), so their transfer events are not models of documented
-conjugative transfer. What their result demonstrates is a property of the learning setup — that
-joint training across genes yields usable predictions for targets too rare to fit
-individually — and not a biological finding about those genes. blaKPC-2 carries no such caveat.
-
-Third, this is a claim about our baselines as implemented, not about random forests. A
-different baseline design — a single multi-label forest, or a lower positive threshold — would
-face this differently, and we did not lower the threshold precisely because doing so would
-change the baseline rather than test it.
-
-With that scope stated, the coverage difference is a real advantage of the approach rather
-than an artefact of the comparison: it follows from training one model on all genes instead of
-one model per gene. It is a property of the baselines *as we implemented them*, namely
-one-versus-rest with a five-positive requirement, and not of random forests in general. We did
-not lower that threshold, since doing so would have changed the baseline rather than tested
-it.
+What survives is a structural observation, and we state it as such rather than as a result: a
+per-gene model cannot be built at all below its positive threshold, whereas a model trained
+jointly across genes always emits a prediction, whatever that prediction is worth. In this
+dataset that distinction binds for one gene out of ten. We return to it in Section 5 as a
+limitation of the comparison rather than an advantage of the method.
 
 The GNN is evaluated on seven of the eight policy genes plus vanA separately. The eighth,
-blaTEM-1, has five positive events in the entire dataset and none in the test split, so no
-model of any kind can be scored on it; we report it as not evaluable rather than as a result.
+blaTEM-1, has 24 positive events in the dataset but none in the held-out split, so no model of
+any kind can be scored on it; we report it as not evaluable rather than as a result.
 
 ## 4.3 Where the signal comes from
 
-**Message passing contributes a small but consistent gain.** Removing the attention blocks, so
-that node and edge encodings feed the prediction head directly, costs
-**0.0031 ± 0.0014** headline AUROC (0.9805 with message passing against 0.9774 ± 0.0006
-without). The direction is consistent across all five of five seeds. The effect is reliable
-and small: the graph-free model retains almost all of the performance, so most of what the
-model exploits is available from the two endpoint feature vectors alone rather than from the
-surrounding contact structure.
+**Message passing shows no reliable benefit.** Removing the attention blocks, so that node and
+edge encodings feed the prediction head directly, changes the headline by
+**+0.0065 ± 0.0086** (0.9676 with message passing against 0.9611 ± 0.0019 without). The
+standard deviation exceeds the mean, and the per-seed values are +0.0188, −0.0005, +0.0052,
++0.0112 and −0.0022: **positive in three seeds of five, negative in two.** On this evidence we
+cannot distinguish the contribution of the contact graph from zero.
+
+We previously reported this as a small but consistent gain, +0.0031 ± 0.0014 and positive in
+all five seeds. That consistency did not survive the corrected split. It is worth being precise
+about what this does and does not mean: we are not claiming message passing is useless in
+general, only that in this task, at this scale, with this architecture, we have no evidence
+that it helps. Since the graph-free variant retains essentially all of the performance, almost
+everything the model exploits is available from the two endpoint feature vectors alone.
 
 **The genes a cell already carries dominate.** Zeroing feature groups one at a time, only the
-genomic group matters appreciably: removing it costs **0.0549 ± 0.0331** headline AUROC
-(three seeds). Every other group changes the headline by less than ±0.003, which is within
-seed-to-seed variation and which we therefore do not interpret as an effect in either
-direction.
+genomic group matters: removing it costs **0.0442 ± 0.0071** headline AUROC (three seeds).
+**No other group is distinguishable from zero** — every one has a standard deviation at least
+as large as its own mean, the largest being species (−0.0046 ± 0.0102), spatial position
+(+0.0052 ± 0.0083) and physiological (+0.0051 ± 0.0125). The estimate for the genomic group is
+substantially tighter than the one we reported previously (−0.0549 ± 0.0331), so this
+conclusion is now better supported than it was, not worse.
 
 **Local antibiotic exposure adds no measurable signal.** Zeroing the six drug-concentration
-features changes the headline by **+0.0001 ± 0.0001** — that is, removing them does not hurt.
+features changes the headline by **+0.0006 ± 0.0011** — that is, removing them does not hurt.
 This deserves an explicit caveat rather than a conclusion about antibiotic pressure: under our
 dosing protocol the drug is present for only five of the eighty simulated steps, so most
 snapshots carry no exposure to measure. The correct reading is that these features carry no
@@ -633,65 +654,64 @@ signal *in this protocol*, not that antibiotic exposure is irrelevant to gene tr
 
 ![Figure 3: Feature-group ablation](figures/fig3_ablation.png)
 
-**Figure 3. Feature-group ablation.** Change in headline AUROC when each node-feature group is zeroed, mean ± SD over 3 seeds; more negative means the group contributed more. Only the carried-gene group matters: -0.0549 ± 0.0331. Every other group falls within ±0.003, which is inside seed-to-seed variation and is not interpreted as an effect in either direction — including antibiotic exposure, for which the drug is present in only 5 of the 80 simulated steps under this dosing protocol (claim U4). Full-model reference: 0.9807. Values from `ablation`. Claims S5, U4.
+**Figure 3. Feature-group ablation.** Change in headline AUROC when each node-feature group is zeroed, mean ± SD over 3 seeds; more negative means the group contributed more. Only the carried-gene group matters: -0.0442 ± 0.0071. Every other group falls within ±0.003, which is inside seed-to-seed variation and is not interpreted as an effect in either direction — including antibiotic exposure, for which the drug is present in only 5 of the 80 simulated steps under this dosing protocol (claim U4). Full-model reference: 0.9687. Values from `ablation`. Claims S5, U4.
 
 ## 4.4 Calibration and precision–recall
 
 Predicted probabilities are well calibrated, with an expected calibration error of
-**0.0012 ± 0.0003**.
+**0.0012 ± 0.0003**, unchanged by the correction.
 
-Headline AUPRC is **0.0316 ± 0.0293**. This is far above the base rate of approximately
-8.5 × 10⁻⁵ positives per edge-gene pair, so the ranking carries real information in absolute
+Headline AUPRC is **0.0145 ± 0.0057** (previously 0.0316 ± 0.0293). This is far above the base
+rate of approximately 7.9 × 10⁻⁵ positives per edge-gene pair, so the ranking carries real information in absolute
 terms; but the standard deviation is nearly as large as the mean, so the figure is unstable
 across seeds and we do not treat it as a headline result. The instability is expected given
 how few positives the rarer genes contribute.
 
 ## 4.5 Per-gene discrimination
 
-| Gene | GNN test AUROC | Positive events in dataset |
+| Gene | GNN test AUROC | Positives in the held-out split |
 |---|---|---|
-| acrAB-tolC | 0.9986 ± 0.0018 | 19 — simplified mechanism |
-| gyrA_S83L | 0.9977 ± 0.0006 | 34 — simplified mechanism |
-| mcr-1 | 0.9908 ± 0.0011 | 179 |
-| tetM | 0.9805 ± 0.0033 | 420 |
-| blaNDM-1 | 0.9755 ± 0.0039 | 177 |
-| blaCTX-M-15 | 0.9642 ± 0.0030 | 480 |
-| blaKPC-2 | 0.9564 ± 0.0021 | 94 |
-| blaTEM-1 | not evaluable | 5, none in the test split |
+| blaNDM-1 | 0.9860 ± 0.0054 | 16 |
+| tetM | 0.9844 ± 0.0010 | 311 |
+| gyrA_S83L* | 0.9822 ± 0.0049 | 24 |
+| blaCTX-M-15 | 0.9821 ± 0.0024 | 212 |
+| blaKPC-2 | 0.9761 ± 0.0045 | 61 |
+| mcr-1 | 0.9738 ± 0.0018 | 217 |
+| acrAB-tolC* | 0.8890 ± 0.0506 | 5 |
+| vanA* | 0.8669 ± 0.0504 | 5 |
+| blaTEM-1 | not evaluable | 0 |
 
-**We offer no biological interpretation of the ordering in this table, because the variation
-in it is confounded.** Two confounds account for it without any appeal to gene biology.
+\* transfer modelled by a simplified mechanism (Section 3.1.2).
 
-The first is **sample size, and it runs opposite to the direction that would make the table
-interpretable**. The positive counts span from 19 to 480, and the two highest AUROCs in the
-table belong to the two genes with the fewest positives (acrAB-tolC, 19; gyrA_S83L, 34), while
-the gene with by far the most positives (blaCTX-M-15, 480) sits near the bottom. A per-gene
-AUROC estimated from 19 positives is not comparable to one estimated from 480, and reading the
-ordering as a difficulty ranking would inverse-rank the genes by how much evidence supports
-each estimate.
+**We offer no biological interpretation of this ordering.** Two confounds account for it
+without any appeal to gene biology.
 
-The second is the **seeding artefact** of Section 3.1.2. No acquired gene exists at
-initialisation, so each gene's count is set by how readily the donor-free mutation branch seeds
-it and by how early that happens, after which spread amplifies the result. These counts are not
-a monotonic function of the per-step transfer probabilities: blaKPC-2, blaNDM-1 and mcr-1 are
-available to the same species with probabilities of 0.02, 0.015 and 0.02, yet record 94, 177
-and 179 events. A roughly two-fold spread among otherwise matched genes is left unexplained by
-any parameter of the model, which is the clearest available indication that these counts are
-high-variance outcomes of the seeding process rather than stable properties of each gene.
+The first is **evidence**. The two genes at the bottom are estimated from five held-out
+positive events each, and they carry standard deviations an order of magnitude wider than
+every other row. Those spreads are over model seeds on a fixed split and therefore understate
+the true uncertainty, which at five events is dominated by sampling. Among the genes with
+tens or hundreds of held-out positives there is no clear relationship between count and score:
+blaNDM-1 scores highest on 16 events, mcr-1 lowest of that group on 217.
+
+The second is the **seeding artefact** of Section 3.1.2, and tripling the dataset tested it
+directly. If per-gene counts were a stable property of each gene, every gene's count would have
+grown with the dataset, by 3.53×. Instead they grew by between **1.21× (acrAB-tolC, 19 to 23)
+and 5.70× (blaKPC-2, 94 to 536)** — a 4.7-fold spread in what should have been a constant.
+The counts are high-variance outcomes of when a gene happens to seed, not properties of the
+gene.
 
 A gene's position in this table therefore reflects the simulator's seeding code, the timing of
-a chance event, and the amount of evidence behind its estimate — not the mobility of the
-corresponding real gene. We report the values for completeness and for comparison against
-future versions of the pipeline, and draw no per-gene conclusions from them.
+a chance event, and the amount of evidence behind its estimate. We report the values for
+completeness and draw no per-gene conclusions from them.
 
 
-![Figure 4: Per-gene discrimination, with positive-event counts](figures/fig1_per_gene_auroc.png)
+![Figure 4: Per-gene discrimination, with held-out positive counts](figures/fig1_per_gene_auroc.png)
 
-**Figure 4. Per-gene discrimination, with positive-event counts.** Per-gene test AUROC of the GNN, mean ± SD over 5 model seeds, each bar annotated with that gene's total positive transfer events in the dataset. **The ordering is confounded, and runs opposite to the evidence behind it: the two highest-scoring genes are the two with the fewest positives — acrAB-tolC 0.9986 from 19 events and gyrA_S83L 0.9977 from 34 — while the best-evidenced gene, blaCTX-M-15 with 480 events, scores lowest at 0.9642.** An AUROC estimated from 19 positives is not comparable to one estimated from 480, so this figure must not be read as a difficulty ranking over genes. Starred genes (acrAB-tolC, gyrA_S83L) are chromosomal in real bacteria and are transferred by the simulator as a labelled simplification (claim U10); vanA is likewise simplified (U6) and is excluded from the headline macro. blaTEM-1 (5 positives, none in the test split) and mexAB-oprM (0 positives, in no species' acquirable set) are not evaluable and are absent from the figure. Counts from `dataset.positives_per_gene`; AUROCs from `per_gene_auroc.gnn`. Claims S9, U6, U8, U10, U12.
+**Figure 4. Per-gene discrimination, with held-out positive counts.** Per-gene test AUROC of the GNN, mean ± SD over 5 model seeds, each bar annotated with the number of positive transfer events for that gene **in the held-out split** — the evidence the estimate actually rests on, which is far more informative than the dataset-wide count. **The two genes with only 5 held-out positives score lowest and carry by far the widest spread: acrAB-tolC 0.8890 ± 0.0506 and vanA 0.8669 ± 0.0504, against 0.97–0.99 for every gene with tens or hundreds of held-out positives.** Those seed-to-seed spreads still understate the true uncertainty, which is dominated by sampling 5 events. **This figure replaces an earlier version whose ordering ran the other way** — under the superseded pair-level split these same two genes scored 0.9986 and 0.9988, the highest in the table. That ordering was an artefact of splitting snapshots rather than simulation runs, so test snapshots came from runs the model had trained on (claim U13). It is the clearest single illustration of what that split was doing. Do not read any version of this figure as a difficulty ranking over genes: per-gene counts are set by the simulator's seeding code (claim U12), not by gene biology. Starred genes (acrAB-tolC, gyrA_S83L) are chromosomal in real bacteria and are transferred by the simulator as a labelled simplification (claim U10); vanA is likewise simplified (U6) and is excluded from the headline macro. blaTEM-1 (0 held-out positives) and mexAB-oprM (0, in no species' acquirable set) cannot be scored and are absent. Counts from the held-out split; AUROCs from `per_gene_auroc.gnn`. Claims S9, U6, U8, U10, U12, U13.
 
 ## 4.6 vanA, reported separately
 
-vanA reaches a test AUROC of 0.9988 on 35 positive events. It is excluded from the headline
+vanA reaches a test AUROC of 0.8669 ± 0.0504 on five held-out positive events. It is excluded from the headline
 macro and reported here on its own, because the mechanism the simulator gives it is a
 simplification in two respects: the gene arises and spreads within MRSA, whereas the
 documented route is interspecies transfer of Tn1546 from *Enterococcus faecalis*, and
@@ -707,7 +727,9 @@ nothing to predict and no score to report.
 Data generation and training are deterministic across processes. Identical simulated states
 and identical training pairs are produced under different Python hash seeds, which a
 regression test enforces byte-for-byte for the frozen `paper_v1` configuration. Retraining the
-same seed on a GPU reproduces test AUROC to within 2.1 × 10⁻⁴. Every figure in this section is
+same seed on a GPU reproduces test AUROC to within 1.6 × 10⁻³. (That tolerance was
+2.1 × 10⁻⁴ on the earlier, easier split; the wider spread accompanies the harder task rather
+than any change to seeding.) Every figure in this section is
 a mean and standard deviation over independent model seeds, with the data held fixed, so the
 reported spreads capture variation from initialisation and training order and not from data
 generation.
@@ -715,14 +737,39 @@ generation.
 ## 4.8 Summary
 
 The GNN discriminates simulated per-edge, per-gene transfer events well (headline AUROC
-0.9805 ± 0.0012) and beats a per-gene random forest on the four genes that baseline fits in
-every seed (0.9777 ± 0.0023 against 0.9548 ± 0.0124, on five of five seeds). Its advantage in
-coverage — stable predictions for genes the per-gene baselines fit unreliably or not at
-all — follows from joint training. Most of the signal is carried by the genes a cell already holds; message passing adds
-a small, consistent increment; edge features and local drug exposure add nothing measurable in
-this setting. What none of these figures establish is stated in Section 5: no external
-validation, a held-out split that does not test unseen runs, and an intraspecies-only
-transfer model.
+0.9676 ± 0.0076) and beats a per-gene random forest on the five genes that baseline fits in
+every seed (0.9805 ± 0.0021 against 0.9647 ± 0.0031, on five of five seeds) — the one result
+that held steady across both a threefold increase in data and a correction to the evaluation.
+Most of the signal is carried by the genes a cell already holds. Message passing cannot be
+distinguished from zero, and edge features and local drug exposure add nothing measurable.
+The coverage advantage we previously highlighted largely dissolved once there was more data,
+and now rests on a single gene measured from five held-out events. What none of these figures
+establish is stated in Section 5: no external validation, no test of unseen scenarios or
+species, and an intraspecies-only transfer model.
+
+## 4.9 What the split correction cost
+
+Because the correction and the larger dataset arrived together, we ran both arms on identical
+data so the two effects could be separated. Three result sets are therefore comparable: the
+original 15-run set under a snapshot-level split, the 50-run set under the same snapshot-level
+split, and the 50-run set under the run-level split used throughout this paper.
+
+| | 15 runs, snapshot split | 50 runs, snapshot split | 50 runs, run split |
+|---|---|---|---|
+| Headline AUROC | 0.9805 ± 0.0012 | 0.9852 ± 0.0008 | **0.9676 ± 0.0076** |
+| acrAB-tolC | 0.9986 ± 0.0018 | 0.9774 ± 0.0157 | **0.8890 ± 0.0506** |
+| vanA | 0.9988 ± 0.0002 | 0.9349 ± 0.0211 | **0.8669 ± 0.0504** |
+| Message passing | +0.0031, 5/5 seeds | +0.0059, 5/5 seeds | **+0.0065, 3/5 seeds** |
+
+Reading across the first two columns isolates the effect of more data; reading across the last
+two isolates the effect of the split, with the data held identical. More data raised the
+headline slightly (+0.0047). **The split correction lowered it by 0.0176**, and lowered the two
+rarest genes by roughly 0.09 and 0.07 — an order of magnitude more. The reason is structural:
+those genes have five held-out positive events, and under a snapshot-level split their
+near-duplicates, three simulated steps away in the same run, sat in the training set.
+
+This is the most useful result in the paper for anyone building a similar system, and
+Section 6.1 treats it as such.
 
 # 5 Limitations
 
@@ -744,16 +791,13 @@ caller to obtain the gene-level calls the model predicts over. We scope that as 
 and make no claim of external validity here. Consequently nothing in this paper should be read
 as a clinical or epidemiological prediction.
 
-**The held-out split does not test unseen simulations.** We split graph pairs, not simulation
-runs. Each run contributes roughly twenty-six snapshot pairs three steps apart, and those pairs
-are distributed across training, validation and test, so a test pair typically comes from a run
-whose other windows were trained on — sharing its founding population, its random seed and
-largely the same individual cells. The reported figures therefore measure generalisation to
-unseen *time windows within seen runs*, and not to unseen runs, unseen scenarios or unseen
-species. This inflates them relative to a grouped split. A by-run or by-scenario split is the
-correct design, and we did not adopt it; doing so would change every number in Section 4 and
-requires a full regeneration, which we identify as the single most important change for a
-future version.
+**The held-out split tests unseen runs, but not unseen scenarios or species.** We now split by
+simulation run, stratified by scenario, so no test run contributed anything to training. That
+fixes a real defect — an earlier version split by snapshot, and §4.9 quantifies what it was
+costing — but it does not make the evaluation general. The ten held-out runs use the same five
+scenarios, the same five species and the same initial conditions as the thirty training runs.
+A model that had memorised scenario-specific regularities would still score well here. Testing
+that requires a leave-one-scenario-out protocol, which we have not run (§7.1).
 
 **The comparison is between our implementations, not between model families.** Our per-gene
 random forest and logistic-regression baselines are one-versus-rest with a five-positive
@@ -771,6 +815,18 @@ forest across all eight policy genes. Such a difference would combine a performa
 genes both models fit with a coverage gap on the genes only one model fits, and would
 substantially overstate the former. The two are reported separately throughout.
 
+**The coverage advantage we previously claimed did not survive more data.** An earlier version
+of this work presented it as a contribution: that a jointly trained model yields predictions for
+genes a per-gene baseline cannot be fitted to at all. Tripling the dataset dissolved most of it.
+The baselines now fit vanA in every seed (was one in five), blaKPC-2 in every seed (was two) and
+gyrA_S83L in three (was none). Only acrAB-tolC is still never fitted, and its score,
+0.8890 ± 0.0506, rests on five held-out positive events — too little evidence to carry a claim.
+What remains is structural rather than quantitative: a per-gene model cannot be built below its
+positive threshold, whereas a jointly trained one always emits a prediction. In this dataset
+that binds for one gene in ten, and it binds less as data grows, so it describes a small-data
+regime rather than a property of the method. We report it in §4.2 as an inconclusive finding
+and no longer as a contribution.
+
 **One gene cannot be evaluated at all.** blaTEM-1 has five positive events in the entire
 dataset and none in the test split, so no model can be scored on it. The headline macro,
 nominally over eight genes, is in practice over seven. This is not a property of the gene: the
@@ -780,8 +836,9 @@ producing *K. pneumoniae* isolates [29] — and widening its availability would 
 likely make it evaluable. We report it as not evaluable rather than reporting a figure.
 
 **Per-gene results are not interpretable as biology.** As set out in §4.5, per-gene AUROCs are
-confounded both by sample size, which spans from 19 to 480 positives and runs opposite to the
-AUROC ordering, and by the seeding mechanism described below. We report them as discrimination
+confounded both by the evidence behind them — held-out positive counts span 5 to 311, and the
+two genes with only five score lowest with by far the widest spread — and by the seeding
+mechanism described below. We report them as discrimination
 measurements only.
 
 **Reported spreads are over model seeds, not over data.** Every mean and standard deviation in
@@ -804,7 +861,7 @@ freundii* into an *E. coli* recipient [13]; Tn916-borne tet(M) transferred from
 The consequence is one of absence rather than of class balance, and it is worth stating
 precisely because the intuitive version is wrong. One might expect this restriction to flood the
 negative class with cross-species pairs that are rejectable from species identity alone. It does
-not: only 0.275% of contacts in our dataset are cross-species (4,696 of 1,707,498), they occur in
+not: only 0.107% of contacts in our dataset are cross-species (6,428 of 6,029,316), they occur in
 only one of the five scenarios, and none of them carries a transfer. Four scenarios contain a
 single species, and in the mixed scenario the two populations are seeded as separate spatial
 clusters that seldom come within contact range. What follows instead is that the interspecies
@@ -925,16 +982,16 @@ yet.
 
 ## 6.1 What the headline number does and does not demonstrate
 
-A headline AUROC of 0.9805 ± 0.0012 invites a stronger reading than our experiments support,
+A headline AUROC of 0.9676 ± 0.0076 invites a stronger reading than our experiments support,
 so it is worth being precise about what produced it.
 
 Three of our own results, taken together, suggest that most of the achievable performance
 comes from the pair of endpoint feature vectors rather than from the surrounding contact
-structure. Removing message passing entirely costs 0.0031 ± 0.0014 — consistent in direction
-across every seed, and therefore real, but small enough that a model with no graph
-convolution at all retains nearly all of the performance. Zeroing feature groups one at a time
-shows a single group that matters: the genes a cell already carries, at 0.0549 ± 0.0331, with
-every other group inside ±0.003. And edge features are zeroed in the reported configuration
+structure. Removing message passing entirely changes the headline by +0.0065 ± 0.0086 and is positive in
+only three seeds of five, so its contribution cannot be distinguished from zero; a model with no
+graph convolution at all retains essentially all of the performance. Zeroing feature groups one
+at a time shows a single group that matters: the genes a cell already carries, at
+0.0442 ± 0.0071, with no other group distinguishable from zero. And edge features are zeroed in the reported configuration
 without measurable cost.
 
 The likeliest explanation is that transfer in our simulator requires the donor to carry the gene
@@ -945,8 +1002,8 @@ graph adding little.
 It is worth ruling out a tempting but incorrect second explanation, since we entertained it
 ourselves. Because transfer is intraspecies only, one might expect the negative class to be
 padded with cross-species contacts that any model can reject from the species one-hot alone.
-We measured this and it is not so: only 0.275% of contacts in our dataset are cross-species
-(4,696 of 1,707,498), they arise in only one of the five scenarios, and none of them carries a
+We measured this and it is not so: only 0.107% of contacts in our dataset are cross-species
+(6,428 of 6,029,316), they arise in only one of the five scenarios, and none of them carries a
 transfer. Four of the five scenarios contain a single species, and in the one mixed scenario the
 two populations are seeded as separate spatial clusters that rarely come within contact range.
 The intraspecies restriction therefore does *not* make the task easier by supplying easy
@@ -962,18 +1019,42 @@ just rejected.
 
 We think this matters beyond our own paper. High discrimination on a simulator-derived task is
 easy to report and hard to interpret, because the task's difficulty is set by modelling
-decisions that are invisible in the metric. Our own pipeline supplies the cautionary example:
-before we removed four inputs that were literal components of the label-generating rule, the
-same architecture scored higher than it does now. The number improved when the experiment got
-worse.
+decisions that are invisible in the metric. Our own pipeline supplies two cautionary examples,
+and we think the second is the more useful contribution of this work.
+
+The first is feature leakage: before we removed four inputs that were literal components of the
+label-generating rule, the same architecture scored higher than it does now. The number improved
+when the experiment got worse.
+
+The second is subtler, and we would not have found it by inspection. An earlier version of this
+work split the data by snapshot rather than by simulation run. Snapshots are taken every three
+simulated steps, so the training and test sets contained near-duplicate views of the same
+population — the same individual cells, three steps apart. Nothing about that is visible in a
+metric. Rerunning the entire pipeline twice on identical data, once per split, isolates what it
+was doing: the headline fell by 0.0176 AUROC, which is modest, **but the two rarest genes fell
+by roughly 0.09 and 0.07, from 0.9986 and 0.9988 to 0.8890 and 0.8669** (§4.9).
+
+The distribution of that error is the point. The inflation was not spread evenly: it concentrated
+on the genes with the fewest held-out positive events — five each — which are exactly the genes
+whose scores look most impressive and get quoted most readily. Under the broken split those two
+genes topped the per-gene table at 0.999; under the correct one they sit at the bottom. An
+earlier draft of this paper contained a figure whose stated message was that the genes with the
+fewest examples scored highest. That was not a finding about rare-gene learnability. It was a
+leakage signature, and we had written a caption explaining it as though it were a result.
+
+The general lesson is not "group your splits", which is standard advice. It is that when a task
+is generated by a simulator, the unit of independence is the *simulation run*, not the sample,
+and that violating it does its worst damage in the least conspicuous place: the small-sample
+rows of a per-gene table, where there is least evidence and the most eye-catching numbers.
 
 ## 6.2 What the results do support: joint training across genes
 
 The result we consider most robust is also the one least dependent on the graph. Our per-gene
 baselines cannot be fitted for genes with fewer than five positive examples in the training
-subsample they draw, and because that subsample is drawn per seed, two genes fall below the
-line in every seed and a third falls below it in three seeds of five. A single model trained
-jointly on all ten gene outputs produces stable predictions for all of them. That advantage follows from parameter sharing
+subsample they draw. On a smaller dataset this bound on three genes and we presented it as a
+contribution; at the present dataset size it binds on one, acrAB-tolC, whose score rests on
+five held-out events. We have demoted the claim accordingly (§4.2, §5.1), and record here that
+it was data volume, not any change of method, that dissolved it. That advantage follows from parameter sharing
 across a multi-label output, not from message passing — the graph-free variant would inherit
 it too.
 
@@ -985,14 +1066,11 @@ reach. The mechanism is mundane — shared representations let common genes subs
 but for a problem where the interesting determinants are often the rare ones, it is the part of
 our design we would keep.
 
-Two caveats travel with it, and neither is optional. The genes concerned have 19, 34 and 94
-positive events in the whole dataset, so their AUROCs are imprecise in a way that seed-to-seed
-standard deviations do not capture. And two of the three are chromosomal in real bacteria and
-are moved by our simulator as a deliberate simplification, so for those the result demonstrates
-a property of the learning setup and not a fact about the genes. The third, blaKPC-2, carries
-no mechanism caveat, which makes it the cleanest case: a genuine plasmid-borne gene that the
-per-gene baseline fits in two seeds out of five, returning 0.9611 and 0.8179 where it does fit,
-against a jointly trained model that returns 0.9564 +/- 0.0021 every time.
+What survives is narrower and worth stating precisely: a per-gene model cannot be built at all
+below its positive threshold, whereas a jointly trained one always emits a prediction. That is
+structurally true and will matter whenever the targets of interest are rare. It is not, on this
+evidence, a quantified advantage — the one gene it still applies to is measured from five
+held-out events, and it is a gene our simulator moves by a mechanism that is not its real one.
 
 ## 6.3 Relation to prior approaches
 
@@ -1012,10 +1090,11 @@ with theirs: different unit of prediction, different notion of an event, differe
 no comparison of magnitudes anywhere in this paper.
 
 It is worth noting that the direction of our own ablation echoes theirs. In their setting a
-non-graph model matched or beat the graph model on functional features; in ours, removing
-message passing costs 0.003. Two studies at different scales both finding limited benefit from
-graph structure is weak evidence, but it points the same way, and we would rather record it
-than present message passing as more load-bearing than it is.
+non-graph model matched or beat the graph model on functional features; in ours we cannot
+distinguish the contribution of message passing from zero. Two studies at different scales both
+finding limited benefit from graph structure is weak evidence, but it points the same way, and
+we would rather record it than present message passing as more load-bearing than it is. We note
+that our own earlier, uncorrected evaluation did make it look load-bearing and consistent.
 
 ## 6.4 The interspecies gap
 
@@ -1065,32 +1144,24 @@ blocked by compute; what they cost is design work, literature work, and in three
 invalidation of every number in Section 4. Person-day figures are our estimates, not
 measurements.
 
-## 7.1 Split by run or by scenario, not by snapshot pair
+## 7.1 Split by run — **done**, and what it cost
 
-**What it changes.** This is the only item that changes the paper's numbers without changing
-the simulator, and the only one that changes what those numbers *mean* rather than what they
-measure. Every figure in Section 4 is currently computed on a split over snapshot pairs, so it
-reports generalisation to unseen time windows of runs seen in training (U13). A grouped split
-would replace S1–S9 with figures that answer the question a reader assumes is being answered.
-We expect them to be lower; that is the point.
+This item is complete and is reported in §4.9 rather than proposed here. We regenerated the
+dataset at 50 runs (ten data seeds per scenario, up from three) and reran the whole pipeline
+twice on identical data: once with the original snapshot-level split and once grouping by run
+and stratifying by scenario. Running both arms was what allowed the effect of the split to be
+separated from the effect of having more data.
 
-**What it takes.** The code change is small. `split_dataset` shuffles pairs; it would group by
-run instead. The run identity is not currently in a graph's metadata — which carries step,
-scenario, node and edge counts — so `collect_training_snapshots` would need to stamp each pair
-with its scenario and data seed first. That is perhaps half a day.
+The split correction lowered the headline by 0.0176 AUROC and the two rarest genes by roughly
+0.09 and 0.07. It also removed the consistency of the message-passing result, which had been
+positive in five seeds of five and is now positive in three. Everything reported in this paper
+uses the run-grouped split.
 
-**The real obstacle is that fifteen runs is too few to group.** Five scenarios × three data
-seeds, split 70/15/15 by run, leaves about ten training runs and three test runs, which is too
-coarse for a stable estimate and would make the reported standard deviations largely a
-statement about which three runs landed in the test fold. Doing this properly means generating
-more runs — on the order of ten data seeds per scenario, so fifty runs — and reporting either
-leave-one-scenario-out (five folds, which also measures transfer to an unseen population
-composition) or leave-one-seed-out. At roughly ten seconds per run, the extra data generation
-is minutes; the retraining is five folds × five model seeds, so a handful of hours at the
-recorded rate.
-
-**Estimated effort:** 2–3 person-days plus a few hours of compute. **Consequence:** S1–S9 are
-superseded; U13 is resolved.
+**What remains.** The held-out runs are unseen runs, but they come from the same five scenarios
+and the same five species as the training runs. A leave-one-scenario-out protocol would test
+generalisation to an unseen population composition, which is the next question of this kind and
+a harder one. Estimated effort: 1 day plus five folds of retraining, roughly 15 GPU-hours at the
+present dataset size.
 
 ## 7.2 Per-gene transfer mobility
 
@@ -1100,9 +1171,11 @@ resolve U10 and the vanA half of U6, and would let per-gene results be read as s
 than an artefact.
 
 **It would also remove the demonstration behind our coverage claim, which is why we rank it
-second.** Two of the three genes in S2b, acrAB-tolC and gyrA_S83L, are exactly the ones whose
-transfer is a simplification. (The third, blaKPC-2, is unaffected and would survive the change,
-which softens this consequence but does not remove it.) If gyrA_S83L becomes mutation-only and acrAB-tolC becomes
+second.** The coverage finding now rests on acrAB-tolC alone (§4.2), and acrAB-tolC is one of
+the genes whose transfer is a simplification — so modelling per-gene mobility would remove the
+last gene supporting it. That is a reason to make the change, not to avoid it: a finding that
+depends entirely on a gene the simulator moves by the wrong mechanism is not one worth
+protecting. If gyrA_S83L becomes mutation-only and acrAB-tolC becomes
 regulation-only — which is what the sources in §5.2 imply — then both drop out of the transfer
 label set, and the finding that joint training reaches genes the per-gene baselines cannot fit
 needs a new demonstration. blaTEM-1 is the natural candidate (5 positives, currently not
@@ -1127,7 +1200,7 @@ re-demonstration, all of Section 4 regenerated.
 **What it changes.** This is the largest scope restriction in the paper. Transfer is currently
 intraspecies only, so the interspecies case that dominates the literature on these genes is
 absent from the task, the labels and the evaluation (U11), and our measurements cannot detect
-that absence — only 0.275% of contacts in our dataset even cross a species boundary (S10).
+that absence — only 0.107% of contacts in our dataset even cross a species boundary (S10).
 Adding it would make the task match the phenomenon the paper names, and would very likely lower
 the headline figures, since the model would face a class of positives it has never seen.
 
@@ -1210,7 +1283,7 @@ experiment.
 
 | # | Item | Effort (estimated) | Claims affected |
 |---|---|---|---|
-| 1 | Group the split by run or scenario | 2–3 days + hours of compute | S1–S9 superseded; U13 resolved |
+| 1 | ~~Group the split by run~~ **done** (§7.1) | spent: 2 days + ~7 GPU-hours | S1–S9 superseded by the corrected values; **U13 resolved** |
 | 2 | Per-gene transfer mobility | 1–2 weeks + regeneration | U10 resolved; U6 partly; **S2b needs re-demonstration** |
 | 3 | Interspecies transfer | 2–3 weeks + regeneration | U11 resolved; S10 obsolete; Section 4 regenerated |
 | 4 | External validation via gene calls | ~1.5 weeks (simulator only) | U7 partly resolved, scope stated |
@@ -1219,8 +1292,8 @@ experiment.
 
 Items 2, 3, 5 and 6 all change the simulator and therefore invalidate every figure in
 Section 4; they would sensibly be batched into one regeneration rather than run separately.
-Item 1 is independent of all of them and should be done first, because until it is, none of the
-reported figures answers the question a reader is most likely to think it answers.
+Item 1 has been done, and doing it first was the right order: every number now being compared
+against future changes rests on an evaluation we trust, which was not true before.
 
 # 8 Conclusion
 
@@ -1232,36 +1305,38 @@ exact — which is the property that motivated the formulation and is not availa
 observational genomic data.
 
 On this task a graph attention network trained jointly on all gene outputs reaches a test AUROC
-of 0.9777 ± 0.0023 on the four genes our per-gene random forest baseline fits in every seed,
-against 0.9548 ± 0.0124 for that baseline, and is ahead on every seed. It also gives stable
-predictions for three further genes the baselines fit unreliably or not at all — an advantage
-that comes from sharing parameters across a multi-label output rather than from the graph.
+of 0.9805 ± 0.0021 on the five genes our per-gene random forest baseline fits in every seed,
+against 0.9647 ± 0.0031 for that baseline, ahead on every seed. That gap stayed within 0.003 of
+itself across a threefold increase in data and a correction to the evaluation, which makes it
+the most durable number we report.
 
-That last distinction is the paper's main methodological conclusion. Message passing contributes
-a small but consistent 0.0031 ± 0.0014, and the genes a cell already carries dominate every
-other feature group by an order of magnitude. On this task, most of the signal is available from
-the two endpoint feature vectors, and what earns the architecture its place is joint training
-across genes, not the propagation of information over the contact graph. We report that rather
-than the more flattering alternative reading.
+The graph itself earns little. Message passing changes the headline by +0.0065 ± 0.0086 and is
+positive in only three seeds of five, so we cannot distinguish it from zero; the genes a cell
+already carries dominate every other feature group by an order of magnitude. On this task most
+of the signal is available from the two endpoint feature vectors. We report that rather than the
+more flattering alternative reading — and note that an earlier version of this work did report
+the flattering reading, because its evaluation was wrong.
 
 The scope of these numbers is narrow, and deliberately stated as such throughout. They are
 internal to one simulator; no external validation exists, and our attempt at one failed for want
 of gene-level calls in the data we could obtain. The simulator transfers genes only between
 cells of the same species, so the interspecies transfers that dominate the literature on these
-very genes are absent from the task, the labels and the evaluation alike. The held-out split is
-taken over snapshot pairs rather than over runs, so it measures generalisation to unseen time
-windows of seen simulations and not to unseen simulations. Three of the eleven genes are moved
-by a mechanism that is not their real one, and several parameters that resemble measurements are
-invented. Under those conditions, a high AUROC is better read as a statement about the
+very genes are absent from the task, the labels and the evaluation alike. The held-out split
+holds out whole simulation runs, but those runs come from the same five scenarios and five
+species used in training, so generalisation to unseen scenarios or species remains untested. Three of the eleven genes are moved by a mechanism
+that is not their real one, and several parameters that resemble measurements are invented. Under those conditions, a high AUROC is better read as a statement about the
 difficulty of the task as posed than as evidence of a model that understands conjugation.
 
-What we think survives those caveats is the formulation and one design choice: an exactly
-labelled, per-contact, per-gene transfer task is a usable testbed, and training one model across
-all genes reaches rare targets that per-gene models cannot. The pipeline that produces these
+What we think survives those caveats is the formulation and one methodological result: an
+exactly labelled, per-contact, per-gene transfer task is a usable testbed, and the cost of
+splitting such a task by snapshot rather than by run is large and concentrated exactly where a
+reader would least expect it — in the rarest, most eye-catching per-gene scores. The pipeline that produces these
 results is seeded and deterministic across processes, with a frozen configuration guarded
 byte-for-byte by a regression test, so the numbers can be reproduced and, more importantly,
-can be moved by the changes set out in Section 7: splitting by run, adding interspecies
-transfer, modelling per-gene mobility, and validating against real gene calls. We expect several of those
+can be moved by the changes set out in Section 7: adding interspecies transfer, modelling
+per-gene mobility, validating against real gene calls, and testing unseen scenarios. One such
+change has already been made and is reported here — splitting by run rather than by
+snapshot — and it lowered almost every number in this paper. We expect several of those
 changes to lower the figures reported here, and regard that as the point of making them.
 
 # References
