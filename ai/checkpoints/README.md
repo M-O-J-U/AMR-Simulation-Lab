@@ -10,13 +10,19 @@ Hyperparameter sweeps: `sweep/<biology>/` (`python -m ai.hparam_sweep`).
 **Superseded (kept for history; do not cite):** the single-run files in this directory —
 `training_results.json`, `baseline_results.json`, `calibration_results.json`,
 `full_comparison.json`, `gnn_ablation_results.json`, `multiseed_comparison.json`,
-`external_validation.json`, `patric_validation.json`, and `best_model.pt` / `_ablation/` /
-`_multiseed/` models. They were produced before the seeding fixes, when:
+`external_validation.json`, `patric_validation.json`, and `best_model.pt`.
+They were produced before the seeding fixes, when:
 
 - seeded simulation runs depended on `PYTHONHASHSEED` (different trajectories per process),
 - GNN graph subsampling used the global, unseeded `random.sample`,
 - logistic regression's `saga` solver was unseeded, and the ablation's GNN retrains had no
   `torch_seed`,
+
+**Removed from the repository (2026-10-01, before the first push):** the `_ablation/` and
+`_multiseed/` model directories (61 MB of `.pt` files). They were superseded artefacts of the
+pre-seeding-fix runs, nothing in the pipeline or the paper read them, and their `.json`
+summaries listed above are retained. They were stripped from the whole history rather than
+deleted in a new commit, so they are not recoverable from this repository.
 
 so none of them can be regenerated exactly, and several are single observations of a quantity
 with large run-to-run spread.

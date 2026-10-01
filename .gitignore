@@ -12,8 +12,11 @@ desktop.ini
 ecoli_amr.csv
 klebsiella_amr.csv
 
-# Run logs: historical files up to 2026-09-29 stay committed; new runs are not tracked.
-logs/
+# Run logs are not tracked. One exception: the training log cited as the source for
+# claim U1 (the retired 0.9934) in paper/claims_to_numbers.md. A negation cannot escape an
+# ignored DIRECTORY, so this ignores the contents rather than the directory itself.
+logs/*
+!logs/gnn_training_20260607_013207.log
 
 # Personal Claude Code permission overrides (not project config)
 .claude/settings.local.json

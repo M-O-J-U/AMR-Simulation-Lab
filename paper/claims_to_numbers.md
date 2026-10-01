@@ -73,7 +73,7 @@ All values from the run-grouped 50-run reference set unless stated. Where a clai
 
 | Setting | GNN | RF | Source |
 |---|---|---|---|
-| Retired draft (invalid) | 0.9934 | 0.9896 | Downloads/amr_gnn.tex; logs/gnn_training_20260607_013207.log |
+| Retired draft (invalid) | 0.9934 | 0.9896 | Downloads/amr_gnn.tex; `logs/gnn_training_20260607_013207.log` (the only run log kept in the repository — it is the evidence for this row) |
 | paper_v1, default hparams | 0.9261 ± 0.0211 | 0.9226 ± 0.0263 | reseeded/paper_v1/summary.md |
 | paper_v1, tuned (edge features on) | 0.9665 ± 0.0048 | 0.9306 ± 0.0317 | sweep/paper_v1/summary.md |
 | lab_v2 4-scenario, default | 0.6802 ± 0.0381 | 0.7739 ± 0.0446 | reseeded/lab_v2/summary.md |

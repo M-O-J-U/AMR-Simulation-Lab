@@ -1,0 +1,119 @@
+
+================================================================================
+  AMR SIMULATION LOG
+  Session  : gnn_training
+  Started  : 20260607_013207
+  Log file : logs\gnn_training_20260607_013207.log
+  JSON data: logs\gnn_training_20260607_013207.json
+================================================================================
+
+  Log levels:
+    SCIENCE   — biologically significant events
+    MILESTONE — simulation state changes
+    STEP      — periodic population summary
+    TEST      — test pass/fail results
+    WARNING   — unexpected states
+
+================================================================================
+
+[   0.0s]           MILESTONE  GNN training started | device=cuda | scenarios=['ecoli_cipro', 'klebsiella_carbapenem', 'pakistan_crisis', 'xdr_acinetobacter'] | epochs=60
+[   0.0s]           MILESTONE  Collecting data [1/12] — scenario: ecoli_cipro, seed: 0
+[   1.3s]           STEP         → 26 graph pairs collected (1.3s) | running total: 26
+[   1.3s]           MILESTONE  Collecting data [2/12] — scenario: ecoli_cipro, seed: 1
+[   2.1s]           STEP         → 26 graph pairs collected (0.8s) | running total: 52
+[   2.1s]           MILESTONE  Collecting data [3/12] — scenario: ecoli_cipro, seed: 2
+[   3.3s]           STEP         → 26 graph pairs collected (1.2s) | running total: 78
+[   3.3s]           MILESTONE  Collecting data [4/12] — scenario: klebsiella_carbapenem, seed: 0
+[   3.7s]           STEP         → 26 graph pairs collected (0.4s) | running total: 104
+[   3.7s]           MILESTONE  Collecting data [5/12] — scenario: klebsiella_carbapenem, seed: 1
+[   4.1s]           STEP         → 26 graph pairs collected (0.4s) | running total: 130
+[   4.1s]           MILESTONE  Collecting data [6/12] — scenario: klebsiella_carbapenem, seed: 2
+[   4.6s]           STEP         → 26 graph pairs collected (0.5s) | running total: 156
+[   4.6s]           MILESTONE  Collecting data [7/12] — scenario: pakistan_crisis, seed: 0
+[   5.5s]           STEP         → 25 graph pairs collected (0.9s) | running total: 181
+[   5.5s]           MILESTONE  Collecting data [8/12] — scenario: pakistan_crisis, seed: 1
+[   6.5s]           STEP         → 24 graph pairs collected (0.9s) | running total: 205
+[   6.5s]           MILESTONE  Collecting data [9/12] — scenario: pakistan_crisis, seed: 2
+[   7.3s]           STEP         → 25 graph pairs collected (0.9s) | running total: 230
+[   7.3s]           MILESTONE  Collecting data [10/12] — scenario: xdr_acinetobacter, seed: 0
+[   8.6s]           STEP         → 26 graph pairs collected (1.3s) | running total: 256
+[   8.6s]           MILESTONE  Collecting data [11/12] — scenario: xdr_acinetobacter, seed: 1
+[   9.8s]           STEP         → 26 graph pairs collected (1.2s) | running total: 282
+[   9.8s]           MILESTONE  Collecting data [12/12] — scenario: xdr_acinetobacter, seed: 2
+[  11.0s]           STEP         → 26 graph pairs collected (1.2s) | running total: 308
+[  11.0s]           MILESTONE  Data collected: 308 graph pairs
+[  11.3s]           MILESTONE  Model built | params=349,370 | arch=NodeEncoder → EdgeEncoder → 3×GAT+EdgeAttn → EdgePredictorHead
+[  12.9s] [step 0001] STEP       Epoch 1/60 | loss=0.2499/0.0460 | AUROC=0.8346 | AUPRC=0.0093 | F1=0.0000
+[  12.9s] [step 0001] MILESTONE  New best model | AUROC=0.8346 | epoch=1 → ai\checkpoints\best_model.pt
+[  13.9s] [step 0002] STEP       Epoch 2/60 | loss=0.1115/0.0423 | AUROC=0.8557 | AUPRC=0.0126 | F1=0.0000
+[  13.9s] [step 0002] MILESTONE  New best model | AUROC=0.8557 | epoch=2 → ai\checkpoints\best_model.pt
+[  14.9s] [step 0003] STEP       Epoch 3/60 | loss=0.0842/0.0411 | AUROC=0.8874 | AUPRC=0.0174 | F1=0.0000
+[  14.9s] [step 0003] MILESTONE  New best model | AUROC=0.8874 | epoch=3 → ai\checkpoints\best_model.pt
+[  15.8s] [step 0004] STEP       Epoch 4/60 | loss=0.0838/0.0354 | AUROC=0.8888 | AUPRC=0.0187 | F1=0.0000
+[  15.8s] [step 0004] MILESTONE  New best model | AUROC=0.8888 | epoch=4 → ai\checkpoints\best_model.pt
+[  16.8s] [step 0005] STEP       Epoch 5/60 | loss=0.0741/0.0294 | AUROC=0.9211 | AUPRC=0.0310 | F1=0.0124
+[  16.8s] [step 0005] MILESTONE  New best model | AUROC=0.9211 | epoch=5 → ai\checkpoints\best_model.pt
+[  17.8s] [step 0006] STEP       Epoch 6/60 | loss=0.0679/0.0241 | AUROC=0.9297 | AUPRC=0.0419 | F1=0.0377
+[  17.9s] [step 0006] MILESTONE  New best model | AUROC=0.9297 | epoch=6 → ai\checkpoints\best_model.pt
+[  18.8s] [step 0007] STEP       Epoch 7/60 | loss=0.0734/0.0247 | AUROC=0.9333 | AUPRC=0.0539 | F1=0.0455
+[  18.9s] [step 0007] MILESTONE  New best model | AUROC=0.9333 | epoch=7 → ai\checkpoints\best_model.pt
+[  19.9s] [step 0008] STEP       Epoch 8/60 | loss=0.0549/0.0198 | AUROC=0.9258 | AUPRC=0.0555 | F1=0.0899
+[  20.9s] [step 0009] STEP       Epoch 9/60 | loss=0.0500/0.0195 | AUROC=0.9443 | AUPRC=0.0589 | F1=0.0887
+[  20.9s] [step 0009] MILESTONE  New best model | AUROC=0.9443 | epoch=9 → ai\checkpoints\best_model.pt
+[  21.9s] [step 0010] STEP       Epoch 10/60 | loss=0.0474/0.0178 | AUROC=0.9568 | AUPRC=0.0688 | F1=0.0942
+[  21.9s] [step 0010] MILESTONE  New best model | AUROC=0.9568 | epoch=10 → ai\checkpoints\best_model.pt
+[  22.9s] [step 0011] STEP       Epoch 11/60 | loss=0.0513/0.0179 | AUROC=0.9670 | AUPRC=0.0891 | F1=0.0848
+[  23.0s] [step 0011] MILESTONE  New best model | AUROC=0.9670 | epoch=11 → ai\checkpoints\best_model.pt
+[  24.0s] [step 0012] STEP       Epoch 12/60 | loss=0.0441/0.0167 | AUROC=0.9718 | AUPRC=0.0879 | F1=0.1182
+[  24.0s] [step 0012] MILESTONE  New best model | AUROC=0.9718 | epoch=12 → ai\checkpoints\best_model.pt
+[  25.0s] [step 0013] STEP       Epoch 13/60 | loss=0.0383/0.0173 | AUROC=0.9721 | AUPRC=0.0844 | F1=0.0955
+[  26.0s] [step 0014] STEP       Epoch 14/60 | loss=0.0380/0.0155 | AUROC=0.9775 | AUPRC=0.0817 | F1=0.1214
+[  26.0s] [step 0014] MILESTONE  New best model | AUROC=0.9775 | epoch=14 → ai\checkpoints\best_model.pt
+[  27.0s] [step 0015] STEP       Epoch 15/60 | loss=0.0380/0.0145 | AUROC=0.9801 | AUPRC=0.0903 | F1=0.1156
+[  27.1s] [step 0015] MILESTONE  New best model | AUROC=0.9801 | epoch=15 → ai\checkpoints\best_model.pt
+[  28.0s] [step 0016] STEP       Epoch 16/60 | loss=0.0348/0.0154 | AUROC=0.9814 | AUPRC=0.0816 | F1=0.1205
+[  28.1s] [step 0016] MILESTONE  New best model | AUROC=0.9814 | epoch=16 → ai\checkpoints\best_model.pt
+[  29.0s] [step 0017] STEP       Epoch 17/60 | loss=0.0311/0.0140 | AUROC=0.9831 | AUPRC=0.0953 | F1=0.1270
+[  29.1s] [step 0017] MILESTONE  New best model | AUROC=0.9831 | epoch=17 → ai\checkpoints\best_model.pt
+[  30.0s] [step 0018] STEP       Epoch 18/60 | loss=0.0304/0.0133 | AUROC=0.9851 | AUPRC=0.0940 | F1=0.1208
+[  30.0s] [step 0018] MILESTONE  New best model | AUROC=0.9851 | epoch=18 → ai\checkpoints\best_model.pt
+[  31.0s] [step 0019] STEP       Epoch 19/60 | loss=0.0320/0.0137 | AUROC=0.9839 | AUPRC=0.1018 | F1=0.1316
+[  32.0s] [step 0020] STEP       Epoch 20/60 | loss=0.0309/0.0131 | AUROC=0.9856 | AUPRC=0.0996 | F1=0.1242
+[  33.1s] [step 0021] STEP       Epoch 21/60 | loss=0.0327/0.0131 | AUROC=0.9866 | AUPRC=0.0963 | F1=0.1178
+[  33.1s] [step 0021] MILESTONE  New best model | AUROC=0.9866 | epoch=21 → ai\checkpoints\best_model.pt
+[  34.1s] [step 0022] STEP       Epoch 22/60 | loss=0.0299/0.0132 | AUROC=0.9872 | AUPRC=0.1006 | F1=0.1209
+[  35.2s] [step 0023] STEP       Epoch 23/60 | loss=0.0294/0.0133 | AUROC=0.9872 | AUPRC=0.1244 | F1=0.1167
+[  36.1s] [step 0024] STEP       Epoch 24/60 | loss=0.0307/0.0132 | AUROC=0.9873 | AUPRC=0.1013 | F1=0.1333
+[  37.1s] [step 0025] STEP       Epoch 25/60 | loss=0.0271/0.0128 | AUROC=0.9877 | AUPRC=0.1061 | F1=0.1196
+[  37.1s] [step 0025] MILESTONE  New best model | AUROC=0.9877 | epoch=25 → ai\checkpoints\best_model.pt
+[  38.1s] [step 0026] STEP       Epoch 26/60 | loss=0.0280/0.0134 | AUROC=0.9889 | AUPRC=0.1096 | F1=0.1240
+[  38.1s] [step 0026] MILESTONE  New best model | AUROC=0.9889 | epoch=26 → ai\checkpoints\best_model.pt
+[  39.1s] [step 0027] STEP       Epoch 27/60 | loss=0.0261/0.0128 | AUROC=0.9898 | AUPRC=0.1208 | F1=0.1172
+[  40.0s] [step 0028] STEP       Epoch 28/60 | loss=0.0261/0.0126 | AUROC=0.9898 | AUPRC=0.1202 | F1=0.1326
+[  41.1s] [step 0029] STEP       Epoch 29/60 | loss=0.0276/0.0130 | AUROC=0.9898 | AUPRC=0.1183 | F1=0.1248
+[  42.0s] [step 0030] STEP       Epoch 30/60 | loss=0.0240/0.0128 | AUROC=0.9902 | AUPRC=0.1101 | F1=0.1222
+[  42.0s] [step 0030] MILESTONE  New best model | AUROC=0.9902 | epoch=30 → ai\checkpoints\best_model.pt
+[  43.1s] [step 0031] STEP       Epoch 31/60 | loss=0.0267/0.0127 | AUROC=0.9899 | AUPRC=0.1148 | F1=0.1207
+[  44.1s] [step 0032] STEP       Epoch 32/60 | loss=0.0247/0.0128 | AUROC=0.9898 | AUPRC=0.1162 | F1=0.1221
+[  45.1s] [step 0033] STEP       Epoch 33/60 | loss=0.0256/0.0127 | AUROC=0.9903 | AUPRC=0.1101 | F1=0.1191
+[  46.1s] [step 0034] STEP       Epoch 34/60 | loss=0.0267/0.0128 | AUROC=0.9902 | AUPRC=0.1095 | F1=0.1193
+[  47.1s] [step 0035] STEP       Epoch 35/60 | loss=0.0261/0.0131 | AUROC=0.9892 | AUPRC=0.1019 | F1=0.1174
+[  48.1s] [step 0036] STEP       Epoch 36/60 | loss=0.0219/0.0129 | AUROC=0.9901 | AUPRC=0.1130 | F1=0.1235
+[  49.1s] [step 0037] STEP       Epoch 37/60 | loss=0.0277/0.0126 | AUROC=0.9904 | AUPRC=0.1066 | F1=0.1207
+[  50.0s] [step 0038] STEP       Epoch 38/60 | loss=0.0233/0.0127 | AUROC=0.9904 | AUPRC=0.0991 | F1=0.1190
+[  51.0s] [step 0039] STEP       Epoch 39/60 | loss=0.0273/0.0130 | AUROC=0.9906 | AUPRC=0.1067 | F1=0.1251
+[  52.0s] [step 0040] STEP       Epoch 40/60 | loss=0.0239/0.0126 | AUROC=0.9909 | AUPRC=0.1040 | F1=0.1243
+[  53.1s] [step 0041] STEP       Epoch 41/60 | loss=0.0245/0.0127 | AUROC=0.9904 | AUPRC=0.1033 | F1=0.1212
+[  54.0s] [step 0042] STEP       Epoch 42/60 | loss=0.0243/0.0128 | AUROC=0.9903 | AUPRC=0.1002 | F1=0.1196
+[  54.0s] [step 0042] MILESTONE  Early stopping at epoch 42 | best AUROC=0.9902
+[  54.4s]           MILESTONE  Training complete | test_AUROC=0.9934 | test_AUPRC=0.0602 | results=ai\checkpoints\training_results.json
+[  54.4s]           MILESTONE  SESSION COMPLETE — 60 steps | final population: 0 | total HGT events: 0 | total mutations logged: 0 | SOS activations: 0 | elapsed: 54.4s
+
+================================================================================
+  SESSION ENDED
+  Total entries : 92
+  HGT events    : 0
+  Mutations     : 0
+  SOS responses : 0
+  Elapsed       : 54.4s
+================================================================================
