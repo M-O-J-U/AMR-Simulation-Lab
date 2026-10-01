@@ -109,6 +109,28 @@ def render(data: dict) -> str:
     # Computed, not asserted: an earlier draft of the story said the genomic group
     # mattered "more than fifty times as much", which was wrong (it is about 18x).
     ratio = abs(ablation[0][1]) / mp["mean"]
+    # Computed, not asserted (2026-10-01): the per-gene takeaway below used to state
+    # the PAIR-SPLIT ordering -- "the two highest-scoring genes have the fewest
+    # events" -- with the counts correctly interpolated around a sentence that the
+    # run-grouped split had already inverted. Same failure mode as the hard-coded
+    # dataset hash in make_figures.py: a literal verdict sitting beside live numbers.
+    # Derive the direction from the data so it cannot go stale again.
+    worst = evaluable[-1]                 # (gene, mean, sd, held-out positives)
+    second_worst = evaluable[-2]
+    best = evaluable[0]
+    fewest = sorted(evaluable, key=lambda t: t[3])[:2]
+    inverted = {g for g, *_ in fewest} == {worst[0], second_worst[0]}
+    n_runs = sum(len(v[k]) for v in data["split"]["runs_by_scenario"].values()
+                 for k in ("train", "val", "test"))
+    n_seeds = len(data["model_seeds"])
+    ahead = sum(1 for a, b in zip(
+        [statistics.mean(x["gnn"]["per_gene_auroc"][g] for g in HEADLINE_SET)
+         for x in data["per_seed"]],
+        [statistics.mean(x["random_forest"]["per_gene_auroc"][g] for g in HEADLINE_SET)
+         for x in data["per_seed"]]) if a > b)
+    base_rate = d["n_edge_gene_positives"] / (d["n_edges"] * len(pos))
+    repro = data["reproducibility_check"]["max_abs_diff"]
+    mpb = data["comparisons"]["gnn_minus_graph_free"]["seeds_first_better"]
     # (gene, positives in the HELD-OUT split) -- the evidence each estimate rests on
     trainability = [("tetM", 311), ("mcr-1", 217), ("blaCTX-M-15", 212),
                     ("blaKPC-2", 61), ("gyrA_S83L", 24), ("blaNDM-1", 16),
@@ -178,7 +200,7 @@ def render(data: dict) -> str:
 title: "Predicting per-contact, per-gene horizontal transfer of antimicrobial resistance genes in an agent-based simulation"
 pitch: "A simulated bacterial population records every gene transfer as it happens, turning an unobservable process into a supervised learning problem with exact labels. The model scores well — and the most useful thing I found was how much of an earlier, higher score came from splitting the data the wrong way."
 status: "Draft, not submitted, no venue"
-dataset: "Simulated. An agent-based model of bacterial populations (Mesa), 5 scenarios x 3 data seeds, {d['n_graph_pairs']} snapshot pairs, {d['n_edges']:,} cell-to-cell contacts, {d['n_edge_gene_positives']:,} recorded gene transfers. Gene definitions from the CARD database. No patient or clinical data."
+dataset: "Simulated. An agent-based model of bacterial populations (Mesa), {len(data['scenarios'])} scenarios over {n_runs} independent runs, {d['n_graph_pairs']} snapshot pairs, {d['n_edges']:,} cell-to-cell contacts, {d['n_edge_gene_positives']:,} recorded gene transfers. Gene definitions from the CARD database. No patient or clinical data."
 models: ["Graph attention network (AMRResistanceGNN)", "Graph-free ablation of the same model", "Per-gene random forest", "Per-gene logistic regression", "Frequency baseline"]
 tags: ["antimicrobial resistance", "horizontal gene transfer", "graph neural networks", "agent-based simulation", "evaluation", "computational biology"]
 role: "Sole author"
@@ -221,21 +243,21 @@ Second, and more useful to anyone building something similar: an earlier version
 
 **Limitations.** Everything here is inside one simulator, with no validation against real genomes. The simulator only moves genes between cells of the same species, so the cross-species transfers that dominate the real literature are absent from the task entirely. The test set now holds out whole simulation runs, but those runs use the same five scenarios and five species as training, so generalisation to unseen scenarios or species is untested.
 
-**Technical summary.** An agent-based AMR simulation (Mesa, 80x60 grid, 5 species, 10 CARD resistance genes, 6 antibiotics) generated {d['n_graph_pairs']} snapshot pairs over 50 independent runs, comprising {d['n_edges']:,} directed contacts and {d['n_edge_gene_positives']:,} recorded transfer events. The held-out split is by simulation run, stratified by scenario. Each snapshot becomes a graph: nodes are cells with {data['feature_dims']['node']}-dimensional features, edges join cells within three grid cells, and the target is per-edge, per-gene. A graph attention network ({hp.get('n_layers', 2)} blocks, {hp.get('heads', 4)} heads, hidden {hp.get('hidden_dim', 128)}) reaches a headline macro AUROC of {f(s['gnn']['headline_auroc']['mean'])} +/- {f(s['gnn']['headline_auroc']['sd'])} over 5 model seeds, and {f(g2m)} +/- {f(g2s)} against {f(r2m)} +/- {f(r2s)} for a per-gene random forest on the five genes that baseline fits in every seed. Ablations put the contribution of message passing at {f(mp['mean'])} +/- {f(mp['sd'])} (positive in only 3 of 5 seeds) and of carried-gene features at {f(ablation[0][1])} +/- {f(ablation[0][2])}. Calibration is good (expected calibration error {f(s['gnn']['ece']['mean'])}). Labels come from the simulator's own event log rather than from genome differences, and four features that were literal components of the transfer rule were removed as leakage before these numbers were produced.
+**Technical summary.** An agent-based AMR simulation (Mesa, 80x60 grid, 5 species, 10 CARD resistance genes, 6 antibiotics) generated {d['n_graph_pairs']} snapshot pairs over 50 independent runs, comprising {d['n_edges']:,} directed contacts and {d['n_edge_gene_positives']:,} recorded transfer events. The held-out split is by simulation run, stratified by scenario. Each snapshot becomes a graph: nodes are cells with {data['feature_dims']['node']}-dimensional features, edges join cells within three grid cells, and the target is per-edge, per-gene. A graph attention network ({hp.get('n_layers', 2)} blocks, {hp.get('heads', 4)} heads, hidden {hp.get('hidden_dim', 128)}) reaches a headline macro AUROC of {f(s['gnn']['headline_auroc']['mean'])} +/- {f(s['gnn']['headline_auroc']['sd'])} over 5 model seeds, and {f(g2m)} +/- {f(g2s)} against {f(r2m)} +/- {f(r2s)} for a per-gene random forest on the five genes that baseline fits in every seed. Ablations put the contribution of message passing at {f(mp['mean'])} +/- {f(mp['sd'])} (positive in only {mpb} of {n_seeds} seeds) and of carried-gene features at {f(ablation[0][1])} +/- {f(ablation[0][2])}. Calibration is good (expected calibration error {f(s['gnn']['ece']['mean'])}). Labels come from the simulator's own event log rather than from genome differences, and four features that were literal components of the transfer rule were removed as leakage before these numbers were produced.
 
 ## Key numbers
 
 - **Headline discrimination:** AUROC {f(s['gnn']['headline_auroc']['mean'])} +/- {f(s['gnn']['headline_auroc']['sd'])}, averaged over 8 resistance genes, mean and standard deviation across 5 independent training runs.
-- **Against the strongest classical baseline:** {f(g2m)} +/- {f(g2s)} against {f(r2m)} +/- {f(r2s)}, on the five genes the random forest can be fitted to in every run. Ahead in 5 runs out of 5. This comparison moved by less than 0.01 across a tripling of the data and a correction to the evaluation, which makes it the most durable number here.
+- **Against the strongest classical baseline:** {f(g2m)} +/- {f(g2s)} against {f(r2m)} +/- {f(r2s)}, on the five genes the random forest can be fitted to in every run. Ahead in {ahead} runs out of {n_seeds}. This comparison moved by less than 0.01 across a tripling of the data and a correction to the evaluation, which makes it the most durable number here.
 - **Against logistic regression, same five genes:** {f(l2m)} +/- {f(l2s)}.
 - **What the earlier, wrong data split was worth:** 0.0176 AUROC on the headline, and about 0.09 on the two rarest genes, whose scores fell from 0.999 to 0.87-0.89 once whole simulation runs were held out instead of individual snapshots.
-- **Contribution of the contact graph:** {f(mp['mean'])} +/- {f(mp['sd'])} AUROC, positive in only 3 runs of 5. Not distinguishable from zero.
+- **Contribution of the contact graph:** {f(mp['mean'])} +/- {f(mp['sd'])} AUROC, positive in only {mpb} runs of {n_seeds}. Not distinguishable from zero.
 - **Contribution of the genes each cell already carries:** {f(ablation[0][1])} +/- {f(ablation[0][2])} AUROC when removed — the only feature group that matters. No other group is distinguishable from zero.
 - **Genes the per-gene baseline could not be built for at all:** 1 of 10 (acrAB-tolC, 5 events in the held-out split). On an earlier, three-times-smaller dataset this was 3 genes; more data let the baseline fit the others, so this advantage shrinks as data grows.
 - **Calibration:** expected calibration error {f(s['gnn']['ece']['mean'])} +/- {f(s['gnn']['ece']['sd'])}.
-- **How rare the events are:** {d['n_edge_gene_positives']:,} transfers among {d['n_edges']:,} contacts x 10 genes, a positive rate of about 0.000079.
+- **How rare the events are:** {d['n_edge_gene_positives']:,} transfers among {d['n_edges']:,} contacts x 10 genes, a positive rate of about {base_rate:.6f}.
 - **How much of the task is cross-species:** 0.107% of contacts, carrying 0 transfers. The simulator only moves genes within a species, so the interspecies case is effectively absent rather than merely rare.
-- **Reproducibility:** identical simulated data and training pairs across processes; retraining a seed on a GPU reproduces test AUROC to within 0.0016.
+- **Reproducibility:** identical simulated data and training pairs across processes; retraining a seed on a GPU reproduces test AUROC to within {repro:.4f}.
 
 ## Charts
 
@@ -244,7 +266,7 @@ Second, and more useful to anyone building something similar: an earlier version
 {chart_headline}
 
 - **caption:** Test AUROC on the five resistance genes that all three models can be trained on in every run (blaCTX-M-15, blaKPC-2, blaNDM-1, mcr-1, tetM). Bars are means over 5 independent training runs; error bars are standard deviations.
-- **takeaway:** The graph network is ahead of both classical baselines, in every run. The margin over the random forest is real but modest, about 0.016 AUROC — and it barely moved when the data was tripled and the evaluation corrected.
+- **takeaway:** The graph network is ahead of both classical baselines, in every run. The margin over the random forest is real but modest, about {g2m - r2m:.3f} AUROC — and it barely moved when the data was tripled and the evaluation corrected.
 - **fallback_image:** paper/figures/fig4_model_comparison.png
 
 ### Per-gene score against the evidence behind it
@@ -252,7 +274,7 @@ Second, and more useful to anyone building something similar: an earlier version
 {chart_pergene}
 
 - **caption:** Per-gene test AUROC, highest first, with the number of transfer events each gene actually has in the dataset. Two of these genes (acrAB-tolC, gyrA_S83L) are moved by a deliberately simplified mechanism in the simulator and are labelled as such in the paper; so is vanA.
-- **takeaway:** The ordering runs opposite to the evidence supporting it. The two highest-scoring genes have the fewest events ({pos['acrAB-tolC']} and {pos['gyrA_S83L']}), while the gene with by far the most ({pos['blaCTX-M-15']}) scores lowest. This is a chart about sample size and about how the simulator seeds genes, not about which real genes are easier to predict. Do not rank genes by it.
+- **takeaway:** The two lowest-scoring genes, {worst[0]} ({f(worst[1])}) and {second_worst[0]} ({f(second_worst[1])}), are {"exactly the two" if inverted else "among those"} with the fewest transfer events in the held-out split ({fewest[0][3]} and {fewest[1][3]} events), and they carry by far the widest spread across runs. Above that floor the ordering does not track evidence either: {best[0]} tops the chart on just {best[3]} held-out events. Under the earlier, flawed split those two rare genes scored near 1.0 and *led* the chart — the ordering inverted once whole simulation runs were held out, which is the clearest single sign of what that split was doing. So this is a chart about sample size and about how the simulator happens to seed genes, not about which real genes are easier to predict. Do not rank genes by it.
 - **fallback_image:** paper/figures/fig1_per_gene_auroc.png
 
 ### What the model actually uses

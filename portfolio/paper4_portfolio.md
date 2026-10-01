@@ -2,7 +2,7 @@
 title: "Predicting per-contact, per-gene horizontal transfer of antimicrobial resistance genes in an agent-based simulation"
 pitch: "A simulated bacterial population records every gene transfer as it happens, turning an unobservable process into a supervised learning problem with exact labels. The model scores well — and the most useful thing I found was how much of an earlier, higher score came from splitting the data the wrong way."
 status: "Draft, not submitted, no venue"
-dataset: "Simulated. An agent-based model of bacterial populations (Mesa), 5 scenarios x 3 data seeds, 1300 snapshot pairs, 6,029,316 cell-to-cell contacts, 4,763 recorded gene transfers. Gene definitions from the CARD database. No patient or clinical data."
+dataset: "Simulated. An agent-based model of bacterial populations (Mesa), 5 scenarios over 50 independent runs, 1300 snapshot pairs, 6,029,316 cell-to-cell contacts, 4,763 recorded gene transfers. Gene definitions from the CARD database. No patient or clinical data."
 models: ["Graph attention network (AMRResistanceGNN)", "Graph-free ablation of the same model", "Per-gene random forest", "Per-gene logistic regression", "Frequency baseline"]
 tags: ["antimicrobial resistance", "horizontal gene transfer", "graph neural networks", "agent-based simulation", "evaluation", "computational biology"]
 role: "Sole author"
@@ -173,7 +173,7 @@ Second, and more useful to anyone building something similar: an earlier version
 ```
 
 - **caption:** Per-gene test AUROC, highest first, with the number of transfer events each gene actually has in the dataset. Two of these genes (acrAB-tolC, gyrA_S83L) are moved by a deliberately simplified mechanism in the simulator and are labelled as such in the paper; so is vanA.
-- **takeaway:** The ordering runs opposite to the evidence supporting it. The two highest-scoring genes have the fewest events (23 and 109), while the gene with by far the most (1446) scores lowest. This is a chart about sample size and about how the simulator seeds genes, not about which real genes are easier to predict. Do not rank genes by it.
+- **takeaway:** The two lowest-scoring genes, vanA (0.8669) and acrAB-tolC (0.8890), are exactly the two with the fewest transfer events in the held-out split (5 and 5 events), and they carry by far the widest spread across runs. Above that floor the ordering does not track evidence either: blaNDM-1 tops the chart on just 16 held-out events. Under the earlier, flawed split those two rare genes scored near 1.0 and *led* the chart — the ordering inverted once whole simulation runs were held out, which is the clearest single sign of what that split was doing. So this is a chart about sample size and about how the simulator happens to seed genes, not about which real genes are easier to predict. Do not rank genes by it.
 - **fallback_image:** paper/figures/fig1_per_gene_auroc.png
 
 ### What the model actually uses

@@ -166,7 +166,8 @@ def main() -> int:
             print("The reference numbers in paper/ may no longer describe this code.")
             return 1
         print("\nTotals match the committed reference dataset "
-              "(1,300 / 6,029,316 / 4,763): S8 determinism re-confirmed.")
+              f"({EXPECTED['graph_pairs']:,} / {EXPECTED['edges']:,} / "
+              f"{EXPECTED['edge_gene_positives']:,}): S8 determinism re-confirmed.")
 
     if args.json:
         payload = {"totals": totals, "per_scenario": per_scenario,

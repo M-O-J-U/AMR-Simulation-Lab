@@ -94,7 +94,10 @@ validation/byte-identity re-check.
 
 - 280 tests pass, including `tests/test_paper_v1_frozen.py`, which guards `paper_v1`
   byte-for-byte. Run `python -m pytest -q` before and after any change.
-- The reference result set is `ai/checkpoints/reseeded/lab_v2_tuned_noedge_mrsa/`
-  (+ `sweep/lab_v2_mrsa_noedge/`). Dataset SHA-256 `ee83ff385ca15ec9…`.
+- The reference result set is `ai/checkpoints/reseeded/lab_v2_grouped50_runsplit/`
+  (+ `sweep/lab_v2_mrsa_noedge/` for hyperparameter selection). Dataset SHA-256
+  `7492f6e14601ed8f…`. (Until 2026-10-01 this line still named the superseded
+  `lab_v2_tuned_noedge_mrsa` set and its hash `ee83ff385ca15ec9…` — a leftover from the
+  run50 adoption. `paper/claims_to_numbers.md` is authoritative.)
 - Do not quote the 8-gene GNN-vs-RF gap (U5), the retired 0.9934 (U1), or any per-gene
   ordering as biology (U12).

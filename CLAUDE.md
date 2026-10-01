@@ -55,6 +55,18 @@ Rule 6 (nothing public, no push) still applies.
   (no build step; plain scripts on `window.AMR`; also served at `/ui/`); rAF canvas renderer
   with interpolated motion and event animations; uPlot charts (vendored, MIT); live
   inspector; responsive layout. See commit fed7280 for details and measurements.
+- **KNOWN ISSUE (lab, open) — sidebar controls do not resync after a server-side reset**
+  (found 2026-10-01 while capturing the README screenshot, not during Phase 2 testing).
+  After `POST /reset` changes the scenario, the header updates from the stream
+  (`pakistan_crisis · lab_v2`) but the "Choose experiment" dropdown keeps its previous
+  value ("E. coli + Ciprofloxacin"), so the two disagree on screen. The dropdown is
+  presumably treated as user-owned input and never written back from snapshot state.
+  Cosmetic, not a simulation bug: the server state is correct and the canvas, stats and
+  event log all reflect the real scenario — only the control label is wrong. Reproduce:
+  start the server, open `/ui/`, `POST /reset` with a different `scenario`, compare the
+  header to the dropdown. Likely the same for other snapshot-backed controls (starting
+  bacteria, speed). A Phase 2 regression in scope for Phase 3; fixing it touches
+  `frontend/js/` only, never `simulation/` or `core/`.
 - Phase 1 done (2026-09-29): `WS /ws` live stream (`api/stream.py`: snapshot + per-step
   field-level diffs, seq/resync, per-client bounded queues, events incl. birth with
   parent_id, age derived client-side, detail fields only for inspected cells, 8-bit
