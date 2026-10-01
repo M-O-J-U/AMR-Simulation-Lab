@@ -1,0 +1,143 @@
+{
+ "n_runs": 50,
+ "n_pairs": 1300,
+ "n_edges": 6029316,
+ "positives_per_gene": {
+  "blaTEM-1": 24,
+  "blaCTX-M-15": 1446,
+  "blaKPC-2": 536,
+  "blaNDM-1": 554,
+  "mexAB-oprM": 0,
+  "acrAB-tolC": 23,
+  "gyrA_S83L": 109,
+  "mcr-1": 766,
+  "tetM": 1230,
+  "vanA": 75
+ },
+ "total_positives": 4763,
+ "split": {
+  "ecoli_cipro": {
+   "train": [
+    "ecoli_cipro/102",
+    "ecoli_cipro/103",
+    "ecoli_cipro/105",
+    "ecoli_cipro/106",
+    "ecoli_cipro/107",
+    "ecoli_cipro/108"
+   ],
+   "val": [
+    "ecoli_cipro/104",
+    "ecoli_cipro/109"
+   ],
+   "test": [
+    "ecoli_cipro/100",
+    "ecoli_cipro/101"
+   ]
+  },
+  "klebsiella_carbapenem": {
+   "train": [
+    "klebsiella_carbapenem/101",
+    "klebsiella_carbapenem/102",
+    "klebsiella_carbapenem/103",
+    "klebsiella_carbapenem/104",
+    "klebsiella_carbapenem/105",
+    "klebsiella_carbapenem/108"
+   ],
+   "val": [
+    "klebsiella_carbapenem/100",
+    "klebsiella_carbapenem/107"
+   ],
+   "test": [
+    "klebsiella_carbapenem/106",
+    "klebsiella_carbapenem/109"
+   ]
+  },
+  "mrsa_hospital": {
+   "train": [
+    "mrsa_hospital/100",
+    "mrsa_hospital/102",
+    "mrsa_hospital/104",
+    "mrsa_hospital/105",
+    "mrsa_hospital/107",
+    "mrsa_hospital/109"
+   ],
+   "val": [
+    "mrsa_hospital/101",
+    "mrsa_hospital/106"
+   ],
+   "test": [
+    "mrsa_hospital/103",
+    "mrsa_hospital/108"
+   ]
+  },
+  "pakistan_crisis": {
+   "train": [
+    "pakistan_crisis/100",
+    "pakistan_crisis/102",
+    "pakistan_crisis/103",
+    "pakistan_crisis/107",
+    "pakistan_crisis/108",
+    "pakistan_crisis/109"
+   ],
+   "val": [
+    "pakistan_crisis/101",
+    "pakistan_crisis/104"
+   ],
+   "test": [
+    "pakistan_crisis/105",
+    "pakistan_crisis/106"
+   ]
+  },
+  "xdr_acinetobacter": {
+   "train": [
+    "xdr_acinetobacter/100",
+    "xdr_acinetobacter/102",
+    "xdr_acinetobacter/103",
+    "xdr_acinetobacter/106",
+    "xdr_acinetobacter/107",
+    "xdr_acinetobacter/109"
+   ],
+   "val": [
+    "xdr_acinetobacter/104",
+    "xdr_acinetobacter/108"
+   ],
+   "test": [
+    "xdr_acinetobacter/101",
+    "xdr_acinetobacter/105"
+   ]
+  }
+ },
+ "n_graphs": {
+  "train": 780,
+  "val": 260,
+  "test": 260
+ },
+ "train_edges": 3671854,
+ "test_edges": 1148888,
+ "baseline_subsample": 303449,
+ "train_positives": {
+  "blaTEM-1": 22,
+  "blaCTX-M-15": 967,
+  "blaKPC-2": 324,
+  "blaNDM-1": 319,
+  "mexAB-oprM": 0,
+  "acrAB-tolC": 15,
+  "gyrA_S83L": 70,
+  "mcr-1": 365,
+  "tetM": 547,
+  "vanA": 62
+ },
+ "test_positives": {
+  "blaTEM-1": 0,
+  "blaCTX-M-15": 212,
+  "blaKPC-2": 61,
+  "blaNDM-1": 16,
+  "mexAB-oprM": 0,
+  "acrAB-tolC": 5,
+  "gyrA_S83L": 24,
+  "mcr-1": 217,
+  "tetM": 311,
+  "vanA": 5
+ },
+ "generation_seconds": 82.5
+}
