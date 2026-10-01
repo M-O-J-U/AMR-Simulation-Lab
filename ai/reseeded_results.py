@@ -156,12 +156,36 @@ def run(config: dict, model_seeds, ablation_seeds, out_dir: Path = None,
 
     log(f"collecting data: {scenarios_for(config)} x {config['seeds_per_scenario']} data seeds, "
         f"{config['steps_per_run']} steps, dosing {dosing_for(config)}")
-    pairs = collect_all_data(config)
+    grouped = config.get("split_by") == "run"
+    if grouped:
+        pairs, run_ids = collect_all_data(config, with_run_ids=True)
+    else:
+        pairs, run_ids = collect_all_data(config), None
     fp = dataset_fingerprint(pairs)
     log(f"dataset: {fp}")
-    tr, val, te = split_dataset(pairs, config)
-    log(f"split: train {len(tr)} / val {len(val)} / test {len(te)} graphs (split_seed "
+    tr, val, te = split_dataset(pairs, config, run_ids=run_ids)
+    log(f"split: train {len(tr)} / val {len(val)} / test {len(te)} graphs "
+        f"(split_by={'run' if grouped else 'pair'}, split_seed "
         f"{config.get('split_seed', 42)})")
+    composition = getattr(split_dataset, "last_composition", None) if grouped else None
+    if composition:
+        for scenario in sorted(composition):
+            c = composition[scenario]
+            log(f"    {scenario}: {len(c['train'])} train / {len(c['val'])} val / "
+                f"{len(c['test'])} test runs")
+
+    # Baseline subsample, scaled to hold the sampling FRACTION constant.
+    # The reference run drew 100,000 of 1,210,040 training edges (8.264%). With a
+    # larger dataset a fixed 100k would show the per-gene baselines a smaller
+    # proportion of the positives, so rare genes would fall below the 5-positive
+    # cutoff for a reason unrelated to the split being tested. Owner sign-off
+    # 2026-10-01 (this changes baseline behaviour).
+    REFERENCE_SUBSAMPLE_FRACTION = 100_000 / 1_210_040
+    n_train_edges = sum(int(d.edge_index.shape[1]) for d in tr)
+    max_train_samples = max(100_000, round(REFERENCE_SUBSAMPLE_FRACTION * n_train_edges))
+    log(f"baseline subsample: {max_train_samples:,} of {n_train_edges:,} training edges "
+        f"({100 * max_train_samples / max(1, n_train_edges):.3f}%; reference run was "
+        f"100,000 of 1,210,040 = 8.264%)")
     edge_mask = EDGE_GROUP_SLICE if no_edge else None
     gtr, gval, gte = (mask_dataset(d, None, edge_mask) for d in (tr, val, te)) if no_edge else (tr, val, te)
 
@@ -179,7 +203,8 @@ def run(config: dict, model_seeds, ablation_seeds, out_dir: Path = None,
             log(f"    graph-free headline AUROC {rec['graph_free']['headline_auroc']:.4f}")
         log(f"--- model seed {s}: baselines (RF/LR random_state {s}, subsample_seed {s}, RF {rf_hparams or 'default'})")
         bl = run_baselines(tr, te, results_path=str(tmp / "bl.json"),
-                           subsample_seed=s, model_seed=s, include_gnn=False, rf_params=rf_hparams)
+                           subsample_seed=s, model_seed=s, include_gnn=False,
+                           rf_params=rf_hparams, max_train_samples=max_train_samples)
         for k, v in bl.items():
             rec[k] = add_headline(v)
         per_seed.append(rec)
@@ -242,6 +267,15 @@ def run(config: dict, model_seeds, ablation_seeds, out_dir: Path = None,
         "gene_policy": {"headline_genes": HEADLINE_GENES, "excluded": EXCLUDED, "separate": SEPARATE},
         "model_seeds": list(model_seeds), "ablation_seeds": list(ablation_seeds),
         "dataset": fp,
+        "split": {"split_by": config.get("split_by", "pair"),
+                  "split_seed": config.get("split_seed", 42),
+                  "train_frac": config["train_frac"], "val_frac": config["val_frac"],
+                  "n_graphs": {"train": len(tr), "val": len(val), "test": len(te)},
+                  "runs_by_scenario": composition},
+        "baseline_subsample": {"max_train_samples": max_train_samples,
+                               "n_train_edges": n_train_edges,
+                               "fraction": max_train_samples / max(1, n_train_edges),
+                               "reference_fraction": REFERENCE_SUBSAMPLE_FRACTION},
         "summary": summary, "per_gene_auroc": per_gene, "per_gene_auprc": per_gene_auprc,
         "comparisons": comparisons,
         "ablation": ablation,
@@ -323,6 +357,13 @@ if __name__ == "__main__":
     ap.add_argument("--no-edge", action="store_true", help="zero edge features in every GNN run")
     ap.add_argument("--graph-free", action="store_true", help="add the n_layers=0 arm")
     ap.add_argument("--tag", default=None, help="output subfolder suffix")
+    ap.add_argument("--split-by", choices=["pair", "run"], default=None,
+                    help="'run' holds out whole simulation runs (claim U13), "
+                         "stratified by scenario; 'pair' is the original behaviour")
+    ap.add_argument("--data-seeds", type=int, default=None,
+                    help="data seeds per scenario (DEFAULT_CONFIG: 3)")
+    ap.add_argument("--train-frac", type=float, default=None)
+    ap.add_argument("--val-frac", type=float, default=None)
     a = ap.parse_args()
     if a.quick:
         run(QUICK_CONFIG, range(2), range(1), out_dir=Path("ai/checkpoints/_reseeded_quick"),
@@ -331,6 +372,14 @@ if __name__ == "__main__":
         cfg = dict(DEFAULT_CONFIG)
         if a.biology:
             cfg["biology"] = a.biology
+        if a.split_by:
+            cfg["split_by"] = a.split_by
+        if a.data_seeds:
+            cfg["seeds_per_scenario"] = a.data_seeds
+        if a.train_frac is not None:
+            cfg["train_frac"] = a.train_frac
+        if a.val_frac is not None:
+            cfg["val_frac"] = a.val_frac
         run(cfg, range(a.seeds), range(a.ablation_seeds),
             gnn_hparams=json.loads(a.gnn_hparams) if a.gnn_hparams else None,
             rf_hparams=json.loads(a.rf_hparams) if a.rf_hparams else None,

@@ -88,7 +88,7 @@ DEFAULT_CONFIG = {
     "batch_size":     8,
     "lr":             3e-4,
     "weight_decay":   1e-4,
-    "pos_weight":     15.0,    # HGT events are rare → upweight positive class
+    "pos_weight":     15.0,    # HGT events are rare -> upweight positive class
     "grad_clip":      1.0,
     "patience":       12,      # early stopping patience (epochs)
     # Warm-up: never early-stop before this epoch (added 2026-09-30). Without it,
@@ -259,13 +259,24 @@ def dosing_for(config: dict) -> dict:
             "dose_duration": config.get("dose_duration_steps", base["dose_duration_steps"])}
 
 
-def collect_all_data(config: dict, logger: Optional[SimLogger] = None) -> list:
+def collect_all_data(config: dict, logger: Optional[SimLogger] = None,
+                     with_run_ids: bool = False):
     """
     Run simulations across all configured scenarios and seeds.
     Returns list of (graph_t0, graph_t1) training pairs.
+
+    with_run_ids=True additionally returns a parallel list naming the simulation
+    run each pair came from, as "scenario/seed". That is what `split_dataset`
+    needs to group a split by run instead of by snapshot pair.
+
+    The run id is carried ALONGSIDE the pairs, deliberately not stamped into each
+    graph's `metadata`. `tests/golden/fingerprint.py` hashes every key of the graph
+    dict, metadata included, so adding a key there would break the frozen paper_v1
+    byte-identity guard. Keeping the ids outside the graph leaves that untouched.
     """
     all_pairs = []
-    total_runs = len(config["scenarios"]) * config["seeds_per_scenario"]
+    run_ids: List[str] = []
+    total_runs = len(scenarios_for(config)) * config["seeds_per_scenario"]
     run_num = 0
 
     for scenario in scenarios_for(config):
@@ -287,15 +298,16 @@ def collect_all_data(config: dict, logger: Optional[SimLogger] = None) -> list:
                 **dosing_for(config),
             )
             all_pairs.extend(pairs)
+            run_ids.extend([f"{scenario}/{seed + 100}"] * len(pairs))
             elapsed = time.time() - t_start
 
-            msg = (f"  → {len(pairs)} graph pairs collected "
+            msg = (f"  -> {len(pairs)} graph pairs collected "
                    f"({elapsed:.1f}s) | running total: {len(all_pairs)}")
             print(msg)
             if logger:
                 logger.log(LogLevel.STEP, msg)
 
-    return all_pairs
+    return (all_pairs, run_ids) if with_run_ids else all_pairs
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -303,7 +315,8 @@ def collect_all_data(config: dict, logger: Optional[SimLogger] = None) -> list:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def split_dataset(
-    pairs: list, config: dict, split_seed: Optional[int] = None
+    pairs: list, config: dict, split_seed: Optional[int] = None,
+    run_ids: Optional[List[str]] = None,
 ) -> Tuple["AMRGraphDataset", "AMRGraphDataset", "AMRGraphDataset"]:
     """
     Randomly split graph pairs into train/val/test datasets.
@@ -333,6 +346,45 @@ def split_dataset(
     """
     rng = random.Random(split_seed if split_seed is not None
                         else config.get("split_seed", 42))
+
+    # Grouped split: hold out whole simulation RUNS, not individual snapshot pairs.
+    # A pair-level split puts snapshots three steps apart, from the same founding
+    # population and the same seed, on both sides of the split, so it measures
+    # generalisation to later moments of runs already seen (claim U13). Grouping by
+    # run measures generalisation to unseen runs. Stratified by scenario so a random
+    # draw cannot put every test run in one scenario.
+    if config.get("split_by") == "run":
+        if run_ids is None or len(run_ids) != len(pairs):
+            raise ValueError(
+                "split_by='run' needs a run_ids list parallel to pairs; get one from "
+                "collect_all_data(config, with_run_ids=True).")
+        by_scenario: Dict[str, List[str]] = {}
+        for rid in dict.fromkeys(run_ids):          # unique, order preserved
+            by_scenario.setdefault(rid.split("/")[0], []).append(rid)
+        assign: Dict[str, str] = {}
+        composition = {}
+        for scenario in sorted(by_scenario):
+            runs = sorted(by_scenario[scenario])
+            rng.shuffle(runs)
+            n_tr = int(len(runs) * config["train_frac"])
+            n_val = int(len(runs) * config["val_frac"])
+            for rid in runs[:n_tr]:
+                assign[rid] = "train"
+            for rid in runs[n_tr:n_tr + n_val]:
+                assign[rid] = "val"
+            for rid in runs[n_tr + n_val:]:
+                assign[rid] = "test"
+            composition[scenario] = {
+                "train": runs[:n_tr], "val": runs[n_tr:n_tr + n_val],
+                "test": runs[n_tr + n_val:]}
+        buckets: Dict[str, list] = {"train": [], "val": [], "test": []}
+        for pair, rid in zip(pairs, run_ids):
+            buckets[assign[rid]].append(pair)
+        split_dataset.last_composition = composition   # for reporting/provenance
+        return (AMRGraphDataset(buckets["train"]),
+                AMRGraphDataset(buckets["val"]),
+                AMRGraphDataset(buckets["test"]))
+
     pairs = list(pairs)   # copy — do not mutate caller's list in place
     rng.shuffle(pairs)
     n      = len(pairs)
@@ -562,7 +614,7 @@ def _train_core(
             if logger:
                 logger.log(LogLevel.MILESTONE,
                     f"New best model | AUROC={best_auroc:.4f} | "
-                    f"epoch={epoch} → {checkpoint_path}", step=epoch)
+                    f"epoch={epoch} -> {checkpoint_path}", step=epoch)
         else:
             patience_count += 1
             # Optional warm-up: never stop before config["min_epochs"] (default 0 =

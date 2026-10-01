@@ -88,7 +88,7 @@ def flatten_dataset(ds: AMRGraphDataset) -> Tuple[np.ndarray, np.ndarray]:
     """
     Convert graph dataset to tabular (X, y) for sklearn baselines.
 
-    For each directed edge (i→j):
+    For each directed edge (i->j):
       X = [node_features_i | node_features_j | edge_features]
           shape: (NODE_FEATURE_DIM * 2 + EDGE_FEATURE_DIM,) = 75 dims
           (35*2 + 5, post leakage-remediation feature set)
