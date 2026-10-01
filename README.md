@@ -283,7 +283,7 @@ A write-up of the GNN work built on this simulator lives in [`paper/`](paper/).
 
 | File | What |
 |---|---|
-| [`paper/amr_hgt_gnn.pdf`](paper/amr_hgt_gnn.pdf) | The assembled paper, 31 pages, 4 figures, 29 references |
+| [`paper/amr_hgt_gnn.pdf`](paper/amr_hgt_gnn.pdf) | The assembled paper, 32 pages, 4 figures, 29 references |
 | [`paper/amr_hgt_gnn.md`](paper/amr_hgt_gnn.md) / `.html` | Same document, other formats |
 | [`paper/draft/`](paper/draft/) | The sections it is built from, `00_abstract.md` … `08_conclusion.md` |
 | [`paper/figures/`](paper/figures/) | Figures (PNG + PDF) and their generated captions |
@@ -294,7 +294,7 @@ Every number in the paper traces to a committed result file through a script tha
 
 | File | What it is for |
 |---|---|
-| [`paper/claims_to_numbers.md`](paper/claims_to_numbers.md) | Claim → number → source. **S1–S10** are supported; **U1–U14** are claims the numbers do *not* support, each with the reason |
+| [`paper/claims_to_numbers.md`](paper/claims_to_numbers.md) | Claim → number → source. **S1–S10** are supported; **U1–U14** are claims the numbers do *not* support (U13 is now resolved and kept as the record of what the earlier split cost), each with the reason |
 | [`paper/decisions_log.md`](paper/decisions_log.md) | Dated decisions, with the options considered |
 | [`paper/citations.md`](paper/citations.md) | Per-reference audit: authors, venue, year, DOI, the text that supports the claim, and how far each source was verified |
 | [`paper/gene_mechanism_audit.md`](paper/gene_mechanism_audit.md) | Every modelled gene's real mobility against what the simulator does with it |
@@ -356,7 +356,20 @@ LinkedIn: [linkedin.com/in/abdul-moiz-muhammad](https://linkedin.com/in/abdul-mo
 
 
 ### Run Sequence
-# GPU Run Instructions — Final Submission-Grade Numbers
+# GPU Run Instructions (historical runbook — does NOT reproduce the paper)
+
+> **These steps predate the paper's current reference set and will not reproduce its
+> numbers.** They train on `DEFAULT_CONFIG` (3 data seeds per scenario) with a split taken
+> over snapshot pairs. The paper's reference set uses **10 data seeds per scenario (50 runs)
+> and a split by simulation run**, because the pair-level split was inflating results — see
+> `paper/claims_to_numbers.md` (claim U13) and §4.9 of the paper.
+>
+> To regenerate the paper's reference set instead:
+> ```bash
+> python -m ai.reseeded_results --seeds 5 --ablation-seeds 3 --data-seeds 10 >     --train-frac 0.6 --val-frac 0.2 --split-by run >     --gnn-hparams '{"hidden_dim":128,"lr":0.001,"n_layers":2}' >     --rf-hparams  '{"n_estimators":300,"max_depth":8}' >     --no-edge --graph-free --tag grouped50_runsplit
+> ```
+> (~3.5 h on an RTX 4070 SUPER.) The steps below are kept as a record of how the earlier,
+> superseded numbers were produced.
 
 Run these on your RTX 4070 machine, in this **exact order**. The order is
 not a suggestion — `baselines --full` will now hard-fail (not silently
@@ -370,13 +383,13 @@ fabrication paths.
 cd "C:\Users\mojua\Desktop\AMR Simulation Lab"
 python main.py test
 ```
-This must show 0 failed before you do anything else (189 passed as of
-2026-09-29; it was 114 when these instructions were written, before
-`tests/test_api.py` and later GNN tests were added). If it doesn't,
+This must show 0 failed before you do anything else (280 passed as of
+2026-10-01; it was 114 when these instructions were written, before
+`tests/test_api.py` and later GNN and split tests were added). If it doesn't,
 something didn't sync correctly from this session's fixes — stop and
 re-sync the files, don't proceed to training on a broken pipeline.
 
-## Step 1 — Train the GNN (full config, DEFAULT_CONFIG: 4 scenarios × 3 seeds × 80 steps, 60 epochs)
+## Step 1 — Train the GNN (DEFAULT_CONFIG: 5 scenarios × 3 data seeds × 80 steps, 60 epochs — NOT the paper's config)
 
 ```powershell
 python main.py train-gnn --full --epochs 60
@@ -487,7 +500,9 @@ honestly (see prior discussion) rather than being blocked on it.
   other because they're computed from the same pipeline and the same
   held-out test set — not because any of them were hand-edited to match.
 
-Send me the final printed AUROC/AUPRC/F1 numbers from Steps 1-3 plus the
-Step 4 verification output once this completes, and I'll write the
-resubmission-ready paper draft with real, cross-consistent numbers instead
-of the reduced-scope CPU numbers currently sitting in this repo.
+*(Historical note: the sentence that stood here asked for these numbers so a
+"resubmission-ready" draft could be written. That is obsolete. The paper was
+written, the manuscript it would have been resubmitted to was rejected and
+retired, and the current draft has no venue. The numbers it reports come from
+the 50-run, run-grouped reference set described at the top of this section,
+not from the steps below.)*
