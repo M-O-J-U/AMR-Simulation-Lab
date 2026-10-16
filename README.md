@@ -5,7 +5,7 @@
 [![Python](https://img.shields.io/badge/Python-3.12%2B%20(tested%203.14)-blue?logo=python)](https://python.org)
 [![Mesa](https://img.shields.io/badge/Mesa-ABM-orange)](https://mesa.readthedocs.io)
 [![FastAPI](https://img.shields.io/badge/FastAPI-REST%20%2B%20WebSocket-green)](https://fastapi.tiangolo.com)
-[![WHO Priority](https://img.shields.io/badge/WHO%20Priority%20Pathogens-CRITICAL-red)](https://www.who.int/publications/i/item/WHO-EMP-IAU-2017.12)
+[![WHO Priority](https://img.shields.io/badge/WHO%20Priority%20Pathogens-CRITICAL-red)](https://www.who.int/publications/i/item/9789240093461)
 
 A scientifically grounded, interactive agent-based simulation of antimicrobial resistance (AMR) dynamics. Bacteria live, grow, mutate, form biofilms, transfer resistance genes via horizontal gene transfer (HGT), and die — all driven by real resistance mechanisms from the [CARD database](https://card.mcmaster.ca/).
 
@@ -342,7 +342,7 @@ To confirm the simulation matches real biology:
 | [CARD v3.2](https://card.mcmaster.ca/download) | Resistance gene ontology, mechanisms, drug class mappings |
 | [WHO GLASS 2022](https://www.who.int/publications/i/item/9789240062894) | Pakistan AMR surveillance data, species prevalence |
 | [EUCAST 2023 Breakpoints](https://www.eucast.org/clinical_breakpoints/) | MIC susceptible/resistant thresholds for all antibiotics |
-| [WHO Priority Pathogens 2017](https://www.who.int/publications/i/item/WHO-EMP-IAU-2017.12) | Pathogen prioritization (CRITICAL/HIGH/MEDIUM) |
+| [WHO Bacterial Priority Pathogens List 2024](https://www.who.int/publications/i/item/9789240093461) | Pathogen prioritization (CRITICAL/HIGH/MEDIUM) shown in the lab |
 | [NCBI AMR Reference](https://www.ncbi.nlm.nih.gov/pathogens/antimicrobial-resistance/) | Gene sequences and nomenclature |
 
 ---

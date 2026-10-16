@@ -10,11 +10,14 @@ window.AMR = window.AMR || {};
   // Fields the server only sends for the inspected cell (api/stream.py DETAIL_FIELDS).
   AMR.DETAIL_FIELDS = ['offspring_count', 'local_density'];
 
+  // WHO priority groups from the WHO Bacterial Priority Pathogens List 2024 (https://www.who.int/news/item/17-05-2024-who-updates-list-of-drug-resistant-bacteria-most-threatening-to-human-health):
+  // resistant Enterobacterales (E. coli, K. pneumoniae) and carbapenem-resistant A. baumannii are CRITICAL;
+  // carbapenem-resistant P. aeruginosa and MRSA are HIGH.
   AMR.SPECIES = {
-    'Escherichia coli': { color: '#4CAF50', who: 'HIGH' },
+    'Escherichia coli': { color: '#4CAF50', who: 'CRITICAL' },
     'Klebsiella pneumoniae': { color: '#FF9800', who: 'CRITICAL' },
     'Acinetobacter baumannii': { color: '#F44336', who: 'CRITICAL' },
-    'Pseudomonas aeruginosa': { color: '#9C27B0', who: 'CRITICAL' },
+    'Pseudomonas aeruginosa': { color: '#9C27B0', who: 'HIGH' },
     'Staphylococcus aureus (MRSA)': { color: '#FFD700', who: 'HIGH' },
   };
 
